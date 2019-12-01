@@ -31,6 +31,7 @@ set(Sources
 	include/SimpleDiscoverableDevice.h src/SimpleDiscoverableDevice.cpp
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h
+	include/SysexDataSerializationCapability.h
 	include/TypedNamedValue.h		
 	README.md
 	LICENSE.md

@@ -1,16 +1,18 @@
+/*
+   Copyright (c) 2019 Christof Ruch. All rights reserved.
+
+   Dual licensed: Distributed under Affero GPL license by default, an MIT license is available for purchase
+*/
+
 #pragma once
 
-#include "../JuceLibraryCode/JuceHeader.h"
-
-#include <boost/uuid/uuid.hpp>
-#include <boost/uuid/random_generator.hpp>
-#include <boost/uuid/nil_generator.hpp>
+#include "JuceHeader.h"
 
 class EditBufferHandler {
 public:
-	typedef boost::uuids::uuid HandlerHandle;
-	static HandlerHandle makeOne() { return boost::uuids::random_generator()(); }
-	static HandlerHandle makeNone() { return boost::uuids::nil_generator()(); }
+	typedef juce::Uuid HandlerHandle;
+	static HandlerHandle makeOne() { return juce::Uuid(); }
+	static HandlerHandle makeNone() { return juce::Uuid::null(); }
 
 	//TODO - I think these should have an optional expiration date/timeout with a timeout handler, like when the expected response doesn't happen
 	virtual void setNextEditBufferHandler(HandlerHandle const &uuid, std::function<void(juce::MidiMessage const &)> handler) = 0;

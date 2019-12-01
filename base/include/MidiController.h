@@ -1,3 +1,9 @@
+/*
+   Copyright (c) 2019 Christof Ruch. All rights reserved.
+
+   Dual licensed: Distributed under Affero GPL license by default, an MIT license is available for purchase
+*/
+
 #pragma once
 
 #include "JuceHeader.h"
@@ -7,9 +13,8 @@
 
 #include <map>
 
+// Forward declaration for the SafeMidiOutput class
 class MidiController;
-class DiscoverableDevice;
-class SimpleLogger;
 
 class SafeMidiOutput {
 public:
@@ -40,7 +45,7 @@ public:
 	void disableMidiInput(std::string const &input);
 
 	// Implementation of Callback
-	virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message);
+	virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
 
 	// Implementation of the editBufferHandler
 	virtual void setNextEditBufferHandler(HandlerHandle const &handle, std::function<void(MidiMessage const &)> handler) override;

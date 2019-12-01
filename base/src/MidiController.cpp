@@ -1,10 +1,6 @@
 #include "MidiController.h"
 
 #include "DiscoverableDevice.h"
-#include "FindSynthOnMidiNetwork.h"
-#include "Logger.h"
-
-#include <boost/format.hpp>
 
 SafeMidiOutput::SafeMidiOutput(MidiController *controller, MidiOutput *midiOutput) :
 	midiOut_(midiOutput), controller_(controller)

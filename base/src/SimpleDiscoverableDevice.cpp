@@ -6,29 +6,33 @@
 
 #include "SimpleDiscoverableDevice.h"
 
-void SimpleDiscoverableDevice::setCurrentChannelZeroBased(std::string const &midiInput, std::string const &midiOutput, int midiChannel)
-{
-	channel_ = MidiChannel::fromZeroBase(midiChannel & 0x0f); // Allowed values are 0-15
-	midiInput_ = midiInput;
-	midiOutput_ = midiOutput;
-}
+namespace midikraft {
 
-void SimpleDiscoverableDevice::setChannel(MidiChannel newChannel)
-{
-	channel_ = newChannel;
-}
+	void SimpleDiscoverableDevice::setCurrentChannelZeroBased(std::string const &midiInput, std::string const &midiOutput, int midiChannel)
+	{
+		channel_ = MidiChannel::fromZeroBase(midiChannel & 0x0f); // Allowed values are 0-15
+		midiInput_ = midiInput;
+		midiOutput_ = midiOutput;
+	}
 
-std::string SimpleDiscoverableDevice::midiInput() const
-{
-	return midiInput_;
-}
+	void SimpleDiscoverableDevice::setChannel(MidiChannel newChannel)
+	{
+		channel_ = newChannel;
+	}
 
-std::string SimpleDiscoverableDevice::midiOutput() const
-{
-	return midiOutput_;
-}
+	std::string SimpleDiscoverableDevice::midiInput() const
+	{
+		return midiInput_;
+	}
 
-MidiChannel SimpleDiscoverableDevice::channel() const
-{
-	return channel_;
+	std::string SimpleDiscoverableDevice::midiOutput() const
+	{
+		return midiOutput_;
+	}
+
+	MidiChannel SimpleDiscoverableDevice::channel() const
+	{
+		return channel_;
+	}
+
 }

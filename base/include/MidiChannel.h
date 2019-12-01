@@ -6,32 +6,35 @@
 
 #pragma once
 
-// Just saw too many bugs not knowing if the int is zero or one based...
+namespace midikraft {
 
-class MidiChannel {
-public:
-	static MidiChannel fromZeroBase(int zeroBasedInt) { return MidiChannel(zeroBasedInt); };
-	static MidiChannel fromOneBase(int oneBasedInt) { return MidiChannel(oneBasedInt - 1); };
-	static MidiChannel omniChannel() { return MidiChannel(0, true); }; // For now, assume Omni is channel 1
-	static MidiChannel invalidChannel() { return MidiChannel(); };
+	// Just saw too many bugs not knowing if the int is zero or one based...
 
-	int toZeroBasedInt() const { return zerobasedChannel_;  }
-	int toOneBasedInt() const { return zerobasedChannel_ + 1; }
+	class MidiChannel {
+	public:
+		static MidiChannel fromZeroBase(int zeroBasedInt) { return MidiChannel(zeroBasedInt); };
+		static MidiChannel fromOneBase(int oneBasedInt) { return MidiChannel(oneBasedInt - 1); };
+		static MidiChannel omniChannel() { return MidiChannel(0, true); }; // For now, assume Omni is channel 1
+		static MidiChannel invalidChannel() { return MidiChannel(); };
 
-	bool isValid() const { return isValid_;  }
-	bool isOmni() const { return isOmni_; }
+		int toZeroBasedInt() const { return zerobasedChannel_; }
+		int toOneBasedInt() const { return zerobasedChannel_ + 1; }
 
-private:
-	bool isValid_;
-	bool isOmni_;
-	int zerobasedChannel_;
+		bool isValid() const { return isValid_; }
+		bool isOmni() const { return isOmni_; }
 
-	// Don't call the constructor with an int, you wouldn't know what you mean. This is why it is private
-	MidiChannel(int zerobasedChannel, bool isOmni = false) : zerobasedChannel_(zerobasedChannel), isOmni_(isOmni) { 
-		isValid_ = zerobasedChannel >= 0 && zerobasedChannel < 16;
-	}; 
+	private:
+		bool isValid_;
+		bool isOmni_;
+		int zerobasedChannel_;
 
-	MidiChannel() : zerobasedChannel_(-1), isValid_(false) {
-	}
-};
+		// Don't call the constructor with an int, you wouldn't know what you mean. This is why it is private
+		MidiChannel(int zerobasedChannel, bool isOmni = false) : zerobasedChannel_(zerobasedChannel), isOmni_(isOmni) {
+			isValid_ = zerobasedChannel >= 0 && zerobasedChannel < 16;
+		};
 
+		MidiChannel() : zerobasedChannel_(-1), isValid_(false) {
+		}
+	};
+
+}

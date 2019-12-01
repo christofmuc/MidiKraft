@@ -38,7 +38,7 @@ set(Sources
 
 # Setup library
 add_library(libmidikraft-base ${Sources})
-target_include_directories(libmidikraft-base INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include PRIVATE ${JUCE_INCLUDES})
+target_include_directories(libmidikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include PRIVATE ${JUCE_INCLUDES})
 
 # Pedantic about warnings
 if (MSVC)

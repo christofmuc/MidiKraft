@@ -24,6 +24,7 @@ ENDIF()
 # Define the sources for the static library
 set(Sources
 	include/DiscoverableDevice.h
+	include/DynamicPlugin.h
 	include/MasterkeyboardCapability.h
 	include/MidiChannel.h
 	include/MidiController.h src/MidiController.cpp

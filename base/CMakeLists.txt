@@ -6,11 +6,11 @@
 
 cmake_minimum_required(VERSION 3.14)
 
-project(Midikraft-Base)
+project(MidiKraft-Base)
 
 # Find JUCE, and add the components we need
 IF(NOT DEFINED JUCE_LIBRARIES)
-	SET(JUCE_DIR_HINT "${CMAKE_CURRENT_LIST_DIR}/third_party")
+	SET(JUCE_DIR_HINT "${CMAKE_CURRENT_LIST_DIR}/../third_party")
 	find_package(JUCE REQUIRED 
 		COMPONENTS 
 			juce_core		
@@ -38,14 +38,14 @@ set(Sources
 )
 
 # Setup library
-add_library(libmidikraft-base ${Sources})
-target_include_directories(libmidikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include PRIVATE ${JUCE_INCLUDES})
+add_library(midikraft-base ${Sources})
+target_include_directories(midikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include PRIVATE ${JUCE_INCLUDES})
 
 # Pedantic about warnings
 if (MSVC)
     # warning level 4 and all warnings as errors
-    target_compile_options(libmidikraft-base PRIVATE /W4 /WX)
+    target_compile_options(midikraft-base PRIVATE /W4 /WX)
 else()
     # lots of warnings and all warnings as errors
-    #target_compile_options(libmidikraft-base PRIVATE -Wall -Wextra -pedantic -Werror)
+    #target_compile_options(midikraft-base PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()

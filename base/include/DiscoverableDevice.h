@@ -1,3 +1,9 @@
+/*
+   Copyright (c) 2019 Christof Ruch. All rights reserved.
+
+   Dual licensed: Distributed under Affero GPL license by default, an MIT license is available for purchase
+*/
+
 #pragma once
 
 #include "JuceHeader.h"
@@ -5,12 +11,13 @@
 #include "NamedDeviceCapability.h"
 #include "MidiChannel.h"
 
+//TODO - Woah, can't remember why this needs to be a virtual inheritance? Smell!
 class DiscoverableDevice : public virtual NamedDeviceCapability {
 public:
 	// These need to be implemented by any new device we want to find on the network
-	virtual MidiMessage deviceDetect(int channel) = 0;
+	virtual juce::MidiMessage deviceDetect(int channel) = 0;
 	virtual int deviceDetectSleepMS() = 0;
-	virtual MidiChannel channelIfValidDeviceResponse(const MidiMessage &message) = 0;
+	virtual MidiChannel channelIfValidDeviceResponse(const juce::MidiMessage &message) = 0;
 	virtual bool needsChannelSpecificDetection() = 0;
 };
 

@@ -23,6 +23,7 @@ ENDIF()
 
 # Define the sources for the static library
 set(Sources
+	include/BankDumpCapability.h
 	include/DiscoverableDevice.h
 	include/EditBufferCapability.h
 	include/MasterkeyboardCapability.h
@@ -38,6 +39,7 @@ set(Sources
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h
 	include/Synth.h src/Synth.cpp
+	include/SynthParameterDefinition.h
 	include/SysexDataSerializationCapability.h
 	include/TypedNamedValue.h		
 	README.md

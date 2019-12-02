@@ -23,15 +23,24 @@ ENDIF()
 
 # Define the sources for the static library
 set(Sources
+	include/BankDumpCapability.h
 	include/DiscoverableDevice.h
 	include/DynamicPlugin.h
+	include/EditBufferCapability.h
 	include/MasterkeyboardCapability.h
+	include/MidiBankNumber.h
 	include/MidiChannel.h
 	include/MidiController.h src/MidiController.cpp
 	include/NamedDeviceCapability.h
+	include/NrpnDefinition.h src/NrpnDefinition.cpp
+	include/Patch.h src/Patch.cpp
+	include/PatchNumber.h
+	include/ProgramDumpCapability.h
 	include/SimpleDiscoverableDevice.h src/SimpleDiscoverableDevice.cpp
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h
+	include/Synth.h src/Synth.cpp
+	include/SynthParameterDefinition.h
 	include/SysexDataSerializationCapability.h
 	include/TypedNamedValue.h		
 	README.md
@@ -40,7 +49,8 @@ set(Sources
 
 # Setup library
 add_library(midikraft-base ${Sources})
-target_include_directories(midikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include PRIVATE ${JUCE_INCLUDES})
+target_include_directories(midikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include PRIVATE ${JUCE_INCLUDES} ${boost_SOURCE_DIR})
+target_link_libraries(midikraft-base PRIVATE juce-utils)
 
 # Pedantic about warnings
 if (MSVC)

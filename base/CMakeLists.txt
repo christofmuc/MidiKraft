@@ -27,6 +27,8 @@ set(Sources
 	include/DiscoverableDevice.h
 	include/DynamicPlugin.h
 	include/EditBufferCapability.h
+	include/LayerCapability.h
+	include/LayeredPatch.h
 	include/MasterkeyboardCapability.h
 	include/MidiBankNumber.h
 	include/MidiChannel.h

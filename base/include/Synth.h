@@ -9,16 +9,14 @@
 #include "JuceHeader.h"
 
 #include "SimpleDiscoverableDevice.h"
+#include "MidiController.h"
 #include "MidiProgramNumber.h"
 #include "MidiBankNumber.h"
+#include "Logger.h"
 
 namespace midikraft {
 
 	class Patch;
-	class MidiController;
-	class EditBufferHandler;
-	class SimpleLogger;
-	class BCR2000;
 
 	typedef std::vector<std::shared_ptr<Patch>> TPatchVector;
 
@@ -41,7 +39,7 @@ namespace midikraft {
 		// Generic functions that should function with most Synthesizers, only overload if required
 		virtual TPatchVector loadSysex(std::vector<MidiMessage> const &sysexMessages);
 		virtual void saveSysex(std::string const &filename, std::vector<MidiMessage> messages);
-		virtual void sendPatchToSynth(MidiController *controller, EditBufferHandler *handler, SimpleLogger *logger, Patch const &patch);
+		virtual void sendPatchToSynth(MidiController *controller, SimpleLogger *logger, Patch const &patch);
 	};
 
 }

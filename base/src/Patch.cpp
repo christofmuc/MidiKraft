@@ -8,6 +8,8 @@
 
 #include "SynthParameterDefinition.h"
 
+#include <boost/format.hpp>
+
 namespace midikraft {
 
 	Patch::Patch()

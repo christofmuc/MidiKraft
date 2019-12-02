@@ -15,6 +15,8 @@
 #include "ProgramDumpCapability.h"
 #include "BankDumpCapability.h"
 
+#include <boost/format.hpp>
+
 namespace midikraft {
 
 	Synth::PatchData Synth::filterVoiceRelevantData(PatchData const &unfilteredData) const
@@ -91,7 +93,7 @@ namespace midikraft {
 		}
 	}
 
-	void Synth::sendPatchToSynth(MidiController *controller, EditBufferHandler *handler, SimpleLogger *logger, Patch const &patch)
+	void Synth::sendPatchToSynth(MidiController *controller, SimpleLogger *logger, Patch const &patch)
 	{
 		// Default implementation is to just shoot it to the Midi output and hope for the best, no handshake is done
 		auto editBufferCapability = dynamic_cast<EditBufferCapability *>(this);

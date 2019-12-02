@@ -24,13 +24,20 @@ ENDIF()
 # Define the sources for the static library
 set(Sources
 	include/DiscoverableDevice.h
+	include/EditBufferCapability.h
 	include/MasterkeyboardCapability.h
+	include/MidiBankNumber.h
 	include/MidiChannel.h
 	include/MidiController.h src/MidiController.cpp
 	include/NamedDeviceCapability.h
+	include/NrpnDefinition.h src/NrpnDefinition.cpp
+	include/Patch.h src/Patch.cpp
+	include/PatchNumber.h
+	include/ProgramDumpCapability.h
 	include/SimpleDiscoverableDevice.h src/SimpleDiscoverableDevice.cpp
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h
+	include/Synth.h src/Synth.cpp
 	include/SysexDataSerializationCapability.h
 	include/TypedNamedValue.h		
 	README.md

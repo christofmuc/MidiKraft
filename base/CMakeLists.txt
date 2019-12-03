@@ -23,10 +23,12 @@ ENDIF()
 
 # Define the sources for the static library
 set(Sources
+	include/AutoDetection.h src/AutoDetection.cpp
 	include/BankDumpCapability.h
 	include/DiscoverableDevice.h
 	include/DynamicPlugin.h
 	include/EditBufferCapability.h
+	include/FindSynthOnMidiNetwork.h src/FindSynthOnMidiNetwork.cpp
 	include/LayerCapability.h
 	include/LayeredPatch.h
 	include/MasterkeyboardCapability.h

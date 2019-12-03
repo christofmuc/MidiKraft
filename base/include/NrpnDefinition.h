@@ -21,6 +21,7 @@ namespace midikraft {
 		virtual std::string valueAsText(int value) const;
 		virtual int valueFromText(std::string const &value) const;
 		virtual int sysexIndex() const;
+		virtual int numberOfValues() const;
 
 		virtual bool matchesController(int controllerNumber) const;
 

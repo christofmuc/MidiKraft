@@ -21,6 +21,7 @@ namespace midikraft {
 		virtual std::string name() const = 0;
 		virtual std::string valueAsText(int value) const = 0;
 		virtual int sysexIndex() const = 0;
+		virtual int endSysexIndex() const = 0;
 		virtual std::string description() const = 0;
 		virtual bool matchesController(int controllerNumber) const = 0;
 		virtual int minValue() const = 0;

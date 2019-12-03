@@ -72,6 +72,11 @@ namespace midikraft {
 		return sysex_;
 	}
 
+	int NrpnDefinition::numberOfValues() const
+	{
+		return endNumber_ - number_ + 1;
+	}
+
 	NRPNValue::NRPNValue(NrpnDefinition const &def, int value) :
 		def_(def), value_(value)
 	{

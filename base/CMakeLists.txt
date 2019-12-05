@@ -35,6 +35,7 @@ set(Sources
 	include/MidiBankNumber.h
 	include/MidiChannel.h
 	include/MidiController.h src/MidiController.cpp
+	include/MidiRequest.h src/MidiRequest.cpp
 	include/NamedDeviceCapability.h
 	include/NrpnDefinition.h src/NrpnDefinition.cpp
 	include/Patch.h src/Patch.cpp

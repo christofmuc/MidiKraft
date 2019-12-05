@@ -15,6 +15,7 @@ namespace midikraft {
 	typedef std::map<int, std::string> TValueLookup;
 
 	class Patch;
+	class Synth;
 
 	class SynthParameterDefinition {
 	public:
@@ -27,11 +28,13 @@ namespace midikraft {
 		virtual int minValue() const = 0;
 		virtual int maxValue() const = 0;
 
-
 		//! A parameter is deemed active when its value can have any meaningful effect on the sound produced
 		virtual bool isActive(Patch const *patch) const = 0;
 
 		virtual bool valueInPatch(Patch const &patch, int &outValue) const = 0;
+
+		// This is for live editing!
+		virtual MidiBuffer setValueMessage(Patch const &patch, Synth *synth) const = 0;
 	};
 
 }

@@ -67,6 +67,11 @@ namespace midikraft {
 		return nrpn >= number_ && nrpn <= endNumber_;
 	}
 
+	int NrpnDefinition::number() const
+	{
+		return number_;
+	}
+
 	int NrpnDefinition::sysexIndex() const
 	{
 		return sysex_;

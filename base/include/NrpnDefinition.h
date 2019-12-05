@@ -28,6 +28,7 @@ namespace midikraft {
 		int min() const;
 		int max() const;
 		bool isOneOfThese(int nrpn) const;
+		int number() const;
 
 	private:
 		int number_;

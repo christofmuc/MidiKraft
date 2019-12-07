@@ -22,7 +22,8 @@ namespace midikraft {
 		//TODO - should I use inheritance? Or a capability interface again?
 		enum class ParamType {
 			INT,
-			INT_ARRAY
+			INT_ARRAY,
+			LOOKUP
 		};
 
 		// Synth parameters are usually integers, or arrays of integers (e.g. gated sequencer)
@@ -47,6 +48,8 @@ namespace midikraft {
 		virtual bool valueInPatch(Patch const &patch, int &outValue) const = 0;
 		//! Use this function to retrieve the integer array value in the patch
 		virtual bool valueInPatch(Patch const &patch, std::vector<int> &outValue) const = 0;
+
+		virtual std::string valueInPatchToText(Patch const &patch) const = 0;
 
 		virtual void setInPatch(Patch &patch, int value) const = 0;
 		virtual void setInPatch(Patch &patch, std::vector<int> value) const = 0;

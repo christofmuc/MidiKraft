@@ -48,10 +48,7 @@ namespace midikraft {
 
 		for (auto param : allParameterDefinitions()) {
 			if (!onlyActive || param->isActive(this)) {
-				int value;
-				if (param->valueInPatch(*this, value)) {
-					result = result + (boost::format("%s: %s\n") % param->description() % param->valueAsText(value)).str();
-				}
+				result = result + (boost::format("%s: %s\n") % param->description() % param->valueInPatchToText(*this)).str();
 			}
 		}
 		return result;

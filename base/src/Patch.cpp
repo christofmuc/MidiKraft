@@ -47,7 +47,8 @@ namespace midikraft {
 		std::string result;
 
 		for (auto param : allParameterDefinitions()) {
-			if (!onlyActive || param->isActive(this)) {
+			auto activeCheck = dynamic_cast<SynthParameterActiveDetectionCapability *>(param);
+			if (!onlyActive || !activeCheck || !(activeCheck->isActive(this))) {
 				result = result + (boost::format("%s: %s\n") % param->description() % param->valueInPatchToText(*this)).str();
 			}
 		}

@@ -36,8 +36,7 @@ set(Sources
 	include/MidiChannel.h
 	include/MidiController.h src/MidiController.cpp
 	include/MidiRequest.h src/MidiRequest.cpp
-	include/NamedDeviceCapability.h
-	include/NrpnDefinition.h src/NrpnDefinition.cpp
+	include/NamedDeviceCapability.h	
 	include/Patch.h src/Patch.cpp
 	include/PatchNumber.h
 	include/ProgramDumpCapability.h

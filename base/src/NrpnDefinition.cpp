@@ -72,6 +72,11 @@ namespace midikraft {
 		return number_;
 	}
 
+	bool NrpnDefinition::isLookup() const
+	{
+		return !valueLookup_.empty();
+	}
+
 	int NrpnDefinition::sysexIndex() const
 	{
 		return sysex_;

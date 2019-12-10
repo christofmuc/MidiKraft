@@ -30,9 +30,6 @@ namespace midikraft {
 		virtual void setAt(int sysExIndex, uint8 value);
 
 		// High level functions to be overridden by subclasses
-		virtual int value(SynthParameterDefinition const &param) const = 0;
-		virtual SynthParameterDefinition const &paramBySysexIndex(int sysexIndex) const = 0;
-		virtual std::vector<std::string> warnings() = 0;
 		virtual std::vector<SynthParameterDefinition *> allParameterDefinitions() = 0;
 
 		// Generic utility functions

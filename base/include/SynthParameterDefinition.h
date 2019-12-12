@@ -21,7 +21,8 @@ namespace midikraft {
 		enum class ParamType {
 			INT,
 			INT_ARRAY,
-			LOOKUP
+			LOOKUP,
+			LOOKUP_ARRAY
 		};
 
 		// Synth parameters are usually integers, or arrays of integers (e.g. gated sequencer)

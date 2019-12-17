@@ -52,6 +52,9 @@ namespace midikraft {
 
 	MidiController * MidiController::instance()
 	{
+		if (instance_ == nullptr) {
+			instance_ = new MidiController;
+		}
 		return instance_;
 	}
 

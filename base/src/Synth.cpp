@@ -64,9 +64,9 @@ namespace midikraft {
 					if (patch->patchName().empty()) {
 						patch->setName((boost::format("Patch #%d") % patch->patchNumber()->friendlyName()).str());
 					}
-					Logger::writeToLog("Found patch " + patch->patchName());
-					auto description = patch->patchToTextRaw(false);
-					Logger::writeToLog(description);
+					//Logger::writeToLog("Found patch " + patch->patchName());
+					//auto description = patch->patchToTextRaw(false);
+					//Logger::writeToLog(description);
 				}
 				else {
 					Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());

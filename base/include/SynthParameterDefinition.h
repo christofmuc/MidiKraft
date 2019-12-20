@@ -58,6 +58,12 @@ namespace midikraft {
 		virtual std::string valueAsText(int value) const = 0;
 	};
 
+	class SynthMultiLayerParameterCapability {
+	public:
+		virtual void setTargetLayer(int layerNo) = 0;
+		virtual int getTargetLayer() const = 0;
+	};
+
 	class SynthParameterLiveEditCapability {
 	public:
 		// This is for live editing!

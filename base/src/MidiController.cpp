@@ -142,7 +142,7 @@ namespace midikraft {
 		}
 	}
 
-	void MidiController::addMessageHandler(HandlerHandle const &handle, std::function<void(MidiInput *source, MidiMessage const &message)> handler) {
+	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler) {
 		messageHandlers_.insert(std::make_pair(handle, handler));
 	}
 

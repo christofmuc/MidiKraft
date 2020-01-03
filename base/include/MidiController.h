@@ -15,6 +15,8 @@ namespace midikraft {
 	// Forward declaration for the SafeMidiOutput class
 	class MidiController;
 
+	typedef std::function<void(MidiInput *source, MidiMessage const &message)> MidiCallback;
+
 	class SafeMidiOutput {
 	public:
 		SafeMidiOutput(MidiController *controller, MidiOutput *midiOutput);
@@ -40,7 +42,7 @@ namespace midikraft {
 		static MidiController *instance();
 
 		//TODO - I think these should have an optional expiration date/timeout with a timeout handler, like when the expected response doesn't happen
-		void addMessageHandler(HandlerHandle const &handle, std::function<void(MidiInput *source, MidiMessage const &message)> handler);
+		void addMessageHandler(HandlerHandle const &handle, MidiCallback handler);
 		bool removeMessageHandler(HandlerHandle const &handle);
 
 		void setMidiLogFunction(std::function<void(const MidiMessage& message, const String& source, bool)>);
@@ -57,11 +59,11 @@ namespace midikraft {
 	private:
 		static MidiController *instance_;
 		AudioDeviceManager deviceManager;
-		std::map<HandlerHandle, std::function<void(MidiInput *, MidiMessage const &)>> messageHandlers_;
+		std::map<HandlerHandle, MidiCallback> messageHandlers_;
 		std::map< std::string, std::unique_ptr<MidiOutput>> outputsOpen_;
 		std::map< std::string, SafeMidiOutput *> safeOutputs_;
 		std::map< std::string, MidiInputCallback *>  callbacks_;
 		std::function<void(const MidiMessage& message, const String& source, bool)> midiLogFunction_;
 	};
-
+	
 }

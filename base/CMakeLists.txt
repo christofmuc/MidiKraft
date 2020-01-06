@@ -43,6 +43,7 @@ set(Sources
 	include/SimpleDiscoverableDevice.h src/SimpleDiscoverableDevice.cpp
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h
+	include/StreamDumpCapability.h
 	include/Synth.h src/Synth.cpp
 	include/SynthParameterDefinition.h
 	include/SysexDataSerializationCapability.h

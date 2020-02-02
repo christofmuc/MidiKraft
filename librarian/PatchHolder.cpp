@@ -150,7 +150,7 @@ namespace midikraft {
 		doc.SetObject();
 		std::string timestring = timestamp.toISO8601(true).toStdString();
 		doc.AddMember(rapidjson::StringRef(kSynthSource), true, doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kTimeStamp), rapidjson::Value(timestring.c_str(), timestring.size()), doc.GetAllocator());
+		doc.AddMember(rapidjson::StringRef(kTimeStamp), rapidjson::Value(timestring.c_str(), (rapidjson::SizeType) timestring.size()), doc.GetAllocator());
 		if (bankNo.isValid()) {
 			doc.AddMember(rapidjson::StringRef(kBankNumber), bankNo.toZeroBased(), doc.GetAllocator());
 		}
@@ -200,8 +200,8 @@ namespace midikraft {
 		rapidjson::Document doc;
 		doc.SetObject();
 		doc.AddMember(rapidjson::StringRef(kFileSource), true, doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kFileName), rapidjson::Value(filename.c_str(), filename.size()), doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kFullPath), rapidjson::Value(fullpath.c_str(), fullpath.size()), doc.GetAllocator());
+		doc.AddMember(rapidjson::StringRef(kFileName), rapidjson::Value(filename.c_str(), (rapidjson::SizeType)  filename.size()), doc.GetAllocator());
+		doc.AddMember(rapidjson::StringRef(kFullPath), rapidjson::Value(fullpath.c_str(), (rapidjson::SizeType) fullpath.size()), doc.GetAllocator());
 		doc.AddMember(rapidjson::StringRef(kProgramNo), program.toZeroBased(), doc.GetAllocator());
 		jsonRep_ = renderToJson(doc);
 
@@ -234,14 +234,15 @@ namespace midikraft {
 		doc.SetObject();
 		std::string timestring = timestamp.toISO8601(true).toStdString();
 		doc.AddMember(rapidjson::StringRef(kBulkSource), true, doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kTimeStamp), rapidjson::Value(timestring.c_str(), timestring.size()), doc.GetAllocator());
+		doc.AddMember(rapidjson::StringRef(kTimeStamp), rapidjson::Value(timestring.c_str(), (rapidjson::SizeType) timestring.size()), doc.GetAllocator());
 		std::string subinfo = individualInfo->toString();
-		doc.AddMember(rapidjson::StringRef(kFileInBulk), rapidjson::Value(subinfo.c_str(), subinfo.size()), doc.GetAllocator());
+		doc.AddMember(rapidjson::StringRef(kFileInBulk), rapidjson::Value(subinfo.c_str(), (rapidjson::SizeType) subinfo.size()), doc.GetAllocator());
 		jsonRep_ = renderToJson(doc);
 	}
 
 	std::string FromBulkImportSource::toDisplayString(Synth *synth) const
 	{
+		ignoreUnused(synth);
 		if (timestamp_.toMilliseconds() != 0) {
 			// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
 			return (boost::format("Bulk file import %s") % timestamp_.formatted("%x at %X").toStdString()).str();

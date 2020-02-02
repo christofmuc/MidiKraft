@@ -29,6 +29,7 @@ set(Sources
 	include/DynamicPlugin.h
 	include/EditBufferCapability.h
 	include/FindSynthOnMidiNetwork.h src/FindSynthOnMidiNetwork.cpp
+	include/HandshakeLoadingCapability.h
 	include/LayerCapability.h
 	include/LayeredPatch.h
 	include/MasterkeyboardCapability.h
@@ -40,10 +41,12 @@ set(Sources
 	include/Patch.h src/Patch.cpp
 	include/PatchNumber.h
 	include/ProgramDumpCapability.h
+	include/ProgressHandler.h
 	include/SimpleDiscoverableDevice.h src/SimpleDiscoverableDevice.cpp
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h
 	include/StreamDumpCapability.h
+	include/StreamLoadCapability.h
 	include/Synth.h src/Synth.cpp
 	include/SynthParameterDefinition.h
 	include/SysexDataSerializationCapability.h

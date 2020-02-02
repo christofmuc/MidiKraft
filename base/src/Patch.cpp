@@ -38,7 +38,7 @@ namespace midikraft {
 
 	void Patch::setAt(int sysExIndex, uint8 value)
 	{
-		jassert(sysExIndex < data_.size());
+		jassert(((size_t) sysExIndex) < data_.size());
 		data_[sysExIndex] = value;
 	}
 

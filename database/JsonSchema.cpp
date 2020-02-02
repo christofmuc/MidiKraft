@@ -11,7 +11,7 @@ namespace midikraft {
 	// "Schema definition" for the Documents in the DynamoDB. 
 	const char
 		//*JsonSchema::kTable = "MKS50Test", // Main table
-		*JsonSchema::kTable = "Patches2", // Main table
+		*JsonSchema::kTable = "Patches1", // Main table
 		*JsonSchema::kTableNew = "Patches3", // Target of schema migration
 		*JsonSchema::kSynth = "Synth",
 		*JsonSchema::kMD5 = "MD5",

@@ -108,13 +108,13 @@ namespace midikraft {
 
 			// Max 100 per roundtrip...
 			int base = 0;
-			while (base < patches.size()) {
+			while (base < (int) patches.size()) {
 				Aws::DynamoDB::Model::BatchGetItemRequest request;
 				Aws::DynamoDB::Model::KeysAndAttributes items;
 
 				// DynamoDB throws an error when you hand in a key more than once, so we must make sure this doesn't happen
 				std::set<std::string> alreadyListed;
-				for (int i = 0; i < std::min((size_t)100, patches.size() - base); i++) {
+				for (size_t i = 0; i < std::min((size_t)100, patches.size() - base); i++) {
 					Aws::Map<Aws::String, Aws::DynamoDB::Model::AttributeValue> itemKeys;
 					itemKeys.emplace(JsonSchema::kSynth, Aws::DynamoDB::Model::AttributeValue().SetS(activeSynth->getName().c_str()));
 					std::string md5 = JsonSerialization::patchMd5(activeSynth, *patches[i + base].patch());

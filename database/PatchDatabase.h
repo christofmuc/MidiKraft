@@ -11,9 +11,8 @@
 
 #include "Synth.h"
 
+#include "ProgressHandler.h"
 #include "PatchHolder.h"
-
-class ProgressHandler;
 
 namespace midikraft {
 

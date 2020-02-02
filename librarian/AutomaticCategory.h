@@ -8,6 +8,8 @@
 
 #include "JuceHeader.h"
 
+#include "Category.h"
+
 #include <set>
 #include <regex>
 
@@ -15,14 +17,7 @@ namespace midikraft {
 
 	class Patch;
 
-	struct Category {
-		Category(std::string const &cat, Colour const &col) : category(cat), color(col) {
-		}
-		std::string category;
-		Colour color;
-	};
-
-	bool operator <(Category const &left, Category const &right);
+	
 
 	class AutoCategory {
 	public:

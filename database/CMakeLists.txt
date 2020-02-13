@@ -23,12 +23,8 @@ IF(NOT DEFINED JUCE_LIBRARIES)
 	)
 ENDIF()
 
-# We will need AWS SDK C++ for DynamoDB
-find_package(aws-cpp-sdk-dynamodb REQUIRED)
-
 # Define the sources for the static library
 set(Sources
-	Dynamo.cpp Dynamo.h
 	JsonSchema.cpp JsonSchema.h
 	JsonSerialization.cpp JsonSerialization.h
 	PatchDatabase.cpp PatchDatabase.h
@@ -36,15 +32,17 @@ set(Sources
 	LICENSE.md
 )
 
+set(SQLITE_CPP_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/../third_party/SQLiteCpp/include")
+
 # Setup library
 add_library(midikraft-database ${Sources})
-target_include_directories(midikraft-database PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${JUCE_INCLUDES} ${boost_SOURCE_DIR} ${MANUALLY_RAPID_JSON})
-target_link_libraries(midikraft-database juce-utils midikraft-base midikraft-librarian aws-cpp-sdk-dynamodb)
+target_include_directories(midikraft-database PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${JUCE_INCLUDES} ${boost_SOURCE_DIR} ${MANUALLY_RAPID_JSON} ${SQLITE_CPP_INCLUDE})
+target_link_libraries(midikraft-database juce-utils midikraft-base midikraft-librarian)
 
 # Pedantic about warnings
 if (MSVC)
     # warning level 4 and all warnings as errors
-    target_compile_options(midikraft-database PRIVATE /W4 /WX)
+    #target_compile_options(midikraft-database PRIVATE /W4 /WX)
 else()
     # lots of warnings and all warnings as errors
     #target_compile_options(midikraft-librarian PRIVATE -Wall -Wextra -pedantic -Werror)

@@ -74,7 +74,7 @@ namespace midikraft {
 		addToJson(JsonSchema::kSysex, dataToString(patchholder->patch()->data()), doc, doc);
 		std::string numberAsString = (boost::format("%d") % patchholder->patch()->patchNumber()->midiProgramNumber().toZeroBased()).str();
 		addToJson(JsonSchema::kPlace, numberAsString, doc, doc);
-		addToJson(JsonSchema::kMD5, patchMd5(synth, *patchholder->patch()), doc, doc);
+		addToJson(JsonSchema::kMD5, patchholder->md5(), doc, doc);
 		return renderToJson(doc);
 	}
 
@@ -101,7 +101,7 @@ namespace midikraft {
 					withMeta.setCategory(cat, true);
 				}
 			}*/
-			PatchHolder simple(std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch, true);
+			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch, true);
 			outPatchHolder = simple;
 			return true;
 		}
@@ -110,18 +110,11 @@ namespace midikraft {
 		}
 	}
 
-
-	std::string JsonSerialization::patchMd5(Synth *activeSynth, Patch const &patch) {
-		auto filteredData = activeSynth->filterVoiceRelevantData(patch.data());
-		MD5 md5(&filteredData[0], filteredData.size());
-		return md5.toHexString().toStdString();
-	}
-
 	std::string JsonSerialization::patchInSessionID(Synth *synth, std::shared_ptr<SessionPatch> patch) {
 		// Every possible patch can be stored in the database once per synth and session.
 		// build a hash to represent this.
 		jassert(synth->getName() == patch->synthName_);
-		std::string patchHash = patchMd5(synth, *patch->patchHolder_.patch());
+		std::string patchHash = patch->patchHolder_.md5();
 		std::string toBeHashed = (boost::format("%s-%s-%s") % patch->session_.name_ % patch->synthName_ % patchHash).str();
 		MD5 hash(toBeHashed.data(), toBeHashed.size());
 		return hash.toHexString().toStdString();

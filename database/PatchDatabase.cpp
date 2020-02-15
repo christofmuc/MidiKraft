@@ -64,13 +64,11 @@ namespace midikraft {
 
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch, std::string const &sourceID) {
 			try {
-				std::string md5 = JsonSerialization::patchMd5(activeSynth, *patch.patch());
-
 				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, data, favorite, sourceID, sourceName, sourceInfo, midiProgramNo, categories) VALUES (:SYN, :MD5, :NAM, :DAT, :FAV, :SID, :SNM, :SRC, :PRG, :CAT)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", activeSynth->getName().c_str());
-				sql.bind(":MD5", md5);
+				sql.bind(":MD5", patch.md5());
 				sql.bind(":NAM", patch.patch()->patchName());
 				sql.bind(":DAT", patch.patch()->data().data(), patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
@@ -143,7 +141,7 @@ namespace midikraft {
 				if (newPatch) {
 					auto sourceColumn = query.getColumn("sourceInfo");
 					if (sourceColumn.isText()) {
-						PatchHolder holder(SourceInfo::fromString(sourceColumn.getString()), newPatch, false);
+						PatchHolder holder(filter.activeSynth, SourceInfo::fromString(sourceColumn.getString()), newPatch, false);
 						auto favoriteColumn = query.getColumn("favorite");
 						if (favoriteColumn.isInteger()) {
 							holder.setFavorite(Favorite(favoriteColumn.getInt()));
@@ -168,10 +166,9 @@ namespace midikraft {
 
 			for (auto ph : patches) {
 				// First, calculate list of "IDs"
-				std::string md5 = JsonSerialization::patchMd5(activeSynth, *ph.patch());
-
 				// Query the database if this exists. Normally, I would bulk, but as the database is local for now I think we're going to be fine
 				try {
+					std::string md5 = ph.md5();
 					SQLite::Statement query(db_, "SELECT md5 FROM patches WHERE md5 = :MD5");
 					query.bind(":MD5", md5);
 					if (query.executeStep()) {
@@ -189,9 +186,8 @@ namespace midikraft {
 			// For now, only run an update query if the newPatch Favorite is different from the database Favorite and is not "don't know"
 			if (newPatch.howFavorite().is() != Favorite::TFavorite::DONTKNOW) {
 				SQLite::Statement sql(db_, "UPDATE patches SET favorite = :FAV WHERE md5 = :MD5");
-				std::string md5 = JsonSerialization::patchMd5(activeSynth, *newPatch.patch());
 				sql.bind(":FAV", (int) newPatch.howFavorite().is());
-				sql.bind(":MD5", md5);
+				sql.bind(":MD5", newPatch.md5());
 				if (sql.exec() != 1) {
 					jassert(false);
 					throw new std::runtime_error("FATAL, I don't want to ruin your database");
@@ -209,10 +205,9 @@ namespace midikraft {
 			SQLite::Transaction transaction(db_);
 
 			for (auto &patch : patches) {
-				std::string md5 = JsonSerialization::patchMd5(activeSynth, *patch.patch());
-				if (knownPatches.find(md5) != knownPatches.end()) {
+				if (knownPatches.find(patch.md5()) != knownPatches.end()) {
 					// Update the database with the new info
-					updatePatch(activeSynth, patch, knownPatches[md5]);
+					updatePatch(activeSynth, patch, knownPatches[patch.md5()]);
 				}
 				else {
 					// This is a new patch - it needs to be uploaded into the database!

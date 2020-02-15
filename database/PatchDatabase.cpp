@@ -77,16 +77,9 @@ namespace midikraft {
 				sql.bind(":SID", sourceID);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(activeSynth));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
+				sql.bind(":PRG", patch.patch()->patchNumber()->midiProgramNumber().toZeroBased());
 				sql.bind(":CAT", "");
-
-				auto fileSource = std::dynamic_pointer_cast<FromFileSource>(patch.sourceInfo());
-				if (fileSource) {
-					sql.bind(":PRG", fileSource->getProgramNumber().toZeroBased());
-				}
-				else {
-					sql.bind(":PRG", patch.patch()->patchNumber()->midiProgramNumber().toZeroBased());
-				}
-
+				
 				sql.exec();
 			}
 			catch (SQLite::Exception &ex) {

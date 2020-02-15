@@ -105,18 +105,33 @@ namespace midikraft {
 			return result;
 		}
 
-		int getPatchesCount(Synth *activeSynth) {
-			SQLite::Statement query(db_, "SELECT count(*) FROM patches WHERE synth = :SYN");
-			query.bind(":SYN", activeSynth->getName());
+		std::string buildWhereClause(PatchFilter filter) {
+			std::string where = " WHERE synth = :SYN";
+			if (!filter.importID.empty()) {
+				where += " AND sourceID = :SID";
+			}
+			return where;
+		}
+
+		void bindWhereClause(SQLite::Statement &query, PatchFilter filter) {
+			query.bind(":SYN", filter.activeSynth->getName());
+			if (!filter.importID.empty()) {
+				query.bind(":SID", filter.importID);
+			}
+		}
+
+		int getPatchesCount(PatchFilter filter) {
+			SQLite::Statement query(db_, "SELECT count(*) FROM patches" + buildWhereClause(filter));
+			bindWhereClause(query, filter);
 			if (query.executeStep()) {
 				return query.getColumn(0).getInt();
 			}
 			return 0;
 		}
 
-		bool getPatches(Synth *activeSynth, std::vector<PatchHolder> &result, int skip, int limit) {
-			SQLite::Statement query(db_, "SELECT * FROM patches WHERE synth = :SYN ORDER BY sourceID, midiProgramNo LIMIT :LIM OFFSET :OFS");
-			query.bind(":SYN", activeSynth->getName());
+		bool getPatches(PatchFilter filter, std::vector<PatchHolder> &result, int skip, int limit) {
+			SQLite::Statement query(db_, "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiProgramNo LIMIT :LIM OFFSET :OFS");
+			bindWhereClause(query, filter);
 			query.bind(":LIM", limit);
 			query.bind(":OFS", skip);
 			while (query.executeStep()) {
@@ -126,7 +141,7 @@ namespace midikraft {
 				auto dataColumn = query.getColumn("data");
 				if (dataColumn.isBlob()) {
 					std::vector<uint8> patchData((uint8 *)dataColumn.getBlob(), ((uint8 *)dataColumn.getBlob()) + dataColumn.getBytes());
-					newPatch = activeSynth->patchFromPatchData(patchData, "unknown", MidiProgramNumber::fromZeroBase(0));
+					newPatch = filter.activeSynth->patchFromPatchData(patchData, "unknown", MidiProgramNumber::fromZeroBase(0));
 				}
 
 				if (newPatch) {
@@ -226,9 +241,9 @@ namespace midikraft {
 	PatchDatabase::~PatchDatabase() {
 	}
 
-	int PatchDatabase::getPatchesCount(Synth *activeSynth)
+	int PatchDatabase::getPatchesCount(PatchFilter filter)
 	{
-		return impl->getPatchesCount(activeSynth);
+		return impl->getPatchesCount(filter);
 	}
 
 	bool PatchDatabase::putPatch(Synth *activeSynth, PatchHolder const &patch) {
@@ -247,11 +262,11 @@ namespace midikraft {
 		impl->runMigration(activeSynth);
 	}*/
 
-	void PatchDatabase::getPatchesAsync(Synth *activeSynth, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit)
+	void PatchDatabase::getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit)
 	{
-		pool_.addJob([this, activeSynth, finished, skip, limit]() {
+		pool_.addJob([this, filter, finished, skip, limit]() {
 			std::vector<PatchHolder> result;
-			bool success = impl->getPatches(activeSynth, result, skip, limit);
+			bool success = impl->getPatches(filter, result, skip, limit);
 			if (success) {
 				MessageManager::callAsync([finished, result]() { finished(result); });
 			}

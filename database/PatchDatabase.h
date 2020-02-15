@@ -18,11 +18,17 @@ namespace midikraft {
 
 	class PatchDatabase {
 	public:
+		struct PatchFilter {
+			Synth *activeSynth;
+			std::string importID;
+		};
+
 		PatchDatabase();
 		~PatchDatabase();
 
-		int getPatchesCount(Synth *activeSynth);
-		void getPatchesAsync(Synth *activeSynth, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit);
+		int getPatchesCount(PatchFilter filter);
+		void getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit);
+
 		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress);
 		std::vector<std::pair<std::string, std::string>> getImportsList(Synth *activeSynth) const;
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch);

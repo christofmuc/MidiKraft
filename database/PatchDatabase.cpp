@@ -19,6 +19,7 @@
 #include <boost/format.hpp>
 
 #include "SQLiteCpp/Database.h"
+#include "SQLiteCpp/Statement.h"
 #include "SQLiteCpp/Transaction.h"
 
 namespace midikraft {
@@ -47,7 +48,7 @@ namespace midikraft {
 			}*/
 
 			SQLite::Transaction transaction(db_);
-			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT, data BLOB, favorite INTEGER, sourceInfo TEXT, categories TEXT)");
+			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT, sourceInfo TEXT, midiProgramNo INTEGER, categories TEXT)");
 
 			/*int nb = db_.exec("INSERT INTO test VALUES (NULL, \"test\")");
 			std::cout << "INSERT INTO test VALUES (NULL, \"test\")\", returned " << nb << std::endl;*/
@@ -56,25 +57,32 @@ namespace midikraft {
 			transaction.commit();
 		}
 
-		bool putPatch(Synth *activeSynth, PatchHolder const &patch) {
+		bool putPatch(Synth *activeSynth, PatchHolder const &patch, std::string const &sourceID) {
 			try {
-				SQLite::Transaction transaction(db_);
-
 				std::string md5 = JsonSerialization::patchMd5(activeSynth, *patch.patch());
 
-				SQLite::Statement sql(db_, "INSERT INTO patches VALUES (:SYN, :MD5, :DAT, :FAV, :SRC, :CAT)");
+				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, data, favorite, sourceID, sourceName, sourceInfo, midiProgramNo, categories) VALUES (:SYN, :MD5, :NAM, :DAT, :FAV, :SID, :SNM, :SRC, :PRG, :CAT)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", activeSynth->getName().c_str());
 				sql.bind(":MD5", md5);
+				sql.bind(":NAM", patch.patch()->patchName());
 				sql.bind(":DAT", patch.patch()->data().data(), patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
+				sql.bind(":SID", sourceID);
+				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(activeSynth));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
 				sql.bind(":CAT", "");
 
-				sql.exec();
+				auto fileSource = std::dynamic_pointer_cast<FromFileSource>(patch.sourceInfo());
+				if (fileSource) {
+					sql.bind(":PRG", fileSource->getProgramNumber().toZeroBased());
+				}
+				else {
+					sql.bind(":PRG", patch.patch()->patchNumber()->midiProgramNumber().toZeroBased());
+				}
 
-				transaction.commit();
+				sql.exec();
 			}
 			catch (SQLite::Exception &ex) {
 				jassert(false);
@@ -82,9 +90,20 @@ namespace midikraft {
 			return true;
 		}
 
-		bool getPatches(Synth *activeSynth, std::vector<PatchHolder> &result) {
-			SQLite::Statement query(db_, "SELECT * FROM patches WHERE synth = :SYN");
+		int getPatchesCount(Synth *activeSynth) {
+			SQLite::Statement query(db_, "SELECT count(*) FROM patches WHERE synth = :SYN");
 			query.bind(":SYN", activeSynth->getName());
+			if (query.executeStep()) {
+				return query.getColumn(0).getInt();
+			}
+			return 0;
+		}
+
+		bool getPatches(Synth *activeSynth, std::vector<PatchHolder> &result, int skip, int limit) {
+			SQLite::Statement query(db_, "SELECT * FROM patches WHERE synth = :SYN ORDER BY sourceID, midiProgramNo LIMIT :LIM OFFSET :OFS");
+			query.bind(":SYN", activeSynth->getName());
+			query.bind(":LIM", limit);
+			query.bind(":OFS", skip);
 			while (query.executeStep()) {
 				std::shared_ptr<Patch> newPatch;
 
@@ -137,6 +156,9 @@ namespace midikraft {
 		}
 
 		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress) {
+			// Generate a UUID that will be used to bind all patches during this import together
+			Uuid source_uuid;
+
 			// This works by doing a bulk get operation for the patches from the database...
 			auto knownPatches = bulkGetPatches(activeSynth, patches);
 
@@ -153,13 +175,17 @@ namespace midikraft {
 			}
 
 			//TODO can be replaced by repaired bulkPut
+			SQLite::Transaction transaction(db_);
+
 			int uploaded = 0;
 			for (auto newPatch : outNewPatches) {
 				if (progress->shouldAbort()) return uploaded;
-				putPatch(activeSynth, newPatch);
+				putPatch(activeSynth, newPatch, source_uuid.toString().toStdString());
 				uploaded++;
 				progress->setProgressPercentage(uploaded / (double)outNewPatches.size());
 			}
+
+			transaction.commit();
 
 			return outNewPatches.size();
 		}
@@ -175,8 +201,15 @@ namespace midikraft {
 	PatchDatabase::~PatchDatabase() {
 	}
 
+	int PatchDatabase::getPatchesCount(Synth *activeSynth)
+	{
+		return impl->getPatchesCount(activeSynth);
+	}
+
 	bool PatchDatabase::putPatch(Synth *activeSynth, PatchHolder const &patch) {
-		return impl->putPatch(activeSynth, patch);
+		jassert(false);
+		return false;
+		//return impl->putPatch(activeSynth, patch);
 	}
 
 	bool PatchDatabase::putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches) {
@@ -189,11 +222,11 @@ namespace midikraft {
 		impl->runMigration(activeSynth);
 	}*/
 
-	void PatchDatabase::getPatchesAsync(Synth *activeSynth, std::function<void(std::vector<PatchHolder> const &)> finished)
+	void PatchDatabase::getPatchesAsync(Synth *activeSynth, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit)
 	{
-		pool_.addJob([this, activeSynth, finished]() {
+		pool_.addJob([this, activeSynth, finished, skip, limit]() {
 			std::vector<PatchHolder> result;
-			bool success = impl->getPatches(activeSynth, result);
+			bool success = impl->getPatches(activeSynth, result, skip, limit);
 			if (success) {
 				MessageManager::callAsync([finished, result]() { finished(result); });
 			}

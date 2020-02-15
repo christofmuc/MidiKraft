@@ -21,7 +21,8 @@ namespace midikraft {
 		PatchDatabase();
 		~PatchDatabase();
 
-		void getPatchesAsync(Synth *activeSynth, std::function<void(std::vector<PatchHolder> const &)> finished);
+		int getPatchesCount(Synth *activeSynth);
+		void getPatchesAsync(Synth *activeSynth, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit);
 		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress);
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch);
 		bool putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches);

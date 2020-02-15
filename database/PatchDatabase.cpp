@@ -41,20 +41,25 @@ namespace midikraft {
 		}
 
 		void createSchema() {
-			/*{
+			if (false)
+			{
 				SQLite::Transaction transaction(db_);
 				db_.exec("DROP TABLE patches");
+				db_.exec("DROP TABLE imports");
 				transaction.commit();
-			}*/
+			}
 
-			SQLite::Transaction transaction(db_);
-			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT, sourceInfo TEXT, midiProgramNo INTEGER, categories TEXT)");
+			if (!db_.tableExists("patches") || !db_.tableExists("imports")) {
+				SQLite::Transaction transaction(db_);
+				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT, sourceInfo TEXT, midiProgramNo INTEGER, categories TEXT)");
+				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
 
-			/*int nb = db_.exec("INSERT INTO test VALUES (NULL, \"test\")");
-			std::cout << "INSERT INTO test VALUES (NULL, \"test\")\", returned " << nb << std::endl;*/
+				/*int nb = db_.exec("INSERT INTO test VALUES (NULL, \"test\")");
+				std::cout << "INSERT INTO test VALUES (NULL, \"test\")\", returned " << nb << std::endl;*/
 
-			// Commit transaction
-			transaction.commit();
+				// Commit transaction
+				transaction.commit();
+			}
 		}
 
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch, std::string const &sourceID) {
@@ -88,6 +93,16 @@ namespace midikraft {
 				jassert(false);
 			}
 			return true;
+		}
+
+		std::vector<std::pair<std::string, std::string>> getImportsList(Synth *activeSynth) {
+			SQLite::Statement query(db_, "SELECT name, id FROM imports WHERE synth = :SYN ORDER BY date");
+			query.bind(":SYN", activeSynth->getName());
+			std::vector<std::pair<std::string, std::string>> result;
+			while (query.executeStep()) {
+				result.emplace_back(query.getColumn("name").getText(), query.getColumn("id").getText());
+			}
+			return result;
 		}
 
 		int getPatchesCount(Synth *activeSynth) {
@@ -185,6 +200,16 @@ namespace midikraft {
 				progress->setProgressPercentage(uploaded / (double)outNewPatches.size());
 			}
 
+			if (uploaded > 1) {
+				// Record this import in the import table for later filtering! The name of the import might differ for different patches (bulk import), use the first patch to calculate it
+				SQLite::Statement sql(db_, "INSERT INTO imports (synth, name, id, date) VALUES (:SYN, :NAM, :SID, datetime('now'))");
+				std::string importName = outNewPatches[0].sourceInfo()->toDisplayString(activeSynth);
+				sql.bind(":SYN", activeSynth->getName());
+				sql.bind(":NAM", importName);
+				sql.bind(":SID", source_uuid.toString().toStdString());
+				sql.exec();
+			}
+
 			transaction.commit();
 
 			return outNewPatches.size();
@@ -239,6 +264,10 @@ namespace midikraft {
 	size_t PatchDatabase::mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress)
 	{
 		return impl->mergePatchesIntoDatabase(activeSynth, patches, outNewPatches, progress);
+	}
+
+	std::vector<std::pair<std::string, std::string>> PatchDatabase::getImportsList(Synth *activeSynth) const {
+		return impl->getImportsList(activeSynth);
 	}
 
 }

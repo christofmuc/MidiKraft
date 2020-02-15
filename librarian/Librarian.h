@@ -44,7 +44,7 @@ namespace midikraft {
 		void handleNextStreamPart(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
 		void handleNextEditBuffer(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
 		void handleNextBankDump(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo);
-		std::vector<PatchHolder> tagPatchesWithImportFromSynth(TPatchVector &patches, MidiBankNumber bankNo);
+		std::vector<PatchHolder> tagPatchesWithImportFromSynth(Synth *synth, TPatchVector &patches, MidiBankNumber bankNo);
 
 		std::vector<SynthHolder> &synths_;
 		std::vector<MidiMessage> currentDownload_;

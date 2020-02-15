@@ -75,7 +75,7 @@ namespace midikraft {
 	class PatchHolder {
 	public:
 		PatchHolder();
-		PatchHolder(std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<Patch> patch, bool autoDetectCategories = false);
+		PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<Patch> patch, bool autoDetectCategories = false);
 
 		std::shared_ptr<Patch> patch() const;
 
@@ -90,12 +90,17 @@ namespace midikraft {
 		void clearCategories();
 		std::set<Category> categories() const;
 		std::shared_ptr<SourceInfo> sourceInfo() const;
+		
+		std::string md5() const;
+
+		static std::string calcMd5(Synth *activeSynth, Patch *patch);
 
 	private:
 		std::shared_ptr<Patch> patch_;
 		Favorite isFavorite_;
 		std::set<Category> categories_;
 		std::shared_ptr<SourceInfo> sourceInfo_;
+		std::string md5_;
 	};
 
 }

@@ -20,6 +20,7 @@ IF(NOT DEFINED JUCE_LIBRARIES)
 			juce_data_structures
 			juce_graphics # For the Colour class
 			juce_gui_basics # ThreadWithProgressWindow
+			juce_cryptography # only for MD5
 	)
 ENDIF()
 

@@ -71,7 +71,7 @@ namespace midikraft {
 						if (state->wasSuccessful()) {
 							// Parse patches and send them back 
 							auto patches = synth->loadSysex(currentDownload_);
-							onFinished_(tagPatchesWithImportFromSynth(patches, bankNo));
+							onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
 							progressHandler->onSuccess();
 						}
 						else {
@@ -251,7 +251,7 @@ namespace midikraft {
 		std::vector<PatchHolder> result;
 		int i = 0;
 		for (auto patch : patches) {
-			result.push_back(PatchHolder(std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch, true));
+			result.push_back(PatchHolder(&synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch, true));
 			i++;
 		}
 		return result;
@@ -295,7 +295,7 @@ namespace midikraft {
 				if (streamLoading->isStreamComplete(currentDownload_)) {
 					MidiController::instance()->removeMessageHandler(handle_);
 					auto result = synth->loadSysex(currentDownload_);
-					onFinished_(tagPatchesWithImportFromSynth(result, bankNo));
+					onFinished_(tagPatchesWithImportFromSynth(synth, result, bankNo));
 					progressHandler->onSuccess();
 				}
 				else if (progressHandler->shouldAbort()) {
@@ -330,7 +330,7 @@ namespace midikraft {
 			if (downloadNumber_ >= endDownloadNumber_) {
 				MidiController::instance()->removeMessageHandler(handle_);
 				auto patches = synth->loadSysex(currentDownload_);
-				onFinished_(tagPatchesWithImportFromSynth(patches, bankNo));
+				onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
 				progressHandler->onSuccess();
 			}
 			else if (progressHandler->shouldAbort()) {
@@ -358,7 +358,7 @@ namespace midikraft {
 			if (bankDumpCapability->isBankDumpFinished(currentDownload_)) {
 				MidiController::instance()->removeMessageHandler(handle_);
 				auto patches = synth->loadSysex(currentDownload_);
-				onFinished_(tagPatchesWithImportFromSynth(patches, bankNo));
+				onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
 				progressHandler->onSuccess();
 			}
 			else if (progressHandler->shouldAbort()) {
@@ -371,11 +371,11 @@ namespace midikraft {
 		}
 	}
 
-	std::vector<PatchHolder> Librarian::tagPatchesWithImportFromSynth(TPatchVector &patches, MidiBankNumber bankNo) {
+	std::vector<PatchHolder> Librarian::tagPatchesWithImportFromSynth(Synth *synth, TPatchVector &patches, MidiBankNumber bankNo) {
 		std::vector<PatchHolder> result;
 		auto now = Time::getCurrentTime();
 		for (auto patch : patches) {
-			result.push_back(PatchHolder(std::make_shared<FromSynthSource>(now, bankNo), patch, true));
+			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, true));
 		}
 		return result;
 	}

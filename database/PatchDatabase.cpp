@@ -103,6 +103,9 @@ namespace midikraft {
 			if (!filter.importID.empty()) {
 				where += " AND sourceID = :SID";
 			}
+			if (filter.onlyFaves) {
+				where += " AND favorite == 1";
+			}
 			return where;
 		}
 
@@ -141,6 +144,10 @@ namespace midikraft {
 					auto sourceColumn = query.getColumn("sourceInfo");
 					if (sourceColumn.isText()) {
 						PatchHolder holder(SourceInfo::fromString(sourceColumn.getString()), newPatch, false);
+						auto favoriteColumn = query.getColumn("favorite");
+						if (favoriteColumn.isInteger()) {
+							holder.setFavorite(Favorite(favoriteColumn.getInt()));
+						}
 						result.push_back(holder);
 					}
 					else {
@@ -178,6 +185,20 @@ namespace midikraft {
 			return result;
 		}
 
+		void updatePatch(Synth *activeSynth, PatchHolder newPatch, PatchHolder existingPatch) {
+			// For now, only run an update query if the newPatch Favorite is different from the database Favorite and is not "don't know"
+			if (newPatch.howFavorite().is() != Favorite::TFavorite::DONTKNOW) {
+				SQLite::Statement sql(db_, "UPDATE patches SET favorite = :FAV WHERE md5 = :MD5");
+				std::string md5 = JsonSerialization::patchMd5(activeSynth, *newPatch.patch());
+				sql.bind(":FAV", (int) newPatch.howFavorite().is());
+				sql.bind(":MD5", md5);
+				if (sql.exec() != 1) {
+					jassert(false);
+					throw new std::runtime_error("FATAL, I don't want to ruin your database");
+				}
+			}
+		}
+
 		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress) {
 			// Generate a UUID that will be used to bind all patches during this import together
 			Uuid source_uuid;
@@ -185,11 +206,13 @@ namespace midikraft {
 			// This works by doing a bulk get operation for the patches from the database...
 			auto knownPatches = bulkGetPatches(activeSynth, patches);
 
+			SQLite::Transaction transaction(db_);
+
 			for (auto &patch : patches) {
 				std::string md5 = JsonSerialization::patchMd5(activeSynth, *patch.patch());
 				if (knownPatches.find(md5) != knownPatches.end()) {
-					// Update the loaded info with the database info
-					//patch = knownPatches[md5];
+					// Update the database with the new info
+					updatePatch(activeSynth, patch, knownPatches[md5]);
 				}
 				else {
 					// This is a new patch - it needs to be uploaded into the database!
@@ -198,14 +221,12 @@ namespace midikraft {
 			}
 
 			//TODO can be replaced by repaired bulkPut
-			SQLite::Transaction transaction(db_);
-
 			int uploaded = 0;
 			for (auto newPatch : outNewPatches) {
-				if (progress->shouldAbort()) return uploaded;
+				if (progress && progress->shouldAbort()) return uploaded;
 				putPatch(activeSynth, newPatch, source_uuid.toString().toStdString());
 				uploaded++;
-				progress->setProgressPercentage(uploaded / (double)outNewPatches.size());
+				if (progress) progress->setProgressPercentage(uploaded / (double)outNewPatches.size());
 			}
 
 			if (uploaded > 1) {
@@ -240,9 +261,12 @@ namespace midikraft {
 	}
 
 	bool PatchDatabase::putPatch(Synth *activeSynth, PatchHolder const &patch) {
-		jassert(false);
-		return false;
-		//return impl->putPatch(activeSynth, patch);
+		// From the logic, this is an UPSERT (REST call put)
+		// Use the merge functionality for this!
+		std::vector<PatchHolder> newPatches;
+		newPatches.push_back(patch);
+		std::vector<PatchHolder> insertedPatches;
+		return impl->mergePatchesIntoDatabase(activeSynth, newPatches, insertedPatches, nullptr);
 	}
 
 	bool PatchDatabase::putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches) {

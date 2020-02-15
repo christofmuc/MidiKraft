@@ -115,6 +115,24 @@ namespace midikraft {
 	{
 	}
 
+	Favorite::Favorite(int howFavorite)
+	{
+		switch (howFavorite) {
+		case -1:
+			favorite_ = TFavorite::DONTKNOW;
+			break;
+		case 0:
+			favorite_ = TFavorite::NO;
+			break;
+		case 1:
+			favorite_ = TFavorite::YES;
+			break;
+		default:
+			jassert(false);
+			favorite_ = TFavorite::DONTKNOW;
+		}
+	}
+
 	Favorite::TFavorite Favorite::is() const
 	{
 		return favorite_;

@@ -21,6 +21,7 @@ namespace midikraft {
 		enum class TFavorite { DONTKNOW = -1, NO = 0, YES = 1 };
 		Favorite(); // Creates an "unknown favorite"
 		explicit Favorite(bool isFavorite); // Creates a favorite with a user decision
+		explicit Favorite(int howFavorite); // For loading from the database
 
 		TFavorite is() const;
 

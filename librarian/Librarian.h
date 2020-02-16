@@ -27,7 +27,7 @@ namespace midikraft {
 		typedef std::function<void(std::vector<PatchHolder>)> TFinishedHandler;
 		typedef std::function<void()> TStepSequencerFinishedHandler;
 
-		Librarian(std::vector<SynthHolder> &synths) : synths_(synths), downloadNumber_(0) {}
+		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), downloadNumber_(0) {}
 
 		void startDownloadingAllPatches(SafeMidiOutput *midiOutput, Synth *synth, MidiBankNumber bankNo,
 			ProgressHandler *progressHandler, TFinishedHandler onFinished);
@@ -46,7 +46,7 @@ namespace midikraft {
 		void handleNextBankDump(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo);
 		std::vector<PatchHolder> tagPatchesWithImportFromSynth(Synth *synth, TPatchVector &patches, MidiBankNumber bankNo);
 
-		std::vector<SynthHolder> &synths_;
+		std::vector<SynthHolder> synths_;
 		std::vector<MidiMessage> currentDownload_;
 		MidiController::HandlerHandle handle_ = MidiController::makeNoneHandle();
 		TFinishedHandler onFinished_;

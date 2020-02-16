@@ -89,6 +89,8 @@ namespace midikraft {
 		void setCategory(std::string const &categoryName, bool hasIt);
 		void clearCategories();
 		std::set<Category> categories() const;
+		int64 categoriesAsBitfield() const;
+		void setCategoriesFromBitfield(int64 bitfield);
 		std::shared_ptr<SourceInfo> sourceInfo() const;
 		
 		std::string md5() const;

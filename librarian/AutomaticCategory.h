@@ -22,6 +22,7 @@ namespace midikraft {
 	class AutoCategory {
 	public:
 		static std::vector<AutoCategory> predefinedCategories();
+		static std::vector<Category> predefinedCategoryVector();
 		static std::set<Category> determineAutomaticCategories(Patch const &patch);
 
 		AutoCategory(Category category, std::vector<std::string> const &regexes);

@@ -103,6 +103,31 @@ namespace midikraft {
 		return categories_;
 	}
 
+	int64 PatchHolder::categoriesAsBitfield() const {
+		uint64 mask = 0;
+		for (auto cat : categories_) {
+			mask |= 1LL << (cat.bitIndex - 1); // bitIndex is 1-based
+			jassert(cat.bitIndex > 0 && cat.bitIndex < 64);
+		}
+		return mask;
+	}
+
+	void PatchHolder::setCategoriesFromBitfield(int64 bitfield)
+	{
+		categories_.clear();
+		for (int i = 0; i < 64; i++) {
+			if (bitfield & (1LL << i)) {
+				// This bit is set, find the category that has this bitindex
+				for (auto c : AutoCategory::predefinedCategoryVector()) {
+					if (c.bitIndex == (i + 1)) {
+						categories_.insert(c);
+						break;
+					}
+				}
+			}
+		}
+	}
+
 	std::shared_ptr<SourceInfo> PatchHolder::sourceInfo() const
 	{
 		return sourceInfo_;

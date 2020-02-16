@@ -19,21 +19,30 @@ namespace midikraft {
 		// Lazy init
 		if (predefinedCategories_.empty()) {
 			predefinedCategories_ = {
-			{ { "Lead", Colour::fromString(colorPalette[0]) },{ "^ld", "ld$", "lead", "uni", "solo" } },
-			{ { "Pad", Colour::fromString(colorPalette[1]) },{ "pad", "pd ", "pd$", "^pd", "str ", "str$", "strg", "strng", "string", "bow" } },
-			{ { "Brass", Colour::fromString(colorPalette[2]) },{ "horn", "hrn", "brass", "brs$", "trumpet" } },
-			{ { "Organ", Colour::fromString(colorPalette[3]) },{ "b3", "hammond", "org", "farf", "church", "pipe" } },
-			{ { "Keys", Colour::fromString(colorPalette[4]) },{ "wurl", "pian", "rhode", "pno", "clav", "klav", " ep", "key" } },
-			{ { "Bass", Colour::fromString(colorPalette[5]) },{ "^bs[^a-z]", "bs$", "bass", "bas$", " ba$" } },
-			{ { "Arp", Colour::fromString(colorPalette[6]) },{ "[^h]arp" } },
-			{ { "Pluck", Colour::fromString(colorPalette[7]) },{ "pluck", "gitar", "guitar", "harp" } },
-			{ { "Drone", Colour::fromString(colorPalette[8]) },{ "drone" } },
-			{ { "Drum", Colour::fromString(colorPalette[9]) },{ "snare", "base", "bd$", "dr\\.", "drum", " tom", "kick", "perc" } },
-			{ { "Bells", Colour::fromString(colorPalette[10]) },{ "bell", "tines", "chime" } },
-			{ { "FX", Colour::fromString(colorPalette[11]) },{ "fx" } },
+			{ { "Lead", Colour::fromString(colorPalette[0]), 1 },{ "^ld", "ld$", "lead", "uni", "solo" } },
+			{ { "Pad", Colour::fromString(colorPalette[1]), 2 },{ "pad", "pd ", "pd$", "^pd", "str ", "str$", "strg", "strng", "string", "bow" } },
+			{ { "Brass", Colour::fromString(colorPalette[2]), 3 },{ "horn", "hrn", "brass", "brs$", "trumpet" } },
+			{ { "Organ", Colour::fromString(colorPalette[3]), 4 },{ "b3", "hammond", "org", "farf", "church", "pipe" } },
+			{ { "Keys", Colour::fromString(colorPalette[4]), 5 },{ "wurl", "pian", "rhode", "pno", "clav", "klav", " ep", "key" } },
+			{ { "Bass", Colour::fromString(colorPalette[5]), 6 },{ "^bs[^a-z]", "bs$", "bass", "bas$", " ba$" } },
+			{ { "Arp", Colour::fromString(colorPalette[6]), 7 },{ "[^h]arp" } },
+			{ { "Pluck", Colour::fromString(colorPalette[7]), 8 },{ "pluck", "gitar", "guitar", "harp" } },
+			{ { "Drone", Colour::fromString(colorPalette[8]), 9 },{ "drone" } },
+			{ { "Drum", Colour::fromString(colorPalette[9]), 10 },{ "snare", "base", "bd$", "dr\\.", "drum", " tom", "kick", "perc" } },
+			{ { "Bells", Colour::fromString(colorPalette[10]), 11 },{ "bell", "tines", "chime" } },
+			{ { "FX", Colour::fromString(colorPalette[11]), 12 },{ "fx" } },
 			};
 		}
 		return predefinedCategories_;
+	}
+
+	std::vector<midikraft::Category> AutoCategory::predefinedCategoryVector()
+	{
+		std::vector<midikraft::Category> result;
+		for (auto a : predefinedCategories()) {
+			result.push_back(a.category());
+		}
+		return result;
 	}
 
 	std::set<Category> AutoCategory::determineAutomaticCategories(Patch const &patch)

@@ -10,11 +10,12 @@
 
 namespace midikraft {
 
-	struct Category {
-		Category(std::string const &cat, Colour const &col) : category(cat), color(col) {
-		}
+	class Category {
+	public:
+		Category(std::string const &c, Colour o, int i) : category(c), color(o), bitIndex(i) {}
 		std::string category;
 		Colour color;
+		int bitIndex; // For bit-vector storage 
 	};
 
 	bool operator <(Category const &left, Category const &right);

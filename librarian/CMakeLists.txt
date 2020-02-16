@@ -27,7 +27,7 @@ ENDIF()
 # Define the sources for the static library
 set(Sources
 	AutomaticCategory.cpp AutomaticCategory.h
-	Category.h
+	Category.cpp Category.h
 	Librarian.cpp Librarian.h
 	PatchHolder.cpp PatchHolder.h
 	RapidJsonHelper.cpp RapidJsonHelper.h

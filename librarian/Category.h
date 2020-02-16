@@ -8,6 +8,8 @@
 
 #include "JuceHeader.h"
 
+#include <set>
+
 namespace midikraft {
 
 	class Category {
@@ -16,6 +18,8 @@ namespace midikraft {
 		std::string category;
 		Colour color;
 		int bitIndex; // For bit-vector storage 
+
+		static int64 categorySetAsBitfield(std::set<Category> const &categories);
 	};
 
 	bool operator <(Category const &left, Category const &right);

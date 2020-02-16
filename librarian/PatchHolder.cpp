@@ -104,12 +104,7 @@ namespace midikraft {
 	}
 
 	int64 PatchHolder::categoriesAsBitfield() const {
-		uint64 mask = 0;
-		for (auto cat : categories_) {
-			mask |= 1LL << (cat.bitIndex - 1); // bitIndex is 1-based
-			jassert(cat.bitIndex > 0 && cat.bitIndex < 64);
-		}
-		return mask;
+		return Category::categorySetAsBitfield(categories_);
 	}
 
 	void PatchHolder::setCategoriesFromBitfield(int64 bitfield)

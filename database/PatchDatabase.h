@@ -22,6 +22,7 @@ namespace midikraft {
 			Synth *activeSynth;
 			std::string importID;
 			bool onlyFaves;
+			std::set<Category> categories;
 		};
 
 		PatchDatabase();

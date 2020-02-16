@@ -24,15 +24,8 @@
 
 namespace midikraft {
 
-	// Define SQL database schema
-	struct SQL_Patch {
-		//std::string user;
-		std::string synth;
-		std::vector<uint8> data;
-		int favorite;
-		std::string sourceInfo;
-		std::set<std::string> category;
-	};
+	const int SCHEMA_VERSION = 1;
+
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -44,8 +37,9 @@ namespace midikraft {
 			if (false)
 			{
 				SQLite::Transaction transaction(db_);
-				db_.exec("DROP TABLE patches");
-				db_.exec("DROP TABLE imports");
+				db_.exec("DROP TABLE IF EXISTS patches");
+				db_.exec("DROP TABLE IF EXISTS imports");
+				db_.exec("DROP TABLE IF EXISTS schema_version");
 				transaction.commit();
 			}
 
@@ -53,12 +47,31 @@ namespace midikraft {
 				SQLite::Transaction transaction(db_);
 				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT, sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER)");
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
+				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
 
 				/*int nb = db_.exec("INSERT INTO test VALUES (NULL, \"test\")");
 				std::cout << "INSERT INTO test VALUES (NULL, \"test\")\", returned " << nb << std::endl;*/
 
 				// Commit transaction
 				transaction.commit();
+			}
+
+			// Check if schema needs to be migrated
+			SQLite::Statement schemaQuery(db_, "SELECT number FROM schema_version");
+			if (schemaQuery.executeStep()) {
+				int version = schemaQuery.getColumn("number").getInt();
+				if (version < SCHEMA_VERSION) {
+					jassert(false);
+					// MIGRATION CODE TO BE HERE
+				}
+			}
+			else {
+				// Ups, completely empty database, need to insert current schema version
+				int rows = db_.exec("INSERT INTO schema_version VALUES (" + String(SCHEMA_VERSION).toStdString() + ")");
+				if (rows != 1) {
+					jassert(false);
+					AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Error", "For whatever reason couldn't insert the schema version number. Something is terribly wrong.");
+				}
 			}
 		}
 
@@ -81,7 +94,7 @@ namespace midikraft {
 				sql.exec();
 			}
 			catch (SQLite::Exception &ex) {
-				jassert(false);
+				AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Exception", ex.what());
 			}
 			return true;
 		}
@@ -104,6 +117,13 @@ namespace midikraft {
 			if (filter.onlyFaves) {
 				where += " AND favorite == 1";
 			}
+			if (!filter.categories.empty()) {
+				// Empty category filter set will of course return everything
+				//TODO this has bad query performance as it will force a table scan, but for now I cannot see this becoming a problem as long as the database is not multi-tenant
+				// The correct way to do this would be to create a many to many relationship and run an "exists" query or join/unique the category table. Returning the list of categories also requires 
+				// a concat on sub-query, so we're running into more complex SQL territory here.
+				where += " AND (categories & :CAT != 0)";
+			}
 			return where;
 		}
 
@@ -111,6 +131,9 @@ namespace midikraft {
 			query.bind(":SYN", filter.activeSynth->getName());
 			if (!filter.importID.empty()) {
 				query.bind(":SID", filter.importID);
+			}
+			if (!filter.categories.empty()) {
+				query.bind(":CAT", Category::categorySetAsBitfield(filter.categories));
 			}
 		}
 
@@ -177,7 +200,7 @@ namespace midikraft {
 					}
 				} 
 				catch (SQLite::Exception &ex) {
-					jassert(false);
+					AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Exception", ex.what());
 				}
 			}
 			return result;

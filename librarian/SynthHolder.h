@@ -15,20 +15,20 @@ namespace midikraft {
 
 	class SynthHolder {
 	public:
-		SynthHolder(Synth *synth, Colour const &color);
-		SynthHolder(SimpleDiscoverableDevice *synth, Colour const &color);
-		SynthHolder(SoundExpanderCapability *synth);
+		SynthHolder(std::shared_ptr<Synth> synth, Colour const &color);
+		SynthHolder(std::shared_ptr<SimpleDiscoverableDevice> synth, Colour const &color);
+		SynthHolder(std::shared_ptr<SoundExpanderCapability> synth);
 
-		Synth *synth() { return dynamic_cast<Synth *>(device_); }
-		SimpleDiscoverableDevice *device() { return dynamic_cast<SimpleDiscoverableDevice *>(device_); }
-		SoundExpanderCapability *soundExpander() { return dynamic_cast<SoundExpanderCapability *>(device_); }
+		std::shared_ptr<Synth> synth() { return std::dynamic_pointer_cast<Synth>(device_); }
+		std::shared_ptr<SimpleDiscoverableDevice> device() { return std::dynamic_pointer_cast<SimpleDiscoverableDevice>(device_); }
+		std::shared_ptr<SoundExpanderCapability> soundExpander() { return std::dynamic_pointer_cast<SoundExpanderCapability>(device_); }
 		Colour color() { return color_; }
 		void setColor(Colour const &newColor);
 
-		static Synth *findSynth(std::vector<SynthHolder> &synths, std::string const &synthName);
+		static std::shared_ptr<Synth> findSynth(std::vector<SynthHolder> &synths, std::string const &synthName);
 
 	private:
-		NamedDeviceCapability *device_;
+		std::shared_ptr<NamedDeviceCapability> device_;
 		Colour color_;
 	};
 

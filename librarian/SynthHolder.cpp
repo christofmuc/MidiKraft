@@ -15,23 +15,23 @@
 
 namespace midikraft {
 
-	std::string colorSynthKey(DiscoverableDevice *synth) {
+	std::string colorSynthKey(std::shared_ptr<DiscoverableDevice> synth) {
 		return (boost::format("%s-color") % synth->getName()).str();
 	}
 
-	SynthHolder::SynthHolder(Synth *synth, Colour const &color) : device_(synth)
+	SynthHolder::SynthHolder(std::shared_ptr<Synth> synth, Colour const &color) : device_(synth)
 	{
 		// Override the constructor color with the one from the settings file, if set
 		color_ = Colour::fromString(Settings::instance().get(colorSynthKey(synth), color.toString().toStdString()));
 	}
 
-	SynthHolder::SynthHolder(SimpleDiscoverableDevice *synth, Colour const &color) : device_(synth)
+	SynthHolder::SynthHolder(std::shared_ptr<SimpleDiscoverableDevice> synth, Colour const &color) : device_(synth)
 	{
 		// Override the constructor color with the one from the settings file, if set
 		color_ = Colour::fromString(Settings::instance().get(colorSynthKey(synth), color.toString().toStdString()));
 	}
 
-	SynthHolder::SynthHolder(SoundExpanderCapability *synth) : device_(synth)
+	SynthHolder::SynthHolder(std::shared_ptr<SoundExpanderCapability> synth) : device_(synth)
 	{
 	}
 
@@ -43,7 +43,7 @@ namespace midikraft {
 		Settings::instance().set(colorSynthKey(device()), newColor.toString().toStdString());
 	}
 
-	Synth * SynthHolder::findSynth(std::vector<SynthHolder> &synths, std::string const &synthName)
+	std::shared_ptr<Synth> SynthHolder::findSynth(std::vector<SynthHolder> &synths, std::string const &synthName)
 	{
 		for (auto synth : synths) {
 			if (synth.synth() && synth.synth()->getName() == synthName) {

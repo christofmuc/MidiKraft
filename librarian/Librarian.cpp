@@ -145,7 +145,7 @@ namespace midikraft {
 		for (auto message : messages) {
 			for (auto synth : synths_) {
 				if (synth.synth() && synth.synth()->isOwnSysex(message)) {
-					result.insert(synth.synth());
+					result.insert(synth.synth().get());
 				}
 			}
 		}

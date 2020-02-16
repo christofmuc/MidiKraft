@@ -51,7 +51,7 @@ namespace midikraft {
 
 			if (!db_.tableExists("patches") || !db_.tableExists("imports")) {
 				SQLite::Transaction transaction(db_);
-				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT, sourceInfo TEXT, midiProgramNo INTEGER, categories TEXT)");
+				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT, sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER)");
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
 
 				/*int nb = db_.exec("INSERT INTO test VALUES (NULL, \"test\")");
@@ -76,7 +76,7 @@ namespace midikraft {
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(activeSynth));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
 				sql.bind(":PRG", patch.patch()->patchNumber()->midiProgramNumber().toZeroBased());
-				sql.bind(":CAT", "");
+				sql.bind(":CAT", patch.categoriesAsBitfield());
 				
 				sql.exec();
 			}
@@ -146,6 +146,7 @@ namespace midikraft {
 						if (favoriteColumn.isInteger()) {
 							holder.setFavorite(Favorite(favoriteColumn.getInt()));
 						}
+						holder.setCategoriesFromBitfield(query.getColumn("categories").getInt64());
 						result.push_back(holder);
 					}
 					else {
@@ -187,6 +188,17 @@ namespace midikraft {
 			if (newPatch.howFavorite().is() != Favorite::TFavorite::DONTKNOW) {
 				SQLite::Statement sql(db_, "UPDATE patches SET favorite = :FAV WHERE md5 = :MD5");
 				sql.bind(":FAV", (int) newPatch.howFavorite().is());
+				sql.bind(":MD5", newPatch.md5());
+				if (sql.exec() != 1) {
+					jassert(false);
+					throw new std::runtime_error("FATAL, I don't want to ruin your database");
+				}
+			}
+
+			// Also, update the categories bit vector
+			{
+				SQLite::Statement sql(db_, "UPDATE patches SET categories = :CAT WHERE md5 = :MD5");
+				sql.bind(":CAT", newPatch.categoriesAsBitfield());
 				sql.bind(":MD5", newPatch.md5());
 				if (sql.exec() != 1) {
 					jassert(false);

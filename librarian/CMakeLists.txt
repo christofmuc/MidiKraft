@@ -24,9 +24,22 @@ IF(NOT DEFINED JUCE_LIBRARIES)
 	)
 ENDIF()
 
+
+set(RESOURCE_FILES 
+	"resources/automatic_categories.jsonc"
+)
+
+add_custom_command(OUTPUT ${CMAKE_CURRENT_LIST_DIR}/BinaryResources.h
+	COMMAND ${CMAKE_COMMAND} -P createResources.cmake	
+	DEPENDS ${RESOURCE_FILES}
+	COMMENT "Compiling binary resources"
+	WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+)
+
 # Define the sources for the static library
 set(Sources
 	AutomaticCategory.cpp AutomaticCategory.h
+	BinaryResources.h
 	Category.cpp Category.h
 	Librarian.cpp Librarian.h
 	PatchHolder.cpp PatchHolder.h
@@ -35,7 +48,12 @@ set(Sources
 	SynthHolder.cpp SynthHolder.h
 	README.md
 	LICENSE.md
-	${PATCH_FILES}
+	${RESOURCE_FILES}
+)
+
+set_source_files_properties(
+	BinaryResources.h
+	PROPERTIES GENERATED TRUE
 )
 
 # Setup library

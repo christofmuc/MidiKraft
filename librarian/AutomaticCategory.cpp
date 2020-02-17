@@ -8,6 +8,7 @@
 
 #include "Patch.h"
 
+#include "BinaryResources.h"
 #include "RapidjsonHelper.h"
 
 namespace midikraft {
@@ -20,20 +21,7 @@ namespace midikraft {
 	std::vector<AutoCategory> AutoCategory::predefinedCategories() {
 		// Lazy init
 		if (predefinedCategories_.empty()) {
-			predefinedCategories_ = {
-			{ { "Lead", Colour::fromString(colorPalette[0]), 1 },{ "^ld", "ld$", "lead", "uni", "solo" } },
-			{ { "Pad", Colour::fromString(colorPalette[1]), 2 },{ "pad", "pd ", "pd$", "^pd", "str ", "str$", "strg", "strng", "string", "bow" } },
-			{ { "Brass", Colour::fromString(colorPalette[2]), 3 },{ "horn", "hrn", "brass", "brs$", "trumpet" } },
-			{ { "Organ", Colour::fromString(colorPalette[3]), 4 },{ "b3", "hammond", "org", "farf", "church", "pipe" } },
-			{ { "Keys", Colour::fromString(colorPalette[4]), 5 },{ "wurl", "pian", "rhode", "pno", "clav", "klav", " ep", "key" } },
-			{ { "Bass", Colour::fromString(colorPalette[5]), 6 },{ "^bs[^a-z]", "bs$", "bass", "bas$", " ba$" } },
-			{ { "Arp", Colour::fromString(colorPalette[6]), 7 },{ "[^h]arp" } },
-			{ { "Pluck", Colour::fromString(colorPalette[7]), 8 },{ "pluck", "gitar", "guitar", "harp" } },
-			{ { "Drone", Colour::fromString(colorPalette[8]), 9 },{ "drone" } },
-			{ { "Drum", Colour::fromString(colorPalette[9]), 10 },{ "snare", "base", "bd$", "dr\\.", "drum", " tom", "kick", "perc" } },
-			{ { "Bells", Colour::fromString(colorPalette[10]), 11 },{ "bell", "tines", "chime" } },
-			{ { "FX", Colour::fromString(colorPalette[11]), 12 },{ "fx" } },
-			};
+			loadFromString(defaultJson());
 		}
 		return predefinedCategories_;
 	}
@@ -85,51 +73,60 @@ namespace midikraft {
 		File jsonFile(fullPathToJson);
 		if (jsonFile.exists()) {
 			auto fileContent = jsonFile.loadFileAsString();
+			loadFromString(fileContent.toStdString());
+		}
+	}
 
-			// Parse as JSON
-			rapidjson::Document doc;
-			doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.toStdString().c_str());
-			if (doc.IsObject()) {
-				// Replace the hard-coded values with those read from the JSON file
-				predefinedCategories_.clear();
+	void AutoCategory::loadFromString(std::string const fileContent) {
+		// Parse as JSON
+		rapidjson::Document doc;
+		doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.c_str());
+		if (doc.IsObject()) {
+			// Replace the hard-coded values with those read from the JSON file
+			predefinedCategories_.clear();
 
-				auto obj = doc.GetObject();
-				size_t i = 1;
-				for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
-					auto categoryName = member->name.GetString();
-					std::vector<std::regex> regexes;
-					if (member->value.IsArray()) {
-						auto a = member->value.GetArray();
-						for (auto s = a.Begin(); s != a.End(); s++) {
-							
-							if (s->IsString()) {
-								// Simple Regex
-								regexes.push_back(std::regex(s->GetString(), std::regex::icase));
-							}
-							else if (s->IsObject()) {
-								bool case_sensitive = false;
-								// Regex specifying options
-								if (s->HasMember("case-sensitive")) {
-									auto caseness = s->FindMember("case-sensitive");
-									if (caseness->value.IsBool()) {
-										case_sensitive = caseness->value.GetBool();
-									}
+			auto obj = doc.GetObject();
+			size_t i = 1;
+			for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
+				auto categoryName = member->name.GetString();
+				std::vector<std::regex> regexes;
+				if (member->value.IsArray()) {
+					auto a = member->value.GetArray();
+					for (auto s = a.Begin(); s != a.End(); s++) {
+
+						if (s->IsString()) {
+							// Simple Regex
+							regexes.push_back(std::regex(s->GetString(), std::regex::icase));
+						}
+						else if (s->IsObject()) {
+							bool case_sensitive = false;
+							// Regex specifying options
+							if (s->HasMember("case-sensitive")) {
+								auto caseness = s->FindMember("case-sensitive");
+								if (caseness->value.IsBool()) {
+									case_sensitive = caseness->value.GetBool();
 								}
-								if (s->HasMember("regex")) {
-									auto regex = s->FindMember("regex");
-									if (regex->value.IsString()) {
-										regexes.push_back(std::regex(s->GetString(), case_sensitive ? std::regex_constants::ECMAScript : (std::regex::icase)));
-									}
+							}
+							if (s->HasMember("regex")) {
+								auto regex = s->FindMember("regex");
+								if (regex->value.IsString()) {
+									regexes.push_back(std::regex(s->GetString(), case_sensitive ? std::regex_constants::ECMAScript : (std::regex::icase)));
 								}
 							}
 						}
-					} 
-					AutoCategory cat(Category(categoryName, colorForIndex(i - 1), i), regexes);
-					i++;
-					predefinedCategories_.push_back(cat);
+					}
 				}
+				AutoCategory cat(Category(categoryName, colorForIndex(i - 1), i), regexes);
+				i++;
+				predefinedCategories_.push_back(cat);
 			}
 		}
+	}
+
+	std::string AutoCategory::defaultJson()
+	{
+		// Read the default Json definition from the binary resources
+		return std::string(automatic_categories_jsonc, automatic_categories_jsonc + automatic_categories_jsonc_size);
 	}
 
 	juce::Colour AutoCategory::colorForIndex(size_t i)

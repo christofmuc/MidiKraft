@@ -1,0 +1,27 @@
+// This document is read by the KnobKraft ORM Sysex Librarian
+// 
+// It contains the naming conventinos to automatically detect the category from a patch name
+// 
+// The syntax is JSON, extended by C-style comments
+// The content are regular expressions
+// 
+// Word of warning: This is work in progress, and as of now you *CANNOT* add new categories, just add
+// new expressions to extend the current ones
+//
+{
+    "Lead": ["^ld", "ld$", "lead", "uni", "solo"],
+    "Pad": ["pad", "pd ", "pd$", "^pd", "str ", "str$", "strg", "strng", "string", "bow", "^STR:", "^BOW:" ],
+    "Brass": [ "horn", "hrn", "brass", "brs$", "trumpet", "^BRS:" ],
+    "Organ": [ "b3", "hammond", "org", "farf", "church", "pipe" ],
+    "Keys": [ "wurl", "pian", "rhode", "pno", "clav", "klav", " ep", "key", "^KBD:" ],
+    "Bass": [ "^bs[^a-z]", "bs$", "bass", "bas$", " ba$", "^BAS:" ],
+    "Arp": [ "[^h]arp", "^ARP:", "^SEQ:" ],
+    "Pluck": [ "pluck", "gitar", "guitar", "harp", "^PLK:" ],
+    "Done": [ "drone", "^DRO:" ],
+    "Drum": [ "snare", "base", "bd$", "dr\\.", "drum", " tom", "kick", "perc", "^PRC:" ],
+    "Bell": [ "bell", "tines", "chime", "^CHR:" ],
+    "SFX": [ "fx" ],
+    "Ambient": [ "^AMB:"],
+    "Wind": [ "^WND:"],
+    "Voice": [ "^VOC:"]
+}

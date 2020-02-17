@@ -28,7 +28,9 @@ namespace midikraft {
 		Category category() const;
 
 		static void loadFromFile(std::string fullPathToJson);
-		
+		static void loadFromString(std::string const fileContent);
+		static std::string defaultJson(); 
+
 	private:
 		static Colour colorForIndex(size_t i);
 

@@ -190,11 +190,13 @@ namespace midikraft {
 			return true;
 		}
 
-		std::map<std::string, PatchHolder> bulkGetPatches(Synth *activeSynth, std::vector<PatchHolder> & patches) {
+		std::map<std::string, PatchHolder> bulkGetPatches(Synth *activeSynth, std::vector<PatchHolder> & patches, ProgressHandler *progress) {
 			// Query the database for exactly those patches, we want to know which ones are already there!
 			std::map<std::string, PatchHolder> result;
 
+			int checkedForExistance = 0;
 			for (auto ph : patches) {
+				if (progress && progress->shouldAbort()) return std::map<std::string, PatchHolder>();
 				// First, calculate list of "IDs"
 				// Query the database if this exists. Normally, I would bulk, but as the database is local for now I think we're going to be fine
 				try {
@@ -208,6 +210,7 @@ namespace midikraft {
 				catch (SQLite::Exception &ex) {
 					AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Exception", ex.what());
 				}
+				if (progress) progress->setProgressPercentage(checkedForExistance++ / (double)patches.size());
 			}
 			return result;
 		}
@@ -241,11 +244,13 @@ namespace midikraft {
 			Uuid source_uuid;
 
 			// This works by doing a bulk get operation for the patches from the database...
-			auto knownPatches = bulkGetPatches(activeSynth, patches);
+			auto knownPatches = bulkGetPatches(activeSynth, patches, progress);
 
 			SQLite::Transaction transaction(db_);
 
+			int loop = 0;
 			for (auto &patch : patches) {
+				if (progress && progress->shouldAbort()) return 0;
 				if (knownPatches.find(patch.md5()) != knownPatches.end()) {
 					// Update the database with the new info
 					updatePatch(activeSynth, patch, knownPatches[patch.md5()]);
@@ -254,6 +259,7 @@ namespace midikraft {
 					// This is a new patch - it needs to be uploaded into the database!
 					outNewPatches.push_back(patch);
 				}
+				if (progress) progress->setProgressPercentage(loop++ / (double)patches.size());
 			}
 
 			//TODO can be replaced by repaired bulkPut

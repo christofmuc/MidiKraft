@@ -54,7 +54,7 @@ namespace midikraft {
 			if (!db_.tableExists("patches") || !db_.tableExists("imports")) {
 				SQLite::Transaction transaction(db_);
 
-				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT, sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER)");
+				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT, sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER)");
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
 

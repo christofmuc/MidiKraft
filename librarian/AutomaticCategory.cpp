@@ -135,7 +135,6 @@ namespace midikraft {
 			return Colour::fromString(colorPalette[i]);
 		}
 		else {
-			jassert(false);
 			return Colours::darkgrey;
 		}
 	}

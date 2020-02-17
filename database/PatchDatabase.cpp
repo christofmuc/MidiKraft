@@ -258,10 +258,18 @@ namespace midikraft {
 
 			//TODO can be replaced by repaired bulkPut
 			int uploaded = 0;
+			std::map<String, PatchHolder> md5Inserted;
 			for (auto newPatch : outNewPatches) {
 				if (progress && progress->shouldAbort()) return uploaded;
-				putPatch(activeSynth, newPatch, source_uuid.toString().toStdString());
-				uploaded++;
+				if (md5Inserted.find(newPatch.md5()) != md5Inserted.end()) {
+					auto duplicate = md5Inserted[newPatch.md5()];
+					SimpleLogger::instance()->postMessage("Skipping patch " + String(newPatch.patch()->patchName()) + " because it is a duplicate of " + duplicate.patch()->patchName());
+				}
+				else {
+					putPatch(activeSynth, newPatch, source_uuid.toString().toStdString());
+					md5Inserted[newPatch.md5()] = newPatch;
+					uploaded++;
+				}
 				if (progress) progress->setProgressPercentage(uploaded / (double)outNewPatches.size());
 			}
 
@@ -277,7 +285,7 @@ namespace midikraft {
 
 			transaction.commit();
 
-			return outNewPatches.size();
+			return uploaded;
 		}
 
 	private:

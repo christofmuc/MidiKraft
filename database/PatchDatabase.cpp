@@ -29,8 +29,16 @@ namespace midikraft {
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
-		PatchDatabase::PatchDataBaseImpl() : db_("patches.db3", SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
+		PatchDatabase::PatchDataBaseImpl() : db_(generateDatabaseLocation().toStdString().c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
 			createSchema();
+		}
+
+		String generateDatabaseLocation() {
+			auto knobkraft = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("KnobKraft");
+			if (!knobkraft.exists()) {
+				knobkraft.createDirectory();
+			}
+			return knobkraft.getChildFile("SysexDatabaseOfAllPatches.db3").getFullPathName();
 		}
 
 		void createSchema() {

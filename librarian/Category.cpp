@@ -15,3 +15,9 @@ juce::int64 midikraft::Category::categorySetAsBitfield(std::set<Category> const 
 	}
 	return mask;
 }
+
+bool midikraft::operator==(Category const &left, Category const &right)
+{
+	// Ignore bitIndex and color
+	return left.category == right.category;
+}

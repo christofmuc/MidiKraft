@@ -23,5 +23,6 @@ namespace midikraft {
 	};
 
 	bool operator <(Category const &left, Category const &right);
+	bool operator ==(Category const &left, Category const &right);
 
 }

@@ -8,6 +8,8 @@
 
 #include "Patch.h"
 
+#include "RapidjsonHelper.h"
+
 namespace midikraft {
 
 	std::vector<AutoCategory> AutoCategory::predefinedCategories_;
@@ -67,9 +69,78 @@ namespace midikraft {
 		}
 	}
 
+	AutoCategory::AutoCategory(Category category, std::vector<std::regex> const &regexes) :
+		category_(category), patchNameMatchers_(regexes)
+	{
+	}
+
 	Category AutoCategory::category() const
 	{
 		return category_;
+	}
+
+	void AutoCategory::loadFromFile(std::string fullPathToJson)
+	{
+		// Load the string in the file given
+		File jsonFile(fullPathToJson);
+		if (jsonFile.exists()) {
+			auto fileContent = jsonFile.loadFileAsString();
+
+			// Parse as JSON
+			rapidjson::Document doc;
+			doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.toStdString().c_str());
+			if (doc.IsObject()) {
+				// Replace the hard-coded values with those read from the JSON file
+				predefinedCategories_.clear();
+
+				auto obj = doc.GetObject();
+				size_t i = 1;
+				for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
+					auto categoryName = member->name.GetString();
+					std::vector<std::regex> regexes;
+					if (member->value.IsArray()) {
+						auto a = member->value.GetArray();
+						for (auto s = a.Begin(); s != a.End(); s++) {
+							
+							if (s->IsString()) {
+								// Simple Regex
+								regexes.push_back(std::regex(s->GetString(), std::regex::icase));
+							}
+							else if (s->IsObject()) {
+								bool case_sensitive = false;
+								// Regex specifying options
+								if (s->HasMember("case-sensitive")) {
+									auto caseness = s->FindMember("case-sensitive");
+									if (caseness->value.IsBool()) {
+										case_sensitive = caseness->value.GetBool();
+									}
+								}
+								if (s->HasMember("regex")) {
+									auto regex = s->FindMember("regex");
+									if (regex->value.IsString()) {
+										regexes.push_back(std::regex(s->GetString(), case_sensitive ? std::regex_constants::ECMAScript : (std::regex::icase)));
+									}
+								}
+							}
+						}
+					} 
+					AutoCategory cat(Category(categoryName, colorForIndex(i - 1), i), regexes);
+					i++;
+					predefinedCategories_.push_back(cat);
+				}
+			}
+		}
+	}
+
+	juce::Colour AutoCategory::colorForIndex(size_t i)
+	{
+		if (i < colorPalette.size()) {
+			return Colour::fromString(colorPalette[i]);
+		}
+		else {
+			jassert(false);
+			return Colours::darkgrey;
+		}
 	}
 
 	bool operator<(Category const &left, Category const &right)

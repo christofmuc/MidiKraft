@@ -92,6 +92,8 @@ namespace midikraft {
 		int64 categoriesAsBitfield() const;
 		void setCategoriesFromBitfield(int64 bitfield);
 		std::shared_ptr<SourceInfo> sourceInfo() const;
+
+		bool autoCategorizeAgain(); // Returns true if categories have changed!
 		
 		std::string md5() const;
 

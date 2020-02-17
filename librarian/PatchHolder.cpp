@@ -128,7 +128,14 @@ namespace midikraft {
 		return sourceInfo_;
 	}
 
-	std::string PatchHolder::calcMd5(Synth *activeSynth, Patch *patch) 
+	bool PatchHolder::autoCategorizeAgain()
+	{
+		auto previous = categories();
+		categories_ = AutoCategory::determineAutomaticCategories(*patch_);
+		return previous != categories_;
+	}
+
+	std::string PatchHolder::calcMd5(Synth *activeSynth, Patch *patch)
 	{
 		auto filteredData = activeSynth->filterVoiceRelevantData(patch->data());
 		MD5 md5(&filteredData[0], filteredData.size());

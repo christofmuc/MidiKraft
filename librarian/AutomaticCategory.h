@@ -17,19 +17,23 @@ namespace midikraft {
 
 	class Patch;
 
-	
-
 	class AutoCategory {
 	public:
 		static std::vector<AutoCategory> predefinedCategories();
 		static std::vector<Category> predefinedCategoryVector();
 		static std::set<Category> determineAutomaticCategories(Patch const &patch);
 
-		AutoCategory(Category category, std::vector<std::string> const &regexes);
+		AutoCategory(Category category, std::vector<std::string> const &regexes);		
+		AutoCategory(Category category, std::vector<std::regex> const &regexes);
 		Category category() const;
 
+		static void loadFromFile(std::string fullPathToJson);
+		
 	private:
+		static Colour colorForIndex(size_t i);
+
 		static std::vector<AutoCategory> predefinedCategories_;
+
 		Category category_;
 		std::vector<std::regex> patchNameMatchers_;
 	};

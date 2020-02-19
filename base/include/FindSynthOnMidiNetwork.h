@@ -11,6 +11,7 @@
 #include "DiscoverableDevice.h"
 #include "MidiNetworkLocation.h"
 #include "MidiController.h"
+#include "ProgressHandler.h"
 
 namespace midikraft {
 
@@ -35,14 +36,15 @@ namespace midikraft {
 		// Implementation of task
 		virtual void run() override;
 
-		static std::vector<MidiNetworkLocation> detectSynth(MidiController *midiController, DiscoverableDevice &synth);
+		static std::vector<MidiNetworkLocation> detectSynth(MidiController *midiController, DiscoverableDevice &synth, ProgressHandler *progressHandler);
 
 	private:
-		FindSynthOnMidiNetwork(MidiController *midiController, DiscoverableDevice &synth, std::string const &text);
+		FindSynthOnMidiNetwork(MidiController *midiController, DiscoverableDevice &synth, std::string const &text, ProgressHandler *progressHandler);
 
 		MidiController *midiController_;
 		DiscoverableDevice &synth_;
 		std::vector<MidiNetworkLocation> locations_;
+		ProgressHandler *progressHandler_;
 	};
 
 }

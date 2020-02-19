@@ -22,8 +22,8 @@ namespace midikraft {
 		}
 	}
 
-	FindSynthOnMidiNetwork::FindSynthOnMidiNetwork(MidiController *midiController, DiscoverableDevice &synth, std::string const &text) :
-		midiController_(midiController), synth_(synth), Thread(text)
+	FindSynthOnMidiNetwork::FindSynthOnMidiNetwork(MidiController *midiController, DiscoverableDevice &synth, std::string const &text, ProgressHandler *progressHandler) :
+		midiController_(midiController), synth_(synth), Thread(text), progressHandler_(progressHandler)
 	{
 	}
 
@@ -49,6 +49,7 @@ namespace midikraft {
 
 		// Now loop over outputs
 		for (int output = 0; output < midiOuts; output++) {
+			if (progressHandler_ && progressHandler_->shouldAbort()) break;
 			callback.reset();
 			if (synth_.needsChannelSpecificDetection()) {
 				// Test all 16 channels
@@ -73,8 +74,7 @@ namespace midikraft {
 				break;
 
 			// this will update the progress bar on the dialog box
-			//TODO - This was for the thread with message window, not the regular thread
-//			setProgress(output / (double)midiOuts);
+			if (progressHandler_) progressHandler_->setProgressPercentage(output / (double)midiOuts);
 
 			// Copy results
 			for (auto found : callback.locations()) {
@@ -92,9 +92,9 @@ namespace midikraft {
 		midiController_->removeMessageHandler(handler);
 	}
 
-	std::vector<MidiNetworkLocation> FindSynthOnMidiNetwork::detectSynth(MidiController *midiController, DiscoverableDevice &synth)
+	std::vector<MidiNetworkLocation> FindSynthOnMidiNetwork::detectSynth(MidiController *midiController, DiscoverableDevice &synth, ProgressHandler *progressHandler)
 	{
-		FindSynthOnMidiNetwork m(midiController, synth, (boost::format("Looking for %s on your MIDI network...") % synth.getName()).str());
+		FindSynthOnMidiNetwork m(midiController, synth, (boost::format("Looking for %s on your MIDI network...") % synth.getName()).str(), progressHandler);
 		m.startThread();
 		if (m.waitForThreadToExit(5000))
 		{

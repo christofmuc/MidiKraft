@@ -25,12 +25,12 @@ namespace midikraft {
 		return (boost::format("%s-%s") % synth->getName() % trait).str();
 	}
 
-	void AutoDetection::autoconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths)
+	void AutoDetection::autoconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths, ProgressHandler *progressHandler)
 	{
 		// For all devices that are discoverable, run the find method
 		for (auto synthHolder : allSynths) {
 			if (synthHolder) {
-				findSynth(synthHolder.get());
+				findSynth(synthHolder.get(), progressHandler);
 			}
 		}
 		listenerToAllFound(allSynths);
@@ -67,8 +67,8 @@ namespace midikraft {
 		sendChangeMessage();
 	}
 
-	void AutoDetection::findSynth(SimpleDiscoverableDevice *synth) {
-		auto locations = FindSynthOnMidiNetwork::detectSynth(MidiController::instance(), *synth);
+	void AutoDetection::findSynth(SimpleDiscoverableDevice *synth, ProgressHandler *progressHandler) {
+		auto locations = FindSynthOnMidiNetwork::detectSynth(MidiController::instance(), *synth, progressHandler);
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
 				SimpleLogger::instance()->postMessage((boost::format("Found %s on channel %d replying on device %s when sending to %s")

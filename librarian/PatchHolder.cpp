@@ -153,6 +153,14 @@ namespace midikraft {
 					categories_.insert(n);
 				}
 			}
+			for (auto o : previous) {
+				if (newCategories.find(o) == newCategories.end()) {
+					// This category has been removed by the auto categorizer, let's check if there is no user decision on it!
+					if (userDecisions_.find(o) == userDecisions_.end()) {
+						categories_.erase(o);
+					}
+				}
+			}
 			return previous != categories_;
 		}
 		else {

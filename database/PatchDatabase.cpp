@@ -334,17 +334,25 @@ namespace midikraft {
 		impl->runMigration(activeSynth);
 	}*/
 
-	void PatchDatabase::getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit)
+	std::vector<PatchHolder> PatchDatabase::getPatches(PatchFilter filter, int skip, int limit)
 	{
-		pool_.addJob([this, filter, finished, skip, limit]() {
 			std::vector<PatchHolder> result;
 			bool success = impl->getPatches(filter, result, skip, limit);
 			if (success) {
-				MessageManager::callAsync([finished, result]() { finished(result); });
+			return result;
 			}
 			else {
-				SimpleLogger::instance()->postMessage("Error retrieving patches from the Internet");
+			return {};
 			}
+	}
+
+	void PatchDatabase::getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit)
+	{
+		pool_.addJob([this, filter, finished, skip, limit]() {
+			auto result = getPatches(filter, skip, limit);
+			MessageManager::callAsync([finished, result]() {
+				finished(result);
+			});
 		});
 	}
 

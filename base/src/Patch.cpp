@@ -7,6 +7,7 @@
 #include "Patch.h"
 
 #include "SynthParameterDefinition.h"
+#include "LayeredPatch.h"
 
 #include <boost/format.hpp>
 
@@ -46,10 +47,29 @@ namespace midikraft {
 	{
 		std::string result;
 
-		for (auto param : allParameterDefinitions()) {
-			auto activeCheck = dynamic_cast<SynthParameterActiveDetectionCapability *>(param);
-			if (!onlyActive || !activeCheck || !(activeCheck->isActive(this))) {
-				result = result + (boost::format("%s: %s\n") % param->description() % param->valueInPatchToText(*this)).str();
+		int numLayers = 1;
+		auto layers = dynamic_cast<LayeredPatch *>(this);
+		if (layers) {
+			numLayers = layers->numberOfLayers();
+		}
+
+		for (int layer = 0; layer < numLayers; layer++) {
+			if (layers) {
+				if (layer > 0) result += "\n";
+				result = result + (boost::format("Layer: %s\n") % layers->layerName(layer)).str();
+			}
+			for (auto param : allParameterDefinitions()) {
+				if (layers) {
+					auto multiLayerParam = dynamic_cast<SynthMultiLayerParameterCapability *>(param);
+					jassert(multiLayerParam);
+					if (multiLayerParam) {
+						multiLayerParam->setTargetLayer(layer);
+					}
+				}
+				auto activeCheck = dynamic_cast<SynthParameterActiveDetectionCapability *>(param);
+				if (!onlyActive || !activeCheck || !(activeCheck->isActive(this))) {
+					result = result + (boost::format("%s: %s\n") % param->description() % param->valueInPatchToText(*this)).str();
+				}
 			}
 		}
 		return result;

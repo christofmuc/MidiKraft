@@ -58,6 +58,11 @@ namespace midikraft {
 		return instance_;
 	}
 
+	void MidiController::shutdown()
+	{
+		delete instance_;
+	}
+
 	void MidiController::logMidiMessage(const MidiMessage& message, const String& source, bool isOut) {
 		if (midiLogFunction_) {
 			midiLogFunction_(message, source, isOut);

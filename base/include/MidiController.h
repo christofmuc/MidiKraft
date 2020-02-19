@@ -40,6 +40,7 @@ namespace midikraft {
 		~MidiController();
 
 		static MidiController *instance();
+		static void shutdown(); // Call this last, and never call instance() again after this
 
 		//TODO - I think these should have an optional expiration date/timeout with a timeout handler, like when the expected response doesn't happen
 		void addMessageHandler(HandlerHandle const &handle, MidiCallback handler);

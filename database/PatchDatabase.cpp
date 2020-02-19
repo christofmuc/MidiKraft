@@ -54,7 +54,8 @@ namespace midikraft {
 			if (!db_.tableExists("patches") || !db_.tableExists("imports")) {
 				SQLite::Transaction transaction(db_);
 
-				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT, sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER)");
+				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT,"
+					" sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER)");
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
 
@@ -83,7 +84,8 @@ namespace midikraft {
 
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch, std::string const &sourceID) {
 			try {
-				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, data, favorite, sourceID, sourceName, sourceInfo, midiProgramNo, categories) VALUES (:SYN, :MD5, :NAM, :DAT, :FAV, :SID, :SNM, :SRC, :PRG, :CAT)");
+				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, data, favorite, sourceID, sourceName, sourceInfo, midiProgramNo, categories, categoryUserDecision)"
+					" VALUES (:SYN, :MD5, :NAM, :DAT, :FAV, :SID, :SNM, :SRC, :PRG, :CAT, :CUD)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", activeSynth->getName().c_str());
@@ -96,6 +98,7 @@ namespace midikraft {
 				sql.bind(":SRC", patch.sourceInfo()->toString());
 				sql.bind(":PRG", patch.patch()->patchNumber()->midiProgramNumber().toZeroBased());
 				sql.bind(":CAT", patch.categoriesAsBitfield());
+				sql.bind(":CUD", patch.userDecisionAsBitfield());
 				
 				sql.exec();
 			}
@@ -176,6 +179,7 @@ namespace midikraft {
 							holder.setFavorite(Favorite(favoriteColumn.getInt()));
 						}
 						holder.setCategoriesFromBitfield(query.getColumn("categories").getInt64());
+						holder.setUserDecisionsFromBitfield(query.getColumn("categoryUserDecision").getInt64());
 						result.push_back(holder);
 					}
 					else {
@@ -229,8 +233,9 @@ namespace midikraft {
 
 			// Also, update the categories bit vector
 			{
-				SQLite::Statement sql(db_, "UPDATE patches SET categories = :CAT WHERE md5 = :MD5");
+				SQLite::Statement sql(db_, "UPDATE patches SET categories = :CAT, categoryUserDecision = :CUD WHERE md5 = :MD5");
 				sql.bind(":CAT", newPatch.categoriesAsBitfield());
+				sql.bind(":CUD", newPatch.userDecisionAsBitfield());
 				sql.bind(":MD5", newPatch.md5());
 				if (sql.exec() != 1) {
 					jassert(false);

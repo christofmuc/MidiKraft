@@ -107,15 +107,29 @@ namespace midikraft {
 		return Category::categorySetAsBitfield(categories_);
 	}
 
-	void PatchHolder::setCategoriesFromBitfield(int64 bitfield)
+	juce::int64 PatchHolder::userDecisionAsBitfield() const
 	{
-		categories_.clear();
+		return Category::categorySetAsBitfield(userDecisions_);
+	}
+
+	void PatchHolder::setCategoriesFromBitfield(int64 bitfield) {
+		setCategoriesFromBitfield(categories_, bitfield);
+	}
+
+	void PatchHolder::setUserDecisionsFromBitfield(int64 bitfield)
+	{
+		setCategoriesFromBitfield(userDecisions_, bitfield);
+	}
+
+	void PatchHolder::setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield)
+	{
+		cats.clear();
 		for (int i = 0; i < 64; i++) {
 			if (bitfield & (1LL << i)) {
 				// This bit is set, find the category that has this bitindex
 				for (auto c : AutoCategory::predefinedCategoryVector()) {
 					if (c.bitIndex == (i + 1)) {
-						categories_.insert(c);
+						cats.insert(c);
 						break;
 					}
 				}
@@ -131,8 +145,19 @@ namespace midikraft {
 	bool PatchHolder::autoCategorizeAgain()
 	{
 		auto previous = categories();
-		categories_ = AutoCategory::determineAutomaticCategories(*patch_);
-		return previous != categories_;
+		auto newCategories = AutoCategory::determineAutomaticCategories(*patch_);
+		if (previous != newCategories) {
+			for (auto n : newCategories) {
+				if (userDecisions_.find(n) == userDecisions_.end()) {
+					// For this category no user decision has been recorded, so we can safely set it!
+					categories_.insert(n);
+				}
+			}
+			return previous != categories_;
+		}
+		else {
+			return false;
+		}
 	}
 
 	std::string PatchHolder::calcMd5(Synth *activeSynth, Patch *patch)
@@ -145,6 +170,11 @@ namespace midikraft {
 	std::string PatchHolder::md5() const
 	{
 		return md5_;
+	}
+
+	void PatchHolder::setUserDecision(Category const &clicked)
+	{
+		userDecisions_.insert(clicked);
 	}
 
 	Favorite::Favorite() : favorite_(TFavorite::DONTKNOW)

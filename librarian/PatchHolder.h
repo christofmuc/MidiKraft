@@ -89,8 +89,14 @@ namespace midikraft {
 		void setCategory(std::string const &categoryName, bool hasIt);
 		void clearCategories();
 		std::set<Category> categories() const;
+		void setUserDecision(Category const &clicked);
+
+		// Bitfield database support. This is a bit too easy, and not really high performance, but for now...
 		int64 categoriesAsBitfield() const;
+		int64 userDecisionAsBitfield() const;
 		void setCategoriesFromBitfield(int64 bitfield);
+		void setUserDecisionsFromBitfield(int64 bitfield);
+		
 		std::shared_ptr<SourceInfo> sourceInfo() const;
 
 		bool autoCategorizeAgain(); // Returns true if categories have changed!
@@ -99,10 +105,14 @@ namespace midikraft {
 
 		static std::string calcMd5(Synth *activeSynth, Patch *patch);
 
+		
 	private:
+		void setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield);
+
 		std::shared_ptr<Patch> patch_;
 		Favorite isFavorite_;
 		std::set<Category> categories_;
+		std::set<Category> userDecisions_;
 		std::shared_ptr<SourceInfo> sourceInfo_;
 		std::string md5_;
 	};

@@ -60,13 +60,13 @@ namespace midikraft {
 			}
 			for (auto param : allParameterDefinitions()) {
 				if (layers) {
-					auto multiLayerParam = dynamic_cast<SynthMultiLayerParameterCapability *>(param);
+					auto multiLayerParam = std::dynamic_pointer_cast<SynthMultiLayerParameterCapability>(param);
 					jassert(multiLayerParam);
 					if (multiLayerParam) {
 						multiLayerParam->setTargetLayer(layer);
 					}
 				}
-				auto activeCheck = dynamic_cast<SynthParameterActiveDetectionCapability *>(param);
+				auto activeCheck = std::dynamic_pointer_cast<SynthParameterActiveDetectionCapability>(param);
 				if (!onlyActive || !activeCheck || !(activeCheck->isActive(this))) {
 					result = result + (boost::format("%s: %s\n") % param->description() % param->valueInPatchToText(*this)).str();
 				}

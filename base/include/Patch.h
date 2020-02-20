@@ -30,7 +30,7 @@ namespace midikraft {
 		virtual void setAt(int sysExIndex, uint8 value);
 
 		// High level functions to be overridden by subclasses
-		virtual std::vector<SynthParameterDefinition *> allParameterDefinitions() = 0;
+		virtual std::vector<std::shared_ptr<SynthParameterDefinition>> allParameterDefinitions() = 0;
 
 		// Generic utility functions
 		std::string patchToTextRaw(bool onlyActive);

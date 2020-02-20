@@ -20,7 +20,7 @@ namespace midikraft {
 			virtual double progress() = 0;
 		};
 		virtual std::shared_ptr<ProtocolState> createStateObject() = 0;
-		virtual void startDownload(SafeMidiOutput *output, std::shared_ptr<ProtocolState> saveState) = 0;
+		virtual void startDownload(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<ProtocolState> saveState) = 0;
 		virtual bool isNextMessage(MidiMessage const &message, std::vector<MidiMessage> &answer, std::shared_ptr<ProtocolState> state) = 0;
 	};
 

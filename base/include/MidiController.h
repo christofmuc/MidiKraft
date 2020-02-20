@@ -50,7 +50,7 @@ namespace midikraft {
 		void logMidiMessage(const MidiMessage& message, const String& source, bool isOut);
 
 		bool enableMidiOutput(std::string const &newOutput);
-		SafeMidiOutput *getMidiOutput(std::string const &name);
+		std::shared_ptr<SafeMidiOutput> getMidiOutput(std::string const &name);
 		void enableMidiInput(std::string const &newInput);
 		void disableMidiInput(std::string const &input);
 
@@ -62,7 +62,7 @@ namespace midikraft {
 		AudioDeviceManager deviceManager;
 		std::map<HandlerHandle, MidiCallback> messageHandlers_;
 		std::map< std::string, std::unique_ptr<MidiOutput>> outputsOpen_;
-		std::map< std::string, SafeMidiOutput *> safeOutputs_;
+		std::map< std::string, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
 		std::map< std::string, MidiInputCallback *>  callbacks_;
 		std::function<void(const MidiMessage& message, const String& source, bool)> midiLogFunction_;
 	};

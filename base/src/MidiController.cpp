@@ -93,17 +93,17 @@ namespace midikraft {
 		midiLogFunction_ = logFunction;
 	}
 
-	SafeMidiOutput * MidiController::getMidiOutput(std::string const &name)
+	std::shared_ptr<SafeMidiOutput> MidiController::getMidiOutput(std::string const &name)
 	{
 		if (safeOutputs_.find(name) == safeOutputs_.end()) {
 			if (outputsOpen_.find(name) == outputsOpen_.end()) {
 				// Lazy open
 				if (!enableMidiOutput(name)) {
-					safeOutputs_[name] = new SafeMidiOutput(this, nullptr);
+					safeOutputs_[name] = std::make_shared<SafeMidiOutput>(this, nullptr);
 					return safeOutputs_[name];
 				}
 			}
-			safeOutputs_[name] = new SafeMidiOutput(this, outputsOpen_[name].get());
+			safeOutputs_[name] = std::make_shared<SafeMidiOutput>(this, outputsOpen_[name].get());
 		}
 		return safeOutputs_[name];
 	}

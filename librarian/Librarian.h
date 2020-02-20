@@ -29,21 +29,21 @@ namespace midikraft {
 
 		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), downloadNumber_(0) {}
 
-		void startDownloadingAllPatches(SafeMidiOutput *midiOutput, Synth *synth, MidiBankNumber bankNo,
+		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, MidiBankNumber bankNo,
 			ProgressHandler *progressHandler, TFinishedHandler onFinished);
 
-		void startDownloadingSequencerData(SafeMidiOutput *midiOutput, StepSequencer *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished);
+		void startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, StepSequencer *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished);
 
 		Synth *sniffSynth(std::vector<MidiMessage> const &messages) const;
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(Synth &synth);
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(Synth &synth, std::string const &fullpath, std::string const &filename);
 
 	private:
-		void startDownloadNextPatch(SafeMidiOutput *midiOutput, Synth *synth);
-		void startDownloadNextDataItem(SafeMidiOutput *midiOutput, StepSequencer *sequencer, int dataFileIdentifier);
-		void handleNextStreamPart(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
-		void handleNextEditBuffer(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
-		void handleNextBankDump(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo);
+		void startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth);
+		void startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, StepSequencer *sequencer, int dataFileIdentifier);
+		void handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
+		void handleNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
+		void handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo);
 		std::vector<PatchHolder> tagPatchesWithImportFromSynth(Synth *synth, TPatchVector &patches, MidiBankNumber bankNo);
 
 		std::vector<SynthHolder> synths_;

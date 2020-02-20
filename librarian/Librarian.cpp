@@ -23,7 +23,7 @@
 
 namespace midikraft {
 
-	void Librarian::startDownloadingAllPatches(SafeMidiOutput *midiOutput, Synth *synth, MidiBankNumber bankNo,
+	void Librarian::startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, MidiBankNumber bankNo,
 		ProgressHandler *progressHandler, TFinishedHandler onFinished)
 	{
 		// Ok, for this we need to send a program change message, and then a request edit buffer message from the active synth
@@ -108,7 +108,7 @@ namespace midikraft {
 		}
 	}
 
-	void Librarian::startDownloadingSequencerData(SafeMidiOutput *midiOutput, StepSequencer *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished)
+	void Librarian::startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, StepSequencer *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished)
 	{
 		downloadNumber_ = 0;
 		currentDownload_.clear();
@@ -257,7 +257,7 @@ namespace midikraft {
 		return result;
 	}
 
-	void Librarian::startDownloadNextPatch(SafeMidiOutput *midiOutput, Synth *synth) {
+	void Librarian::startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth) {
 		auto editBufferCapability = dynamic_cast<EditBufferCapability *>(synth);
 		auto programDumpCapability = dynamic_cast<ProgramDumpCabability *>(synth);
 
@@ -280,13 +280,13 @@ namespace midikraft {
 		midiOutput->sendBlockOfMessagesNow(buffer);
 	}
 
-	void Librarian::startDownloadNextDataItem(SafeMidiOutput *midiOutput, StepSequencer *sequencer, int dataFileIdentifier) {
+	void Librarian::startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, StepSequencer *sequencer, int dataFileIdentifier) {
 		std::vector<MidiMessage> request = sequencer->requestDataItem(downloadNumber_, dataFileIdentifier);
 		auto buffer = MidiHelpers::bufferFromMessages(request);
 		midiOutput->sendBlockOfMessagesNow(buffer);
 	}
 
-	void Librarian::handleNextStreamPart(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo)
+	void Librarian::handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo)
 	{
 		auto streamLoading = dynamic_cast<StreamLoadCapability*>(synth);
 		if (streamLoading) {
@@ -314,7 +314,7 @@ namespace midikraft {
 		}
 	}
 
-	void Librarian::handleNextEditBuffer(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo) {
+	void Librarian::handleNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo) {
 		auto editBufferCapability = dynamic_cast<EditBufferCapability *>(synth);
 		auto programDumpCapability = dynamic_cast<ProgramDumpCabability *>(synth);
 		if ((editBufferCapability  && editBufferCapability->isEditBufferDump(editBuffer)) ||
@@ -349,7 +349,7 @@ namespace midikraft {
 		}
 	}
 
-	void Librarian::handleNextBankDump(SafeMidiOutput *midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo)
+	void Librarian::handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo)
 	{
 		ignoreUnused(midiOutput); //TODO why?
 		auto bankDumpCapability = dynamic_cast<BankDumpCapability*>(synth);

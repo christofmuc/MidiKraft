@@ -91,7 +91,7 @@ namespace midikraft {
 				sql.bind(":SYN", activeSynth->getName().c_str());
 				sql.bind(":MD5", patch.md5());
 				sql.bind(":NAM", patch.patch()->patchName());
-				sql.bind(":DAT", patch.patch()->data().data(), patch.patch()->data().size());
+				sql.bind(":DAT", patch.patch()->data().data(), (int) patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
 				sql.bind(":SID", sourceID);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(activeSynth));

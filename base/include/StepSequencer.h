@@ -8,6 +8,7 @@
 
 #include "SimpleDiscoverableDevice.h"
 #include "TypedNamedValue.h"
+#include "DataFileLoadCapability.h"
 
 namespace midikraft {
 
@@ -28,15 +29,10 @@ namespace midikraft {
 		virtual int getID() = 0;
 	};
 
-	class StepSequencer : public SimpleDiscoverableDevice {
+	class StepSequencer : public SimpleDiscoverableDevice, DataFileLoadCapability {
 	public:
 		virtual int numberOfSongs() = 0;
 		virtual int numberOfPatternsPerSong() = 0;
-
-		virtual std::vector<MidiMessage> requestDataItem(int itemNo, int dataTypeID) = 0;
-		virtual int numberOfDataItemsPerType(int dataTypeID) = 0;
-		virtual bool isDataFile(const MidiMessage &message, int dataTypeID) = 0;
-		virtual void loadData(std::vector<MidiMessage> messages, int dataTypeID) = 0;
 
 		virtual std::shared_ptr<StepSequencerPattern> activePattern() = 0;
 		virtual std::vector<std::shared_ptr<TypedNamedValue>> properties() = 0;

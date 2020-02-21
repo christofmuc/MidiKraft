@@ -50,7 +50,6 @@ set(Sources
 	include/Synth.h src/Synth.cpp
 	include/SynthParameterDefinition.h
 	include/SysexDataSerializationCapability.h
-	include/TypedNamedValue.h		
 	README.md
 	LICENSE.md
 )

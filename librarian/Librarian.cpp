@@ -108,7 +108,7 @@ namespace midikraft {
 		}
 	}
 
-	void Librarian::startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, StepSequencer *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished)
+	void Librarian::startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished)
 	{
 		downloadNumber_ = 0;
 		currentDownload_.clear();
@@ -124,15 +124,15 @@ namespace midikraft {
 					sequencer->loadData(currentDownload_, dataFileIdentifier);
 					MidiController::instance()->removeMessageHandler(handle_);
 					onSequencerFinished_();
-					progressHandler->onSuccess();
+					if (progressHandler) progressHandler->onSuccess();
 				}
 				else if (progressHandler->shouldAbort()) {
 					MidiController::instance()->removeMessageHandler(handle_);
-					progressHandler->onCancel();
+					if (progressHandler) progressHandler->onCancel();
 				}
 				else {
 					startDownloadNextDataItem(midiOutput, sequencer, dataFileIdentifier);
-					progressHandler->setProgressPercentage(downloadNumber_ / (double)sequencer->numberOfDataItemsPerType(dataFileIdentifier));
+					if (progressHandler) progressHandler->setProgressPercentage(downloadNumber_ / (double)sequencer->numberOfDataItemsPerType(dataFileIdentifier));
 				}
 			}
 		});
@@ -280,7 +280,7 @@ namespace midikraft {
 		midiOutput->sendBlockOfMessagesNow(buffer);
 	}
 
-	void Librarian::startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, StepSequencer *sequencer, int dataFileIdentifier) {
+	void Librarian::startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier) {
 		std::vector<MidiMessage> request = sequencer->requestDataItem(downloadNumber_, dataFileIdentifier);
 		auto buffer = MidiHelpers::bufferFromMessages(request);
 		midiOutput->sendBlockOfMessagesNow(buffer);

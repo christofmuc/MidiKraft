@@ -14,13 +14,13 @@
 #include "MidiBankNumber.h"
 #include "SynthHolder.h"
 #include "PatchHolder.h"
+#include "DataFileLoadCapability.h"
 
 #include <vector>
 
 namespace midikraft {
 
 	class Synth;
-	class StepSequencer;
 
 	class Librarian {
 	public:
@@ -32,7 +32,7 @@ namespace midikraft {
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, MidiBankNumber bankNo,
 			ProgressHandler *progressHandler, TFinishedHandler onFinished);
 
-		void startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, StepSequencer *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished);
+		void startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished);
 
 		Synth *sniffSynth(std::vector<MidiMessage> const &messages) const;
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(Synth &synth);
@@ -40,7 +40,7 @@ namespace midikraft {
 
 	private:
 		void startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth);
-		void startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, StepSequencer *sequencer, int dataFileIdentifier);
+		void startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier);
 		void handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
 		void handleNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
 		void handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo);

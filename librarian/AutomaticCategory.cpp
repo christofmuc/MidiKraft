@@ -116,7 +116,7 @@ namespace midikraft {
 						}
 					}
 				}
-				AutoCategory cat(Category(categoryName, colorForIndex(i - 1), i), regexes);
+				AutoCategory cat(Category(categoryName, colorForIndex(i - 1), (int) i), regexes);
 				i++;
 				predefinedCategories_.push_back(cat);
 			}

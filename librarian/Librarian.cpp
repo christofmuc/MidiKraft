@@ -331,16 +331,16 @@ namespace midikraft {
 				MidiController::instance()->removeMessageHandler(handle_);
 				auto patches = synth->loadSysex(currentDownload_);
 				onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
-				progressHandler->onSuccess();
+				if (progressHandler) progressHandler->onSuccess();
 			}
 			else if (progressHandler->shouldAbort()) {
 				MidiController::instance()->removeMessageHandler(handle_);
-				progressHandler->onCancel();
+				if (progressHandler) progressHandler->onCancel();
 			}
 			else {
 				downloadNumber_++;
 				startDownloadNextPatch(midiOutput, synth);
-				progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)synth->numberOfPatches());
+				if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)synth->numberOfPatches());
 			}
 		}
 		else {

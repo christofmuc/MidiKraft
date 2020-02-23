@@ -108,6 +108,24 @@ namespace midikraft {
 		}
 	}
 
+	void Librarian::downloadEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, Synth *synth, ProgressHandler *progressHandler, TFinishedHandler onFinished)
+	{
+		// Ok, for this we need to send a program change message, and then a request edit buffer message from the active synth
+		// Once we get that, store the patch and increment number by one
+		downloadNumber_ = 0;
+		currentDownload_.clear();
+		onFinished_ = onFinished;
+		// Uh, stone age, need to start a loop
+		MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
+			ignoreUnused(source);
+			this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0));
+		});
+		// Special case - load only a single patch. In this case we're interested in the edit buffer only!
+		startDownloadNumber_ = 0;
+		endDownloadNumber_ = 0;
+		startDownloadNextPatch(midiOutput, synth);
+	}
+
 	void Librarian::startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished)
 	{
 		downloadNumber_ = 0;
@@ -323,6 +341,7 @@ namespace midikraft {
 			currentDownload_.push_back(MidiMessage(editBuffer));
 			if (editBufferCapability  && editBufferCapability->isEditBufferDump(editBuffer)) {
 				// For reloading, also persist a message in the file that will force the Synth to store the edit buffer so you can reload the file with any sysex tool
+				//TODO Not all synths support this, so this should become a capability
 				currentDownload_.push_back(editBufferCapability->saveEditBufferToProgram(downloadNumber_));
 			}
 

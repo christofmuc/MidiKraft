@@ -123,7 +123,11 @@ namespace midikraft {
 		// Special case - load only a single patch. In this case we're interested in the edit buffer only!
 		startDownloadNumber_ = 0;
 		endDownloadNumber_ = 0;
-		startDownloadNextPatch(midiOutput, synth);
+		auto editBufferCapability = dynamic_cast<EditBufferCapability *>(synth);
+		if (editBufferCapability) {
+			auto message = editBufferCapability->requestEditBufferDump();
+			midiOutput->sendMessageNow(message);
+		}
 	}
 
 	void Librarian::startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished)

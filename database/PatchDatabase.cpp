@@ -193,6 +193,10 @@ namespace midikraft {
 						if (favoriteColumn.isInteger()) {
 							holder.setFavorite(Favorite(favoriteColumn.getInt()));
 						}
+						auto hiddenColumn = query.getColumn("hidden");
+						if (hiddenColumn.isInteger()) {
+							holder.setHidden(hiddenColumn.getInt() == 1);
+						}
 						holder.setCategoriesFromBitfield(query.getColumn("categories").getInt64());
 						holder.setUserDecisionsFromBitfield(query.getColumn("categoryUserDecision").getInt64());
 						result.push_back(holder);

@@ -23,6 +23,7 @@ namespace midikraft {
 			std::string importID;
 			bool onlyFaves;
 			bool showHidden;
+			bool onlyUntagged;
 			std::set<Category> categories;
 		};
 

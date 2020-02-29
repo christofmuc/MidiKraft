@@ -141,7 +141,10 @@ namespace midikraft {
 			if (!filter.showHidden) {
 				where += " AND (hidden is null or hidden != 1)";
 			}
-			if (!filter.categories.empty()) {
+			if (filter.onlyUntagged) {
+				where += " AND categories == 0";
+			}
+			else if (!filter.categories.empty()) {
 				// Empty category filter set will of course return everything
 				//TODO this has bad query performance as it will force a table scan, but for now I cannot see this becoming a problem as long as the database is not multi-tenant
 				// The correct way to do this would be to create a many to many relationship and run an "exists" query or join/unique the category table. Returning the list of categories also requires 

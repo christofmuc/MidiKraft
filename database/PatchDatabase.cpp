@@ -24,7 +24,10 @@
 
 namespace midikraft {
 
-	const int SCHEMA_VERSION = 1;
+	const int SCHEMA_VERSION = 2;
+	/* History */
+	/* 1 - Initial schema */
+	/* 2 - adding hidden flag (aka deleted) */
 
 
 	class PatchDatabase::PatchDataBaseImpl {
@@ -41,6 +44,15 @@ namespace midikraft {
 			return knobkraft.getChildFile("SysexDatabaseOfAllPatches.db3").getFullPathName();
 		}
 
+		void migrateSchema(int currentVersion) {
+			if (currentVersion < 2) {
+				SQLite::Transaction transaction(db_);
+				db_.exec("ALTER TABLE patches ADD COLUMN hidden INTEGER");
+				db_.exec("UPDATE schema_version SET number = 2");
+				transaction.commit();
+			}
+		}
+
 		void createSchema() {
 			if (false)
 			{
@@ -54,7 +66,7 @@ namespace midikraft {
 			if (!db_.tableExists("patches") || !db_.tableExists("imports")) {
 				SQLite::Transaction transaction(db_);
 
-				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, data BLOB, favorite INTEGER, sourceID TEXT, sourceName TEXT,"
+				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
 					" sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER)");
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
@@ -68,8 +80,7 @@ namespace midikraft {
 			if (schemaQuery.executeStep()) {
 				int version = schemaQuery.getColumn("number").getInt();
 				if (version < SCHEMA_VERSION) {
-					jassert(false);
-					// MIGRATION CODE TO BE HERE
+					migrateSchema(version);
 				}
 			}
 			else {
@@ -84,8 +95,8 @@ namespace midikraft {
 
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch, std::string const &sourceID) {
 			try {
-				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, data, favorite, sourceID, sourceName, sourceInfo, midiProgramNo, categories, categoryUserDecision)"
-					" VALUES (:SYN, :MD5, :NAM, :DAT, :FAV, :SID, :SNM, :SRC, :PRG, :CAT, :CUD)");
+				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, data, favorite, hidden, sourceID, sourceName, sourceInfo, midiProgramNo, categories, categoryUserDecision)"
+					" VALUES (:SYN, :MD5, :NAM, :DAT, :FAV, :HID, :SID, :SNM, :SRC, :PRG, :CAT, :CUD)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", activeSynth->getName().c_str());
@@ -93,6 +104,7 @@ namespace midikraft {
 				sql.bind(":NAM", patch.patch()->patchName());
 				sql.bind(":DAT", patch.patch()->data().data(), (int) patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
+				sql.bind(":HID", patch.isHidden());
 				sql.bind(":SID", sourceID);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(activeSynth));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
@@ -125,6 +137,9 @@ namespace midikraft {
 			}
 			if (filter.onlyFaves) {
 				where += " AND favorite == 1";
+			}
+			if (!filter.showHidden) {
+				where += " AND (hidden is null or hidden != 1)";
 			}
 			if (!filter.categories.empty()) {
 				// Empty category filter set will of course return everything
@@ -226,16 +241,18 @@ namespace midikraft {
 				sql.bind(":FAV", (int) newPatch.howFavorite().is());
 				sql.bind(":MD5", newPatch.md5());
 				if (sql.exec() != 1) {
+					//TODO - this would happen e.g. if the database is locked, because somebody is trying to modify it with DB browser (me for instance)
 					jassert(false);
 					throw new std::runtime_error("FATAL, I don't want to ruin your database");
 				}
 			}
 
-			// Also, update the categories bit vector
+			// Also, update the categories bit vector and the hidden field
 			{
-				SQLite::Statement sql(db_, "UPDATE patches SET categories = :CAT, categoryUserDecision = :CUD WHERE md5 = :MD5");
+				SQLite::Statement sql(db_, "UPDATE patches SET categories = :CAT, categoryUserDecision = :CUD, hidden = :HID WHERE md5 = :MD5");
 				sql.bind(":CAT", newPatch.categoriesAsBitfield());
 				sql.bind(":CUD", newPatch.userDecisionAsBitfield());
+				sql.bind(":HID", newPatch.isHidden());
 				sql.bind(":MD5", newPatch.md5());
 				if (sql.exec() != 1) {
 					jassert(false);

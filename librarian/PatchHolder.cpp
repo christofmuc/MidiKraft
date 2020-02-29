@@ -30,7 +30,7 @@ namespace midikraft {
 
 
 	PatchHolder::PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<Patch> patch, bool autoDetectCategories /* = false */)
-		: sourceInfo_(sourceInfo), patch_(patch), isFavorite_(Favorite())
+		: sourceInfo_(sourceInfo), patch_(patch), isFavorite_(Favorite()), isHidden_(false)
 	{
 		if (patch && autoDetectCategories) {
 			categories_ = AutoCategory::determineAutomaticCategories(*patch);
@@ -65,6 +65,16 @@ namespace midikraft {
 	void PatchHolder::setSourceInfo(std::shared_ptr<SourceInfo> newSourceInfo)
 	{
 		sourceInfo_ = newSourceInfo;
+	}
+
+	bool PatchHolder::isHidden() const
+	{
+		return isHidden_;
+	}
+
+	void PatchHolder::setHidden(bool isHidden)
+	{
+		isHidden_ = isHidden;
 	}
 
 	bool PatchHolder::hasCategory(Category const &category) const

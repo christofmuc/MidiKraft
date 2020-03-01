@@ -269,9 +269,6 @@ namespace midikraft {
 		}
 
 		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress) {
-			// Generate a UUID that will be used to bind all patches during this import together
-			Uuid source_uuid;
-
 			// This works by doing a bulk get operation for the patches from the database...
 			auto knownPatches = bulkGetPatches(activeSynth, patches, progress);
 
@@ -291,6 +288,26 @@ namespace midikraft {
 				if (progress) progress->setProgressPercentage(loop++ / (double)patches.size());
 			}
 
+			// Check if all new patches are editBuffer patches (aka have an invalid MidiBank)
+			std::string source_id = "EditBufferImport";
+			std::string importName;
+			for (auto newPatch : outNewPatches) {
+				if (SourceInfo::isEditBufferImport(newPatch.sourceInfo())) {
+					// EditBuffer, nothing to do
+					// In case this is an EditBuffer import (no bank known), always use the same "fake UUID" "EditBufferImport"
+					importName = "Edit buffer imports";
+				}
+				else {
+					// Generate a UUID that will be used to bind all patches during this import together. 
+					Uuid source_uuid;
+					source_id = source_uuid.toString().toStdString();
+					if (importName.empty()) {
+						// Use the importName of the first patch. This is not ideal, but currently I have no better idea
+						importName = newPatch.sourceInfo()->toDisplayString(activeSynth);
+					}
+				}
+			}
+
 			//TODO can be replaced by repaired bulkPut
 			int uploaded = 0;
 			std::map<String, PatchHolder> md5Inserted;
@@ -301,21 +318,34 @@ namespace midikraft {
 					SimpleLogger::instance()->postMessage("Skipping patch " + String(newPatch.patch()->patchName()) + " because it is a duplicate of " + duplicate.patch()->patchName());
 				}
 				else {
-					putPatch(activeSynth, newPatch, source_uuid.toString().toStdString());
+					putPatch(activeSynth, newPatch, source_id);
 					md5Inserted[newPatch.md5()] = newPatch;
 					uploaded++;
 				}
 				if (progress) progress->setProgressPercentage(uploaded / (double)outNewPatches.size());
 			}
 
-			if (uploaded > 1) {
-				// Record this import in the import table for later filtering! The name of the import might differ for different patches (bulk import), use the first patch to calculate it
-				SQLite::Statement sql(db_, "INSERT INTO imports (synth, name, id, date) VALUES (:SYN, :NAM, :SID, datetime('now'))");
-				std::string importName = outNewPatches[0].sourceInfo()->toDisplayString(activeSynth);
-				sql.bind(":SYN", activeSynth->getName());
-				sql.bind(":NAM", importName);
-				sql.bind(":SID", source_uuid.toString().toStdString());
-				sql.exec();
+			if (uploaded > 0) {
+				// Check if this import already exists (this should only happen with the EditBufferImport special case)
+				bool alreadyExists = false;
+				SQLite::Statement query(db_, "SELECT count(*) AS numExisting FROM imports WHERE synth = :SYN and id = :SID");
+				query.bind(":SYN", activeSynth->getName());
+				query.bind(":SID", source_id);
+				if (query.executeStep()) {
+					auto existing = query.getColumn("numExisting");
+					if (existing.getInt() == 1) {
+						alreadyExists = true;
+					}
+				}
+
+				if (!alreadyExists) {
+					// Record this import in the import table for later filtering! The name of the import might differ for different patches (bulk import), use the first patch to calculate it
+					SQLite::Statement sql(db_, "INSERT INTO imports (synth, name, id, date) VALUES (:SYN, :NAM, :SID, datetime('now'))");
+					sql.bind(":SYN", activeSynth->getName());
+					sql.bind(":NAM", importName);
+					sql.bind(":SID", source_id);
+					sql.exec();
+				}
 			}
 
 			transaction.commit();

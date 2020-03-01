@@ -19,6 +19,7 @@ namespace midikraft {
 		virtual LayerMode layerMode() const = 0;
 		virtual int numberOfLayers() const = 0;
 		virtual std::string layerName(int layerNo) const = 0;
+		virtual void setLayerName(int layerNo, std::string const &layerName) = 0;
 	};
 
 }

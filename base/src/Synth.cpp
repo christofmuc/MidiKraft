@@ -105,7 +105,7 @@ namespace midikraft {
 		else if (programDumpCapability) {
 			messages = programDumpCapability->patchToProgramDumpSysex(patch);
 		}
-		logger->postMessage((boost::format("Sending patch to %s with default handler") % getName()).str());
+		logger->postMessage((boost::format("Sending patch to %s") % getName()).str());
 		controller->enableMidiOutput(midiOutput());
 		controller->getMidiOutput(midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
 	}

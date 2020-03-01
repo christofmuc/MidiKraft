@@ -257,9 +257,11 @@ namespace midikraft {
 
 			// Also, update the categories bit vector and the hidden field
 			{
-				SQLite::Statement sql(db_, "UPDATE patches SET categories = :CAT, categoryUserDecision = :CUD, hidden = :HID WHERE md5 = :MD5");
+				SQLite::Statement sql(db_, "UPDATE patches SET categories = :CAT, categoryUserDecision = :CUD, hidden = :HID, name = :NAM, data = :DAT WHERE md5 = :MD5");
 				sql.bind(":CAT", newPatch.categoriesAsBitfield());
 				sql.bind(":CUD", newPatch.userDecisionAsBitfield());
+				sql.bind(":NAM", newPatch.patch()->patchName());
+				sql.bind(":DAT", newPatch.patch()->data().data(), (int)newPatch.patch()->data().size());
 				sql.bind(":HID", newPatch.isHidden());
 				sql.bind(":MD5", newPatch.md5());
 				if (sql.exec() != 1) {

@@ -35,15 +35,20 @@ namespace midikraft {
 		virtual std::string toDisplayString(Synth *synth) const = 0;
 		static std::shared_ptr<SourceInfo> fromString(std::string const &str);
 
+		static bool isEditBufferImport(std::shared_ptr<SourceInfo> sourceInfo);
+
 	protected:
 		std::string jsonRep_;
 	};
 
 	class FromSynthSource : public SourceInfo {
 	public:
-		FromSynthSource(Time timestamp, MidiBankNumber bankNo);
+		explicit FromSynthSource(Time timestamp); // Use this for edit buffer
+		FromSynthSource(Time timestamp, MidiBankNumber bankNo); // Use this when the program place is known
 		virtual std::string toDisplayString(Synth *synth) const override;
 		static std::shared_ptr<FromSynthSource> fromString(std::string const &jsonString);
+
+		MidiBankNumber bankNumber() const;
 
 	private:
 		const Time timestamp_;

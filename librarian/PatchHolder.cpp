@@ -250,6 +250,12 @@ namespace midikraft {
 		return nullptr;
 	}
 
+	bool SourceInfo::isEditBufferImport(std::shared_ptr<SourceInfo> sourceInfo)
+	{
+		auto synthSource = std::dynamic_pointer_cast<FromSynthSource>(sourceInfo);
+		return (synthSource && !synthSource->bankNumber().isValid());
+	}
+
 	FromSynthSource::FromSynthSource(Time timestamp, MidiBankNumber bankNo) : timestamp_(timestamp), bankNo_(bankNo)
 	{
 		rapidjson::Document doc;
@@ -263,15 +269,22 @@ namespace midikraft {
 		jsonRep_ = renderToJson(doc);
 	}
 
+	FromSynthSource::FromSynthSource(Time timestamp) : FromSynthSource(timestamp, MidiBankNumber::invalid())
+	{
+	}
+
 	std::string FromSynthSource::toDisplayString(Synth *synth) const
 	{
 		std::string bank = "";
 		if (bankNo_.isValid()) {
 			bank = (boost::format(" bank %s") % synth->friendlyBankName(bankNo_)).str();;
 		}
+		else {
+			bank = " edit buffer";
+		}
 		if (timestamp_.toMilliseconds() != 0) {
 			// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
-			return (boost::format("Imported from synth%s at %s") % bank % timestamp_.formatted("%x at %X").toStdString()).str();
+			return (boost::format("Imported from synth%s on %s") % bank % timestamp_.formatted("%x at %X").toStdString()).str();
 		}
 		else {
 			// Legacy import, no timestamp was recorded.
@@ -299,6 +312,11 @@ namespace midikraft {
 			}
 		}
 		return nullptr;
+	}
+
+	midikraft::MidiBankNumber FromSynthSource::bankNumber() const
+	{
+		return bankNo_;
 	}
 
 	FromFileSource::FromFileSource(std::string const &filename, std::string const &fullpath, MidiProgramNumber program) : filename_(filename)

@@ -16,6 +16,12 @@
 
 namespace midikraft {
 
+	struct ImportInfo {
+		std::string name; // The name of the import - TODO this can be matched to the name stored in the patch, except for edit buffer imports
+		std::string description; // The nice display name of the import, this can contain e.g. the number of patches in this import in parantheses
+		std::string id; // The database ID, as a unique identifier
+	};
+
 	class PatchDatabase {
 	public:
 		struct PatchFilter {
@@ -35,7 +41,7 @@ namespace midikraft {
 		void getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit);
 
 		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress);
-		std::vector<std::pair<std::string, std::string>> getImportsList(Synth *activeSynth) const;
+		std::vector<ImportInfo> getImportsList(Synth *activeSynth) const;
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch);
 		bool putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches);
 

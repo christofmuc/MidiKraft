@@ -120,12 +120,13 @@ namespace midikraft {
 			return true;
 		}
 
-		std::vector<std::pair<std::string, std::string>> getImportsList(Synth *activeSynth) {
-			SQLite::Statement query(db_, "SELECT name, id FROM imports WHERE synth = :SYN ORDER BY date");
+		std::vector<ImportInfo> getImportsList(Synth *activeSynth) {
+			SQLite::Statement query(db_, "SELECT imports.name, id, count(patches.md5) AS patchCount FROM imports JOIN patches on imports.id == patches.sourceID WHERE patches.synth = :SYN AND imports.synth = :SYN GROUP BY imports.id ORDER BY date");
 			query.bind(":SYN", activeSynth->getName());
-			std::vector<std::pair<std::string, std::string>> result;
+			std::vector<ImportInfo> result;
 			while (query.executeStep()) {
-				result.emplace_back(query.getColumn("name").getText(), query.getColumn("id").getText());
+				std::string description = (boost::format("%s (%d)") % query.getColumn("name").getText() % query.getColumn("patchCount").getInt()).str();
+				result.push_back({ query.getColumn("name").getText(), description, query.getColumn("id").getText() });
 			}
 			return result;
 		}
@@ -410,7 +411,7 @@ namespace midikraft {
 		return impl->mergePatchesIntoDatabase(activeSynth, patches, outNewPatches, progress);
 	}
 
-	std::vector<std::pair<std::string, std::string>> PatchDatabase::getImportsList(Synth *activeSynth) const {
+	std::vector<ImportInfo> PatchDatabase::getImportsList(Synth *activeSynth) const {
 		return impl->getImportsList(activeSynth);
 	}
 

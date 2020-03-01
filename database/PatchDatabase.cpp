@@ -353,11 +353,6 @@ namespace midikraft {
 		return false;
 	}
 
-	/*void PatchDatabase::runMigration(Synth * activeSynth)
-	{
-		impl->runMigration(activeSynth);
-	}*/
-
 	std::vector<PatchHolder> PatchDatabase::getPatches(PatchFilter filter, int skip, int limit)
 	{
 			std::vector<PatchHolder> result;

@@ -33,7 +33,6 @@ set(Sources
 	include/LayerCapability.h
 	include/LayeredPatch.h
 	include/MasterkeyboardCapability.h
-	include/MidiBankNumber.h
 	include/MidiChannel.h
 	include/MidiController.h src/MidiController.cpp
 	include/MidiRequest.h src/MidiRequest.cpp

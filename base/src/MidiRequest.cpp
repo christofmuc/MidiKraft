@@ -31,6 +31,19 @@ namespace midikraft {
 	{
 	}
 
+	void MidiRequest::blockUntilTrue(std::function<bool()> pred, int timeOutInMilliseconds /* = 2000 */) {
+		// Busy wait thread
+		WaitForEvent waiting(pred);
+		waiting.startThread();
+		if (waiting.waitForThreadToExit(timeOutInMilliseconds)) {
+			std::cout << "MidiRequest succeeded" << std::endl;
+		}
+		else {
+			std::cerr << "Timeout while waiting for MidiRequest result" << std::endl;
+			throw new std::runtime_error("PyTschirp: Timeout while waiting for midi request");
+		}
+	}
+
 	juce::MidiMessage midikraft::MidiRequest::blockForReply()
 	{
 		auto handler = midikraft::MidiController::makeOneHandle();

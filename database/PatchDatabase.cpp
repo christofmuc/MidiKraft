@@ -24,11 +24,11 @@
 
 namespace midikraft {
 
-	const int SCHEMA_VERSION = 2;
+	const int SCHEMA_VERSION = 3;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
-
+	/* 3 - adding type integer to patch (to differentiate voice, patch, layer, tuning...) */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -51,6 +51,12 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 2");
 				transaction.commit();
 			}
+			if (currentVersion < 3) {
+				SQLite::Transaction transaction(db_);
+				db_.exec("ALTER TABLE patches ADD COLUMN type INTEGER");
+				db_.exec("UPDATE schema_version SET number = 3");
+				transaction.commit();
+			}
 		}
 
 		void createSchema() {
@@ -66,7 +72,7 @@ namespace midikraft {
 			if (!db_.tableExists("patches") || !db_.tableExists("imports")) {
 				SQLite::Transaction transaction(db_);
 
-				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
+				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
 					" sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER)");
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
@@ -95,13 +101,14 @@ namespace midikraft {
 
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch, std::string const &sourceID) {
 			try {
-				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, data, favorite, hidden, sourceID, sourceName, sourceInfo, midiProgramNo, categories, categoryUserDecision)"
-					" VALUES (:SYN, :MD5, :NAM, :DAT, :FAV, :HID, :SID, :SNM, :SRC, :PRG, :CAT, :CUD)");
+				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, hidden, sourceID, sourceName, sourceInfo, midiProgramNo, categories, categoryUserDecision)"
+					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :HID, :SID, :SNM, :SRC, :PRG, :CAT, :CUD)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", activeSynth->getName().c_str());
 				sql.bind(":MD5", patch.md5());
 				sql.bind(":NAM", patch.patch()->patchName());
+				sql.bind(":TYP", patch.getType());
 				sql.bind(":DAT", patch.patch()->data().data(), (int) patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
 				sql.bind(":HID", patch.isHidden());
@@ -196,6 +203,10 @@ namespace midikraft {
 						auto favoriteColumn = query.getColumn("favorite");
 						if (favoriteColumn.isInteger()) {
 							holder.setFavorite(Favorite(favoriteColumn.getInt()));
+						}
+						auto typeColumn = query.getColumn("type");
+						if (typeColumn.isInteger()) {
+							holder.setType(typeColumn.getInt());
 						}
 						auto hiddenColumn = query.getColumn("hidden");
 						if (hiddenColumn.isInteger()) {

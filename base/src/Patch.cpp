@@ -13,31 +13,27 @@
 
 namespace midikraft {
 
-	Patch::Patch()
+	DataFile::DataFile(Synth::PatchData const &patchdata) : data_(patchdata)
 	{
 	}
 
-	Patch::Patch(Synth::PatchData const &patchdata) : data_(patchdata)
-	{
-	}
-
-	void Patch::setData(Synth::PatchData const &data)
+	void DataFile::setData(Synth::PatchData const &data)
 	{
 		data_ = data;
 	}
 
-	Synth::PatchData const & Patch::data() const
+	Synth::PatchData const & DataFile::data() const
 	{
 		return data_;
 	}
 
 
-	int Patch::at(int sysExIndex) const
+	int DataFile::at(int sysExIndex) const
 	{
 		return data_.at(sysExIndex);
 	}
 
-	void Patch::setAt(int sysExIndex, uint8 value)
+	void DataFile::setAt(int sysExIndex, uint8 value)
 	{
 		jassert(((size_t) sysExIndex) < data_.size());
 		data_[sysExIndex] = value;
@@ -86,4 +82,4 @@ namespace midikraft {
 		return dataCopy;
 	}
 
-}
+	}

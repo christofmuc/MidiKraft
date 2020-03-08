@@ -13,21 +13,30 @@ namespace midikraft {
 
 	class SynthParameterDefinition;
 
-	class Patch {
+	class DataFile {
 	public:
-		Patch();
-		Patch(Synth::PatchData const &patchdata);
+		DataFile() = default;
+		DataFile(Synth::PatchData const &patchdata);
 		virtual std::string patchName() const = 0;
 		virtual void setName(std::string const &name) = 0;
-
-		virtual std::shared_ptr<PatchNumber> patchNumber() const = 0;
-		virtual void setPatchNumber(MidiProgramNumber patchNumber) = 0;
 
 		// Direct byte access functions
 		virtual void setData(Synth::PatchData const &data);
 		virtual Synth::PatchData const &data() const;
 		virtual int at(int sysExIndex) const;
 		virtual void setAt(int sysExIndex, uint8 value);
+
+	protected:
+		// Direct byte storage
+		Synth::PatchData data_;
+	};
+
+	class Patch : public DataFile {
+	public:
+		using DataFile::DataFile;
+
+		virtual std::shared_ptr<PatchNumber> patchNumber() const = 0;
+		virtual void setPatchNumber(MidiProgramNumber patchNumber) = 0;
 
 		// High level functions to be overridden by subclasses
 		virtual std::vector<std::shared_ptr<SynthParameterDefinition>> allParameterDefinitions() = 0;
@@ -37,10 +46,6 @@ namespace midikraft {
 
 		// For patch comparison
 		static Synth::PatchData blankOut(std::vector<Range<int>> const &blankoutZones, Synth::PatchData const &inputData);
-
-	private:
-		// Direct byte storage
-		Synth::PatchData data_;
 	};
 
 }

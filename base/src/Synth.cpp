@@ -14,6 +14,7 @@
 #include "EditBufferCapability.h"
 #include "ProgramDumpCapability.h"
 #include "BankDumpCapability.h"
+#include "DataFileLoadCapability.h"
 
 #include <boost/format.hpp>
 
@@ -34,6 +35,7 @@ namespace midikraft {
 		auto editBufferSynth = dynamic_cast<EditBufferCapability *>(this);
 		auto programDumpSynth = dynamic_cast<ProgramDumpCabability *>(this);
 		auto bankDumpSynth = dynamic_cast<BankDumpCapability*>(this);
+		auto dataFileLoadSynth = dynamic_cast<DataFileLoadCapability*>(this);
 		for (auto message : sysexMessages) {
 			if (editBufferSynth && editBufferSynth->isEditBufferDump(message)) {
 				auto patch = editBufferSynth->patchFromSysex(message);
@@ -77,6 +79,16 @@ namespace midikraft {
 				auto morePatches = bankDumpSynth->patchesFromSysexBank(message);
 				Logger::writeToLog((boost::format("Loaded bank dump with %d patches") % morePatches.size()).str());
 				std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
+			}
+			else if (dataFileLoadSynth) {
+				// Should test all data file types!
+				for (int dataType = 0; dataType < dataFileLoadSynth->dataTypeNames().size(); dataType++) {
+					if (dataFileLoadSynth->isDataFile(message, dataType)) {
+						// Hit, we can load this
+						auto items = dataFileLoadSynth->loadData({ message }, dataType);
+						std::copy(items.begin(), items.end(), std::back_inserter(result));
+					}
+				}
 			}
 		}
 

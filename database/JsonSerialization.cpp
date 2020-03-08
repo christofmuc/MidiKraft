@@ -72,8 +72,11 @@ namespace midikraft {
 		addToJson(JsonSchema::kSynth, synth->getName(), doc, doc);
 		addToJson(JsonSchema::kName, patchholder->patch()->patchName(), doc, doc);
 		addToJson(JsonSchema::kSysex, dataToString(patchholder->patch()->data()), doc, doc);
-		std::string numberAsString = (boost::format("%d") % patchholder->patch()->patchNumber()->midiProgramNumber().toZeroBased()).str();
-		addToJson(JsonSchema::kPlace, numberAsString, doc, doc);
+		auto realPatch = std::dynamic_pointer_cast<Patch>(patchholder->patch());
+		if (realPatch) {
+			std::string numberAsString = (boost::format("%d") % realPatch->patchNumber()->midiProgramNumber().toZeroBased()).str();
+			addToJson(JsonSchema::kPlace, numberAsString, doc, doc);
+		}
 		addToJson(JsonSchema::kMD5, patchholder->md5(), doc, doc);
 		return renderToJson(doc);
 	}

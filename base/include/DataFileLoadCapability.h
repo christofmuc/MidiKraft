@@ -11,6 +11,7 @@ namespace midikraft {
 		virtual int numberOfDataItemsPerType(int dataTypeID) = 0;
 		virtual bool isDataFile(const MidiMessage &message, int dataTypeID) = 0;
 		virtual void loadData(std::vector<MidiMessage> messages, int dataTypeID) = 0;
+		virtual std::vector<std::string> dataTypeNames() = 0;
 	};
 
 

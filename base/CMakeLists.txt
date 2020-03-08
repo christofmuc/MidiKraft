@@ -27,6 +27,7 @@ set(Sources
 	include/BankDumpCapability.h
 	include/DiscoverableDevice.h
 	include/DynamicPlugin.h
+	include/DataFileLoadCapability.h
 	include/EditBufferCapability.h
 	include/FindSynthOnMidiNetwork.h src/FindSynthOnMidiNetwork.cpp
 	include/HandshakeLoadingCapability.h

@@ -31,6 +31,19 @@ namespace midikraft {
 	{
 	}
 
+	void MidiRequest::blockUntilTrue(std::function<bool()> pred, int timeOutInMilliseconds /* = 2000 */) {
+		// Busy wait thread
+		WaitForEvent waiting(pred);
+		waiting.startThread();
+		if (waiting.waitForThreadToExit(timeOutInMilliseconds)) {
+			std::cout << "MidiRequest succeeded" << std::endl;
+		}
+		else {
+			std::cerr << "Timeout while waiting for MidiRequest result" << std::endl;
+			throw new std::runtime_error("PyTschirp: Timeout while waiting for midi request");
+		}
+	}
+
 	juce::MidiMessage midikraft::MidiRequest::blockForReply()
 	{
 		auto handler = midikraft::MidiController::makeOneHandle();
@@ -44,16 +57,13 @@ namespace midikraft {
 			}
 		});
 		midikraft::MidiController::instance()->getMidiOutput(output_)->sendMessageNow(request_);
-		// Busy wait thread
-		WaitForEvent waiting([&answered]() { return answered; });
-		waiting.startThread();
-		if (waiting.waitForThreadToExit(2000)) {
-			std::cout << "Got edit buffer from synth" << std::endl;
+		try {
+			blockUntilTrue([&answered]() { return answered; });
 			midikraft::MidiController::instance()->removeMessageHandler(handler);
 			return answer;
 		}
-		else {
-			std::cerr << "Timeout while waiting for edit buffer midi message, failure" << std::endl;
+		catch (std::runtime_error &e) {
+			ignoreUnused(e);
 			midikraft::MidiController::instance()->removeMessageHandler(handler);
 			throw new std::runtime_error("PyTschirp: Timeout while waiting for edit buffer midi message");
 		}

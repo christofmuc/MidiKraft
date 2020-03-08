@@ -35,7 +35,7 @@ namespace midikraft {
 		return result;
 	}
 
-	std::set<Category> AutoCategory::determineAutomaticCategories(Patch const &patch)
+	std::set<Category> AutoCategory::determineAutomaticCategories(DataFile const &patch)
 	{
 		std::set <Category> result;
 		for (auto autoCat : predefinedCategories()) {

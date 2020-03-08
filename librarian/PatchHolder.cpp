@@ -29,7 +29,7 @@ namespace midikraft {
 		*kProgramNo = "program";
 
 
-	PatchHolder::PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<Patch> patch, bool autoDetectCategories /* = false */)
+	PatchHolder::PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, bool autoDetectCategories /* = false */)
 		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false)
 	{
 		if (patch && autoDetectCategories) {
@@ -42,7 +42,7 @@ namespace midikraft {
 	{
 	}
 
-	std::shared_ptr<Patch> PatchHolder::patch() const
+	std::shared_ptr<DataFile> PatchHolder::patch() const
 	{
 		return patch_;
 	}
@@ -188,7 +188,7 @@ namespace midikraft {
 		}
 	}
 
-	std::string PatchHolder::calcMd5(Synth *activeSynth, Patch *patch)
+	std::string PatchHolder::calcMd5(Synth *activeSynth, DataFile *patch)
 	{
 		auto filteredData = activeSynth->filterVoiceRelevantData(patch->data());
 		MD5 md5(&filteredData[0], filteredData.size());

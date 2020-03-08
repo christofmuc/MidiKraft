@@ -80,9 +80,9 @@ namespace midikraft {
 	class PatchHolder {
 	public:
 		PatchHolder();
-		PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<Patch> patch, bool autoDetectCategories = false);
+		PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, bool autoDetectCategories = false);
 
-		std::shared_ptr<Patch> patch() const;
+		std::shared_ptr<DataFile> patch() const;
 
 		int getType() const;
 		void setType(int type);
@@ -114,13 +114,13 @@ namespace midikraft {
 		
 		std::string md5() const;
 
-		static std::string calcMd5(Synth *activeSynth, Patch *patch);
+		static std::string calcMd5(Synth *activeSynth, DataFile *patch);
 
 		
 	private:
 		void setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield);
 
-		std::shared_ptr<Patch> patch_;
+		std::shared_ptr<DataFile> patch_;
 		int type_;
 		Favorite isFavorite_;
 		bool isHidden_;

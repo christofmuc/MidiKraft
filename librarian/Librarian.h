@@ -25,7 +25,7 @@ namespace midikraft {
 	class Librarian {
 	public:
 		typedef std::function<void(std::vector<PatchHolder>)> TFinishedHandler;
-		typedef std::function<void()> TStepSequencerFinishedHandler;
+		typedef std::function<void(std::vector<std::shared_ptr<DataFile>>)> TStepSequencerFinishedHandler;
 
 		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), downloadNumber_(0) {}
 

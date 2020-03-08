@@ -143,9 +143,9 @@ namespace midikraft {
 				currentDownload_.push_back(message);
 				downloadNumber_++;
 				if (downloadNumber_ >= sequencer->numberOfDataItemsPerType(dataFileIdentifier)) {
-					sequencer->loadData(currentDownload_, dataFileIdentifier);
+					auto loadedData = sequencer->loadData(currentDownload_, dataFileIdentifier);
 					MidiController::instance()->removeMessageHandler(handle_);
-					onSequencerFinished_();
+					onSequencerFinished_(loadedData);
 					if (progressHandler) progressHandler->onSuccess();
 				}
 				else if (progressHandler->shouldAbort()) {

@@ -84,6 +84,9 @@ namespace midikraft {
 
 		std::shared_ptr<Patch> patch() const;
 
+		int getType() const;
+		void setType(int type);
+
 		bool isFavorite() const;
 		Favorite howFavorite() const;
 		void setFavorite(Favorite fav);
@@ -118,6 +121,7 @@ namespace midikraft {
 		void setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield);
 
 		std::shared_ptr<Patch> patch_;
+		int type_;
 		Favorite isFavorite_;
 		bool isHidden_;
 		std::set<Category> categories_;

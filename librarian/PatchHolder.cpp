@@ -30,7 +30,7 @@ namespace midikraft {
 
 
 	PatchHolder::PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<Patch> patch, bool autoDetectCategories /* = false */)
-		: sourceInfo_(sourceInfo), patch_(patch), isFavorite_(Favorite()), isHidden_(false)
+		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false)
 	{
 		if (patch && autoDetectCategories) {
 			categories_ = AutoCategory::determineAutomaticCategories(*patch);
@@ -38,13 +38,23 @@ namespace midikraft {
 		md5_ = calcMd5(activeSynth, patch.get());
 	}
 
-	PatchHolder::PatchHolder() : isFavorite_(Favorite())
+	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false)
 	{
 	}
 
 	std::shared_ptr<Patch> PatchHolder::patch() const
 	{
 		return patch_;
+	}
+
+	int PatchHolder::getType() const
+	{
+		return type_;
+	}
+
+	void PatchHolder::setType(int type)
+	{
+		type_ = type;
 	}
 
 	bool PatchHolder::isFavorite() const
@@ -314,7 +324,7 @@ namespace midikraft {
 		return nullptr;
 	}
 
-	midikraft::MidiBankNumber FromSynthSource::bankNumber() const
+	MidiBankNumber FromSynthSource::bankNumber() const
 	{
 		return bankNo_;
 	}

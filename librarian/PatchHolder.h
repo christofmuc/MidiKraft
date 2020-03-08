@@ -114,8 +114,7 @@ namespace midikraft {
 		
 		std::string md5() const;
 
-		static std::string calcMd5(Synth *activeSynth, DataFile *patch);
-
+		static std::string calcMd5(Synth *activeSynth, std::shared_ptr<DataFile> dataFile);
 		
 	private:
 		void setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield);

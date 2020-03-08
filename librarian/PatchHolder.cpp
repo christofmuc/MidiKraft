@@ -35,7 +35,7 @@ namespace midikraft {
 		if (patch && autoDetectCategories) {
 			categories_ = AutoCategory::determineAutomaticCategories(*patch);
 		}
-		md5_ = calcMd5(activeSynth, patch.get());
+		md5_ = calcMd5(activeSynth, patch);
 	}
 
 	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false)
@@ -188,9 +188,9 @@ namespace midikraft {
 		}
 	}
 
-	std::string PatchHolder::calcMd5(Synth *activeSynth, DataFile *patch)
+	std::string PatchHolder::calcMd5(Synth *activeSynth, std::shared_ptr<DataFile> dataFile)
 	{
-		auto filteredData = activeSynth->filterVoiceRelevantData(patch->data());
+		auto filteredData = activeSynth->filterVoiceRelevantData(dataFile);
 		MD5 md5(&filteredData[0], filteredData.size());
 		return md5.toHexString().toStdString();
 	}

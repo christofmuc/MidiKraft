@@ -193,7 +193,7 @@ namespace midikraft {
 			query.bind(":LIM", limit);
 			query.bind(":OFS", skip);
 			while (query.executeStep()) {
-				std::shared_ptr<Patch> newPatch;
+				std::shared_ptr<DataFile> newPatch;
 
 				// Create the patch itself, from the BLOB stored
 				auto dataColumn = query.getColumn("data");

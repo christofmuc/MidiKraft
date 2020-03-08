@@ -15,10 +15,10 @@ namespace midikraft {
 		};
 
 		virtual std::vector<MidiMessage> requestDataItem(int itemNo, int dataTypeID) = 0;
-		virtual int numberOfDataItemsPerType(int dataTypeID) = 0;
-		virtual bool isDataFile(const MidiMessage &message, int dataTypeID) = 0;
-		virtual std::vector<std::shared_ptr<DataFile>> loadData(std::vector<MidiMessage> messages, int dataTypeID) = 0;
-		virtual std::vector<DataFileDescription> dataTypeNames() = 0;
+		virtual int numberOfDataItemsPerType(int dataTypeID) const = 0;
+		virtual bool isDataFile(const MidiMessage &message, int dataTypeID) const = 0;
+		virtual std::vector<std::shared_ptr<DataFile>> loadData(std::vector<MidiMessage> messages, int dataTypeID) const = 0;
+		virtual std::vector<DataFileDescription> dataTypeNames() const = 0;
 	};
 
 

@@ -13,8 +13,17 @@
 
 namespace midikraft {
 
-	DataFile::DataFile(Synth::PatchData const &patchdata) : data_(patchdata)
+	DataFile::DataFile(int dataTypeID) : dataTypeID_(dataTypeID)
 	{
+	}
+
+	DataFile::DataFile(int dataTypeID, Synth::PatchData const &patchdata) : dataTypeID_(dataTypeID), data_(patchdata)
+	{
+	}
+
+	int DataFile::dataTypeID() const
+	{
+		return dataTypeID_;
 	}
 
 	void DataFile::setData(Synth::PatchData const &data)

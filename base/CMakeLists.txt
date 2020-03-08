@@ -37,7 +37,7 @@ set(Sources
 	include/MidiChannel.h
 	include/MidiController.h src/MidiController.cpp
 	include/MidiRequest.h src/MidiRequest.cpp
-	include/MTSFile.h
+	include/MTSFile.h src/MTSFile.cpp
 	include/NamedDeviceCapability.h	
 	include/Patch.h src/Patch.cpp
 	include/PatchNumber.h

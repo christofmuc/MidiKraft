@@ -1,27 +1,24 @@
+/*
+   Copyright (c) 2020 Christof Ruch. All rights reserved.
+
+   Dual licensed: Distributed under Affero GPL license by default, an MIT license is available for purchase
+*/
+
 #pragma once
 
 #include "JuceHeader.h"
 
 #include "Patch.h"
+#include "MidiTuning.h"
 
 namespace midikraft {
 
 	class MTSFile : public DataFile {
 	public:
-		MTSFile(Synth::PatchData const &data) : DataFile(data) {}
+		MTSFile(int dataTypeID_, Synth::PatchData const &data) : DataFile(dataTypeID_, data) {}
 
-		std::string patchName() const override
-		{
-			return "not implemented yet";
-		}
-
-
-		void setName(std::string const &name) override
-		{
-			ignoreUnused(name);
-			throw new std::runtime_error("not implemented yet");
-		}
-
+		std::string patchName() const override;
+		void setName(std::string const &name) override;
 	};
 
 }

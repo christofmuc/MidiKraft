@@ -15,8 +15,11 @@ namespace midikraft {
 
 	class DataFile {
 	public:
-		DataFile() = default;
-		DataFile(Synth::PatchData const &patchdata);
+		DataFile(int dataTypeID);
+		DataFile(int dataTypeID, Synth::PatchData const &patchdata);
+
+		int dataTypeID() const;
+
 		virtual std::string patchName() const = 0;
 		virtual void setName(std::string const &name) = 0;
 
@@ -27,6 +30,9 @@ namespace midikraft {
 		virtual void setAt(int sysExIndex, uint8 value);
 
 	protected:
+		// Just any ID you want to give it
+		int dataTypeID_;
+
 		// Direct byte storage
 		Synth::PatchData data_;
 	};

@@ -20,11 +20,11 @@
 
 namespace midikraft {
 
-	Synth::PatchData Synth::filterVoiceRelevantData(PatchData const &unfilteredData) const
+	Synth::PatchData Synth::filterVoiceRelevantData(std::shared_ptr<DataFile> unfilteredData) const
 	{
 		// The default implementation does nothing, i.e. all bytes are relevant for the sound of the patch
 		// That would be the case e.g. for the Korg DW8000 or the Kawai K3, which have not even a patch name in the patch data
-		return unfilteredData;
+		return unfilteredData->data();
 	}
 
 	TPatchVector Synth::loadSysex(std::vector<MidiMessage> const &sysexMessages)

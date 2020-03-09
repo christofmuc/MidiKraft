@@ -28,6 +28,8 @@ namespace midikraft {
 			Synth *activeSynth;
 			std::string importID;
 			bool onlyFaves;
+			bool onlySpecifcType;
+			int typeID;
 			bool showHidden;
 			bool onlyUntagged;
 			std::set<Category> categories;

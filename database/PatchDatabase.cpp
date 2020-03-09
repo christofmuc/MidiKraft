@@ -152,6 +152,9 @@ namespace midikraft {
 			if (filter.onlyFaves) {
 				where += " AND favorite == 1";
 			}
+			if (filter.onlySpecifcType) {
+				where += " AND type == :TYP";
+			}
 			if (!filter.showHidden) {
 				where += " AND (hidden is null or hidden != 1)";
 			}
@@ -172,6 +175,9 @@ namespace midikraft {
 			query.bind(":SYN", filter.activeSynth->getName());
 			if (!filter.importID.empty()) {
 				query.bind(":SID", filter.importID);
+			}
+			if (filter.onlySpecifcType) {
+				query.bind(":TYP", filter.typeID);
 			}
 			if (!filter.categories.empty()) {
 				query.bind(":CAT", Category::categorySetAsBitfield(filter.categories));
@@ -210,10 +216,10 @@ namespace midikraft {
 						if (favoriteColumn.isInteger()) {
 							holder.setFavorite(Favorite(favoriteColumn.getInt()));
 						}
-						auto typeColumn = query.getColumn("type");
+						/*auto typeColumn = query.getColumn("type");
 						if (typeColumn.isInteger()) {
 							holder.setType(typeColumn.getInt());
-						}
+						}*/
 						auto hiddenColumn = query.getColumn("hidden");
 						if (hiddenColumn.isInteger()) {
 							holder.setHidden(hiddenColumn.getInt() == 1);

@@ -45,8 +45,6 @@ namespace midikraft {
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch);
 		bool putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches);
 
-		void runMigration(Synth * activeSynth);
-
 	private:
 		class PatchDataBaseImpl;
 		std::unique_ptr<PatchDataBaseImpl> impl;

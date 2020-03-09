@@ -49,12 +49,7 @@ namespace midikraft {
 
 	int PatchHolder::getType() const
 	{
-		return type_;
-	}
-
-	void PatchHolder::setType(int type)
-	{
-		type_ = type;
+		return patch_->dataTypeID();
 	}
 
 	bool PatchHolder::isFavorite() const

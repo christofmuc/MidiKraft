@@ -85,7 +85,6 @@ namespace midikraft {
 		std::shared_ptr<DataFile> patch() const;
 
 		int getType() const;
-		void setType(int type);
 
 		bool isFavorite() const;
 		Favorite howFavorite() const;

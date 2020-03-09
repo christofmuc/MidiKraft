@@ -105,21 +105,32 @@ namespace midikraft {
 		}
 	}
 
-	void Synth::sendPatchToSynth(MidiController *controller, SimpleLogger *logger, Patch const &patch)
+	void Synth::sendPatchToSynth(MidiController *controller, SimpleLogger *logger, std::shared_ptr<DataFile> dataFile)
 	{
-		// Default implementation is to just shoot it to the Midi output and hope for the best, no handshake is done
-		auto editBufferCapability = dynamic_cast<EditBufferCapability *>(this);
-		auto programDumpCapability = dynamic_cast<ProgramDumpCabability *>(this);
 		std::vector<MidiMessage> messages;
-		if (editBufferCapability) {
-			messages = editBufferCapability->patchToSysex(patch);
+		auto realPatch = std::dynamic_pointer_cast<midikraft::Patch>(dataFile);
+		if (realPatch) {
+			// Default implementation is to just shoot it to the Midi output and hope for the best, no handshake is done
+			auto editBufferCapability = dynamic_cast<EditBufferCapability *>(this);
+			auto programDumpCapability = dynamic_cast<ProgramDumpCabability *>(this);
+			if (editBufferCapability) {
+				messages = editBufferCapability->patchToSysex(*realPatch);
+			}
+			else if (programDumpCapability) {
+				messages = programDumpCapability->patchToProgramDumpSysex(*realPatch);
+			}
 		}
-		else if (programDumpCapability) {
-			messages = programDumpCapability->patchToProgramDumpSysex(patch);
+		else {
+			auto dfcl = dynamic_cast<DataFileSendCapability*>(this);
+			if (dfcl) {
+				messages = dfcl->dataFileToMessages(dataFile);
+			}
 		}
-		logger->postMessage((boost::format("Sending patch to %s") % getName()).str());
-		controller->enableMidiOutput(midiOutput());
-		controller->getMidiOutput(midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+		if (!messages.empty()) {
+			logger->postMessage((boost::format("Sending patch to %s") % getName()).str());
+			controller->enableMidiOutput(midiOutput());
+			controller->getMidiOutput(midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+		}
 	}
 
 }

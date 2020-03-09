@@ -19,6 +19,9 @@ namespace midikraft {
 
 		std::string patchName() const override;
 		void setName(std::string const &name) override;
+
+		std::vector<MidiMessage> createMidiMessagesFromDataFile(MidiProgramNumber placeToStore);
+
 	};
 
 }

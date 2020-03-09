@@ -40,7 +40,7 @@ namespace midikraft {
 		// Generic functions that should function with most Synthesizers, only overload if required
 		virtual TPatchVector loadSysex(std::vector<MidiMessage> const &sysexMessages);
 		virtual void saveSysex(std::string const &filename, std::vector<MidiMessage> messages);
-		virtual void sendPatchToSynth(MidiController *controller, SimpleLogger *logger, Patch const &patch);
+		virtual void sendPatchToSynth(MidiController *controller, SimpleLogger *logger, std::shared_ptr<DataFile> dataFile);
 	};
 
 }

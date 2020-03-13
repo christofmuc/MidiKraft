@@ -27,6 +27,7 @@ namespace midikraft {
 		struct PatchFilter {
 			Synth *activeSynth;
 			std::string importID;
+			std::string name;
 			bool onlyFaves;
 			bool onlySpecifcType;
 			int typeID;

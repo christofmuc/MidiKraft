@@ -155,6 +155,9 @@ namespace midikraft {
 			if (!filter.importID.empty()) {
 				where += " AND sourceID = :SID";
 			}
+			if (!filter.name.empty()) {
+				where += " AND name LIKE :NAM";
+			}
 			if (filter.onlyFaves) {
 				where += " AND favorite == 1";
 			}
@@ -181,6 +184,9 @@ namespace midikraft {
 			query.bind(":SYN", filter.activeSynth->getName());
 			if (!filter.importID.empty()) {
 				query.bind(":SID", filter.importID);
+			}
+			if (!filter.name.empty()) {
+				query.bind(":NAM", "%" + filter.name + "%");
 			}
 			if (filter.onlySpecifcType) {
 				query.bind(":TYP", filter.typeID);

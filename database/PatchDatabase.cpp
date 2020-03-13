@@ -24,11 +24,12 @@
 
 namespace midikraft {
 
-	const int SCHEMA_VERSION = 3;
+	const int SCHEMA_VERSION = 4;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
 	/* 3 - adding type integer to patch (to differentiate voice, patch, layer, tuning...) */
+	/* 4 - forgot to migrate existing data NULL to 0 */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -55,6 +56,11 @@ namespace midikraft {
 				SQLite::Transaction transaction(db_);
 				db_.exec("ALTER TABLE patches ADD COLUMN type INTEGER");
 				db_.exec("UPDATE schema_version SET number = 3");
+				transaction.commit();
+			}
+			if (currentVersion < 4) {
+				SQLite::Transaction transaction(db_);
+				db_.exec("UPDATE patches SET type = 0 WHERE type is NULL");
 				transaction.commit();
 			}
 		}

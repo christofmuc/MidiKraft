@@ -81,7 +81,7 @@ namespace midikraft {
 		return renderToJson(doc);
 	}
 
-	bool JsonSerialization::jsonToPatch(Synth *activeSynth, rapidjson::Value &patchDoc, PatchHolder &outPatchHolder) {
+	bool JsonSerialization::jsonToPatch(Synth *activeSynth, rapidjson::Value &patchDoc, PatchHolder &outPatchHolder, std::shared_ptr<AutomaticCategorizer> categorizer) {
 		// Build the patch via the synth from the sysex data...
 		std::string name;
 		Synth::PatchData data;
@@ -104,7 +104,10 @@ namespace midikraft {
 					withMeta.setCategory(cat, true);
 				}
 			}*/
-			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch, true);
+			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch);
+			if (categorizer) {
+				simple.autoCategorizeAgain(*categorizer);
+			}
 			outPatchHolder = simple;
 			return true;
 		}

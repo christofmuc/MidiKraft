@@ -234,7 +234,7 @@ namespace midikraft {
 			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY bitIndex");
 			std::vector<Category> result;
 			while (query.executeStep()) {
-				auto bitIndex = query.getColumn("bitIndex").getInt() + 1;
+				auto bitIndex = query.getColumn("bitIndex").getInt();
 				auto name = query.getColumn("name").getText();
 				auto colorName = query.getColumn("color").getText();
 				result.emplace_back(name, Colour::fromString(colorName), bitIndex);
@@ -444,7 +444,7 @@ namespace midikraft {
 			AutomaticCategorizer rules;
 			rules.loadFromString(autocategoryDefinitions_);
 			auto max = std::max_element(databaseCategories.begin(), databaseCategories.end(), [](Category a, Category b) { return a.bitIndex < b.bitIndex; });
-			int bitindex = 0;
+			int bitindex = 0; // The bitindex 0 is not used
 			if (max != databaseCategories.end()) {
 				bitindex = max->bitIndex;
 			}

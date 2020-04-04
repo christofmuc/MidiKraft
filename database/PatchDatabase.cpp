@@ -77,7 +77,7 @@ namespace midikraft {
 				db_.exec("INSERT INTO categories VALUES (5, 'Bass', 'fffdb462', 1)");
 				db_.exec("INSERT INTO categories VALUES (6, 'Arp', 'ffb3de69', 1)");
 				db_.exec("INSERT INTO categories VALUES (7, 'Pluck', 'fffccde5', 1)");
-				db_.exec("INSERT INTO categories VALUES (8, 'Done', 'ffd9d9d9', 1)");
+				db_.exec("INSERT INTO categories VALUES (8, 'Drone', 'ffd9d9d9', 1)");
 				db_.exec("INSERT INTO categories VALUES (9, 'Drum', 'ffbc80bd', 1)");
 				db_.exec("INSERT INTO categories VALUES (10, 'Bell', 'ffccebc5', 1)");
 				db_.exec("INSERT INTO categories VALUES (11, 'SFX', 'ffffed6f', 1)");

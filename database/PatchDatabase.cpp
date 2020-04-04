@@ -263,7 +263,7 @@ namespace midikraft {
 				if (newPatch) {
 					auto sourceColumn = query.getColumn("sourceInfo");
 					if (sourceColumn.isText()) {
-						PatchHolder holder(filter.activeSynth, SourceInfo::fromString(sourceColumn.getString()), newPatch, false);
+						PatchHolder holder(filter.activeSynth, SourceInfo::fromString(sourceColumn.getString()), newPatch);
 						auto favoriteColumn = query.getColumn("favorite");
 						if (favoriteColumn.isInteger()) {
 							holder.setFavorite(Favorite(favoriteColumn.getInt()));
@@ -431,8 +431,84 @@ namespace midikraft {
 			return uploaded;
 		}
 
+		std::shared_ptr<AutomaticCategorizer> getCategorizer() {
+			// The Categorizer currently is constructed from two sources - the list of categories in the database including the bit index
+			// The auto-detection rules are stored in the jsonc file.
+			// This needs to be merged.
+			auto categorizer = std::make_shared<AutomaticCategorizer>();
+
+			// Load the categories from the database table
+			auto databaseCategories = getCategories();
+
+			// Load the json Definition
+			AutomaticCategorizer rules;
+			rules.loadFromString(autocategoryDefinitions_);
+			auto max = std::max_element(databaseCategories.begin(), databaseCategories.end(), [](Category a, Category b) { return a.bitIndex < b.bitIndex; });
+			int bitindex = 0;
+			if (max != databaseCategories.end()) {
+				bitindex = max->bitIndex;
+			}
+
+			// First pass - check that all categories referenced in the auto category file are stored in the database, else they will have no bit index!
+			SQLite::Transaction transaction(db_);
+			for (auto rule : rules.predefinedCategories()) {
+				auto exists = false;
+				for (auto cat : databaseCategories) {
+					if (cat.category == rule.category().category) {
+						exists = true;
+						break;
+					}
+				}
+				if (!exists) {
+					// Need to create a new entry in the database
+					if (bitindex < 63) {
+						bitindex++;
+						SQLite::Statement sql(db_, "INSERT INTO categories VALUES (:BIT, :NAM, :COL, 1)");
+						sql.bind(":BIT", bitindex);
+						sql.bind(":NAM", rule.category().category);
+						sql.bind(":COL", rule.category().color.toDisplayString(true).toStdString());
+						sql.exec();
+					}
+					else {
+						jassert(false);
+						SimpleLogger::instance()->postMessage("FATAL ERROR - Can only deal with 64 different categories. Please remove some categories from the rules file!");
+						return categorizer;
+					}
+				}
+			}
+			transaction.commit();
+
+			// Refresh from database
+			databaseCategories = getCategories();
+
+			// Now we need to merge the database persisted categories with the ones defined in the automatic categories from the json string
+			bool exists = false;
+			for (auto cat : databaseCategories) {
+				for (auto rule : rules.predefinedCategories()) {
+					if (cat.category == rule.category().category) {
+						// Copy the rules
+						exists = true;
+						categorizer->addAutoCategory(AutoCategory(cat, rule.patchNameMatchers()));
+						break;
+					}
+				}
+				if (!exists) {
+					// That just means there are no rules, but it needs to be added to the list of available categories anyway
+					categorizer->addAutoCategory(AutoCategory(cat, std::vector<std::string>()));
+				}
+			}
+
+			return categorizer;
+		}
+
+		void setAutocategorizationRules(std::string const &jsonDefinition) {
+			//TODO - this needs to be persisted in the database as well
+			autocategoryDefinitions_ = jsonDefinition;
+		}
+
 	private:
 		SQLite::Database db_;
+		std::string autocategoryDefinitions_;
 	};
 
 	PatchDatabase::PatchDatabase() {
@@ -459,6 +535,16 @@ namespace midikraft {
 	bool PatchDatabase::putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches) {
 		jassert(false);
 		return false;
+	}
+
+	std::shared_ptr<AutomaticCategorizer> PatchDatabase::getCategorizer() 
+	{
+		return impl->getCategorizer();
+	}
+
+	void PatchDatabase::setAutocategorizationRules(std::string const &jsonDefinition)
+	{
+		impl->setAutocategorizationRules(jsonDefinition);
 	}
 
 	std::vector<PatchHolder> PatchDatabase::getPatches(PatchFilter filter, int skip, int limit)

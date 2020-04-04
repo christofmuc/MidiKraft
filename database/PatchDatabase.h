@@ -45,6 +45,7 @@ namespace midikraft {
 
 		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress);
 		std::vector<ImportInfo> getImportsList(Synth *activeSynth) const;
+		std::vector<Category> PatchDatabase::getCategories() const;
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch);
 		bool putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches);
 

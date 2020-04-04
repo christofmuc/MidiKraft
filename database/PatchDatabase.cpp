@@ -24,12 +24,13 @@
 
 namespace midikraft {
 
-	const int SCHEMA_VERSION = 4;
+	const int SCHEMA_VERSION = 5;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
 	/* 3 - adding type integer to patch (to differentiate voice, patch, layer, tuning...) */
 	/* 4 - forgot to migrate existing data NULL to 0 */
+	/* 5 - adding the table categories to track which bit index is used for which tag */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -61,6 +62,29 @@ namespace midikraft {
 			if (currentVersion < 4) {
 				SQLite::Transaction transaction(db_);
 				db_.exec("UPDATE patches SET type = 0 WHERE type is NULL");
+				db_.exec("UPDATE schema_version SET number = 4");
+				transaction.commit();
+			}
+			if (currentVersion < 5) {
+				SQLite::Transaction transaction(db_);
+				db_.exec("CREATE TABLE categories (bitIndex INTEGER, name TEXT, color TEXT, active INTEGER)");
+				// Colors from http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
+				db_.exec("INSERT INTO categories VALUES (0, 'Lead', 'ff8dd3c7', 1)");  
+				db_.exec("INSERT INTO categories VALUES (1, 'Pad', 'ffffffb3', 1)");
+				db_.exec("INSERT INTO categories VALUES (2, 'Brass', 'ffbebada', 1)");
+				db_.exec("INSERT INTO categories VALUES (3, 'Organ', 'fffb8072', 1)");
+				db_.exec("INSERT INTO categories VALUES (4, 'Keys', 'ff80b1d3', 1)");
+				db_.exec("INSERT INTO categories VALUES (5, 'Bass', 'fffdb462', 1)");
+				db_.exec("INSERT INTO categories VALUES (6, 'Arp', 'ffb3de69', 1)");
+				db_.exec("INSERT INTO categories VALUES (7, 'Pluck', 'fffccde5', 1)");
+				db_.exec("INSERT INTO categories VALUES (8, 'Done', 'ffd9d9d9', 1)");
+				db_.exec("INSERT INTO categories VALUES (9, 'Drum', 'ffbc80bd', 1)");
+				db_.exec("INSERT INTO categories VALUES (10, 'Bell', 'ffccebc5', 1)");
+				db_.exec("INSERT INTO categories VALUES (11, 'SFX', 'ffffed6f', 1)");
+				db_.exec("INSERT INTO categories VALUES (12, 'Ambient', '', 1)");
+				db_.exec("INSERT INTO categories VALUES (13, 'Wind', '', 1)");
+				db_.exec("INSERT INTO categories VALUES (14, 'Voice', '', 1)");
+				db_.exec("UPDATE schema_version SET number = 5");
 				transaction.commit();
 			}
 		}
@@ -81,6 +105,7 @@ namespace midikraft {
 				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
 					" sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER)");
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
+				db_.exec("CREATE TABLE IF NOT EXISTS categories (bitIndex INTEGER, name TEXT, color TEXT, active INTEGER)");
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
 
 				// Commit transaction
@@ -205,7 +230,22 @@ namespace midikraft {
 			return 0;
 		}
 
+		std::vector<Category> getCategories() {
+			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY bitIndex");
+			std::vector<Category> result;
+			while (query.executeStep()) {
+				auto bitIndex = query.getColumn("bitIndex").getInt() + 1;
+				auto name = query.getColumn("name").getText();
+				auto colorName = query.getColumn("color").getText();
+				result.emplace_back(name, Colour::fromString(colorName), bitIndex);
+			}
+			return result;
+		}
+
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder> &result, int skip, int limit) {
+			// We need the current categories
+			auto categories = getCategories();
+
 			SQLite::Statement query(db_, "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiProgramNo LIMIT :LIM OFFSET :OFS");
 			bindWhereClause(query, filter);
 			query.bind(":LIM", limit);
@@ -236,8 +276,8 @@ namespace midikraft {
 						if (hiddenColumn.isInteger()) {
 							holder.setHidden(hiddenColumn.getInt() == 1);
 						}
-						holder.setCategoriesFromBitfield(query.getColumn("categories").getInt64());
-						holder.setUserDecisionsFromBitfield(query.getColumn("categoryUserDecision").getInt64());
+						holder.setCategoriesFromBitfield(categories, query.getColumn("categories").getInt64());
+						holder.setUserDecisionsFromBitfield(categories, query.getColumn("categoryUserDecision").getInt64());
 						result.push_back(holder);
 					}
 					else {
@@ -450,6 +490,10 @@ namespace midikraft {
 
 	std::vector<ImportInfo> PatchDatabase::getImportsList(Synth *activeSynth) const {
 		return impl->getImportsList(activeSynth);
+	}
+
+	std::vector<Category> PatchDatabase::getCategories() const {
+		return impl->getCategories();
 	}
 
 }

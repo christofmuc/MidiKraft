@@ -30,6 +30,7 @@ set(Sources
 	include/DataFileLoadCapability.h
 	include/EditBufferCapability.h
 	include/FindSynthOnMidiNetwork.h src/FindSynthOnMidiNetwork.cpp
+	include/GlobalSettingsCapability.h	
 	include/HandshakeLoadingCapability.h
 	include/LayerCapability.h
 	include/LayeredPatch.h

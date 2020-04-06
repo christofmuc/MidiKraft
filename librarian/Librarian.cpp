@@ -116,6 +116,7 @@ namespace midikraft {
 		currentDownload_.clear();
 		onFinished_ = onFinished;
 		// Uh, stone age, need to start a loop
+		handle_ = MidiController::makeOneHandle();
 		MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
 			ignoreUnused(source);
 			this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0));

@@ -81,6 +81,11 @@ namespace midikraft {
 				auto withOutput = found;
 				withOutput.outputName = MidiOutput::getDevices()[output].toStdString();
 				locations_.push_back(withOutput);
+				// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
+				MidiMessage endDetectMessage;
+				if (synth_.endDeviceDetect(endDetectMessage)) {
+					midiController_->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendMessageNow(endDetectMessage);
+				}
 			}
 		}
 

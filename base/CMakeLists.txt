@@ -25,7 +25,7 @@ ENDIF()
 set(Sources
 	include/AutoDetection.h src/AutoDetection.cpp
 	include/BankDumpCapability.h
-	include/DiscoverableDevice.h
+	include/DiscoverableDevice.h src/DiscoverableDevice.cpp 
 	include/DynamicPlugin.h
 	include/DataFileLoadCapability.h
 	include/EditBufferCapability.h

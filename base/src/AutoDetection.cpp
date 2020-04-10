@@ -113,6 +113,11 @@ namespace midikraft {
 		for (auto found : callback.locations()) {
 			if (found.inputName == synth->midiInput() && found.midiChannel == synth->channel().toZeroBasedInt()) {
 				ok = true;
+				// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
+				MidiMessage endDetectMessage;
+				if (synth->endDeviceDetect(endDetectMessage)) {
+					MidiController::instance()->getMidiOutput(synth->midiOutput())->sendMessageNow(endDetectMessage);
+				}
 			}
 		}
 		MidiController::instance()->disableMidiInput(synth->midiInput());

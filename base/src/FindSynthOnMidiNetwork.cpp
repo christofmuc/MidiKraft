@@ -101,7 +101,7 @@ namespace midikraft {
 	{
 		FindSynthOnMidiNetwork m(midiController, synth, (boost::format("Looking for %s on your MIDI network...") % synth.getName()).str(), progressHandler);
 		m.startThread();
-		if (m.waitForThreadToExit(5000))
+		if (m.waitForThreadToExit(15000))
 		{
 			// thread finished normally..
 			return m.locations_;

@@ -369,7 +369,8 @@ namespace midikraft {
 		}
 		else {
 			// Ignore message
-			jassert(false);
+			//TODO we could add an echo check here, as e.g. the MKS80 is prone to just echo out everything you sent to it, you'd end up here.
+			/*jassert(false);*/
 		}
 	}
 

@@ -217,7 +217,9 @@ namespace midikraft {
 				auto dataColumn = query.getColumn("data");
 				if (dataColumn.isBlob()) {
 					std::vector<uint8> patchData((uint8 *)dataColumn.getBlob(), ((uint8 *)dataColumn.getBlob()) + dataColumn.getBytes());
-					newPatch = filter.activeSynth->patchFromPatchData(patchData, "unknown", MidiProgramNumber::fromZeroBase(0));
+					std::string patchName = query.getColumn("name").getString();
+					int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
+					newPatch = filter.activeSynth->patchFromPatchData(patchData, patchName, MidiProgramNumber::fromZeroBase(midiProgramNumber));
 				}
 
 				if (newPatch) {

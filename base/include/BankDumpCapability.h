@@ -15,7 +15,7 @@ namespace midikraft {
 
 	class BankDumpCapability {
 	public:
-		virtual MidiMessage requestBankDump(MidiBankNumber bankNo) const = 0;
+		virtual std::vector<MidiMessage> requestBankDump(MidiBankNumber bankNo) const = 0;
 		virtual bool isBankDump(const MidiMessage& message) const = 0;
 		virtual bool isBankDumpFinished(std::vector<MidiMessage> const &bankDump) const = 0;
 		virtual TPatchVector patchesFromSysexBank(const MidiMessage& message) const = 0;

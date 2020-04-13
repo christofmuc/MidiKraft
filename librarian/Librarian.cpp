@@ -87,13 +87,13 @@ namespace midikraft {
 		}
 		else if (bankCapableSynth) {
 			// This is a mixture - you send one message (bank request), and then you get either one message back (like Kawai K3) or a stream of messages with
-			// one message per patch (e.g. Access Virus)
+			// one message per patch (e.g. Access Virus or Matrix1000)
 			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput, bankNo](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
 				this->handleNextBankDump(midiOutput, synth, progressHandler, editBuffer, bankNo);
 			});
 			currentDownload_.clear();
-			midiOutput->sendMessageNow(bankCapableSynth->requestBankDump(bankNo));
+			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(bankCapableSynth->requestBankDump(bankNo)));
 		}
 		else {
 			// Uh, stone age, need to start a loop

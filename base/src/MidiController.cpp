@@ -22,6 +22,14 @@ namespace midikraft {
 		}
 	}
 
+	void SafeMidiOutput::sendMessageDebounced(const MidiMessage &message, int milliseconds)
+	{
+		debouncer_.callDebounced([this, message]() {
+			sendMessageNow(message);
+		}, 
+			milliseconds);
+	}
+
 	void SafeMidiOutput::sendBlockOfMessagesNow(const MidiBuffer& buffer) {
 		if (midiOut_) {
 			MidiBuffer::Iterator it(buffer);

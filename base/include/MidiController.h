@@ -10,6 +10,8 @@
 
 #include <map>
 
+#include "DebounceTimer.h"
+
 namespace midikraft {
 
 	// Forward declaration for the SafeMidiOutput class
@@ -22,11 +24,13 @@ namespace midikraft {
 		SafeMidiOutput(MidiController *controller, MidiOutput *midiOutput);
 
 		void sendMessageNow(const MidiMessage& message);
+		void sendMessageDebounced(const MidiMessage &message, int milliseconds);
 		void sendBlockOfMessagesNow(const MidiBuffer& buffer);
 
 	private:
 		MidiOutput * midiOut_;
 		MidiController *controller_;
+		DebounceTimer debouncer_;
 	};
 
 	class MidiController : public MidiInputCallback

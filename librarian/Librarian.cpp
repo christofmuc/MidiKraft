@@ -14,6 +14,7 @@
 #include "ProgramDumpCapability.h"
 #include "StreamLoadCapability.h"
 #include "HandshakeLoadingCapability.h"
+#include "LegacyLoaderCapability.h"
 
 #include "MidiHelpers.h"
 
@@ -227,9 +228,15 @@ namespace midikraft {
 				lastPath_ = File::getSpecialLocation(File::userDocumentsDirectory).getFullPathName().toStdString();
 			}
 		}
+
+		std::string standardFileExtensions = "*.syx;*.mid;*.zip;*.txt";
+		auto legacyLoader = dynamic_cast<LegacyLoaderCapability *>(&synth);
+		if (legacyLoader) {
+			standardFileExtensions += ";" + legacyLoader->additionalFileExtensions();
+		}
+
 		FileChooser sysexChooser("Please select the sysex you want to load...",
-			File(lastPath_),
-			"*.syx;*.mid;*.zip;*.txt");
+			File(lastPath_), standardFileExtensions);
 		if (sysexChooser.browseForMultipleFilesToOpen())
 		{
 			if (sysexChooser.getResults().size() > 0) {
@@ -256,18 +263,31 @@ namespace midikraft {
 		return std::vector<PatchHolder>();
 	}
 
-	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(Synth &synth, std::string const &fullpath, std::string const &filename) {
-		auto messagesLoaded = Sysex::loadSysex(fullpath);
-		auto patches = synth.loadSysex(messagesLoaded);
+	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(Synth &synth, std::string const &fullpath, std::string const &filename) {		
+		auto legacyLoader = dynamic_cast<LegacyLoaderCapability *>(&synth);
+		TPatchVector patches;
+		if (legacyLoader && legacyLoader->supportsExtension(fullpath)) {
+			File legacyFile = File::createFileWithoutCheckingPath(fullpath);
+			if (legacyFile.existsAsFile()) {
+				FileInputStream inputStream(legacyFile);
+				std::vector<uint8> data((size_t)inputStream.getTotalLength());
+				inputStream.read(&data[0], (int)inputStream.getTotalLength()); // 4 GB Limit
+				patches = legacyLoader->load(fullpath, data);
+			}
+		}
+		else {
+			auto messagesLoaded = Sysex::loadSysex(fullpath);
+			patches = synth.loadSysex(messagesLoaded);
+		}
 
 		if (patches.empty()) {
 			// Bugger - probably the file is for some synth that is correctly not the active one... happens frequently for me
 			// Let's try to sniff the synth from the magics given and then try to reload the file with the correct synth
-			auto detectedSynth = sniffSynth(messagesLoaded);
-			if (detectedSynth) {
+			//auto detectedSynth = sniffSynth(messagesLoaded);
+			//if (detectedSynth) {
 				// That's better, now try again
 				//patches = detectedSynth->loadSysex(messagesLoaded);
-			}
+			//}
 		}
 
 		// Add the meta information

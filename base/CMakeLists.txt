@@ -34,8 +34,7 @@ set(Sources
 	include/HandshakeLoadingCapability.h
 	include/LayerCapability.h
 	include/LayeredPatch.h
-	include/MasterkeyboardCapability.h
-	include/MidiChannel.h
+	include/MasterkeyboardCapability.h	
 	include/MidiController.h src/MidiController.cpp
 	include/MidiRequest.h src/MidiRequest.cpp
 	include/MTSFile.h src/MTSFile.cpp

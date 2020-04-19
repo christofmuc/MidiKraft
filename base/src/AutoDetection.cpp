@@ -67,6 +67,15 @@ namespace midikraft {
 		sendChangeMessage();
 	}
 
+	void AutoDetection::persistSetting(SimpleDiscoverableDevice *synth)
+	{
+		if (synth->channel().isValid()) {
+			Settings::instance().set(midiSetupKey(synth, kChannel), (boost::format("%d") % synth->channel().toZeroBasedInt()).str());
+		}
+		Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput());
+		Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput());
+	}
+
 	void AutoDetection::findSynth(SimpleDiscoverableDevice *synth, ProgressHandler *progressHandler) {
 		auto locations = FindSynthOnMidiNetwork::detectSynth(MidiController::instance(), *synth, progressHandler);
 		if (locations.size() > 0) {
@@ -80,9 +89,7 @@ namespace midikraft {
 			synth->setCurrentChannelZeroBased(locations[loc].inputName, locations[loc].outputName, locations[loc].midiChannel);
 
 			// Additionally, we want to persist this knowhow in the user settings file!
-			Settings::instance().set(midiSetupKey(synth, kChannel), (boost::format("%d") % synth->channel().toZeroBasedInt()).str());
-			Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput());
-			Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput());
+			persistSetting(synth);
 		}
 		else {
 			// Ups

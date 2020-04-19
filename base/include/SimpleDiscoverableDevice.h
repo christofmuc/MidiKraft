@@ -15,6 +15,8 @@ namespace midikraft {
 	public:
 		virtual void setCurrentChannelZeroBased(std::string const &midiInput, std::string const &midiOutput, int midiChannel);
 		virtual void setChannel(MidiChannel newChannel);
+		virtual void setInput(std::string const &midiInput); // To override auto-detection
+		virtual void setOutput(std::string const &midiOutput); // To override auto-detection
 		virtual std::string midiInput() const;
 		virtual std::string midiOutput() const;
 		virtual MidiChannel channel() const;

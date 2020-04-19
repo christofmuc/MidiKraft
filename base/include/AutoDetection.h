@@ -17,6 +17,7 @@ namespace midikraft {
 	public:
 		void autoconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths, ProgressHandler *progressHandler);
 		void quickconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths);
+		void persistSetting(SimpleDiscoverableDevice *synth);
 
 	private:
 		void findSynth(SimpleDiscoverableDevice *synth, ProgressHandler *progressHandler);

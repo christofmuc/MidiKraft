@@ -20,6 +20,16 @@ namespace midikraft {
 		channel_ = newChannel;
 	}
 
+	void SimpleDiscoverableDevice::setInput(std::string const &midiInput)
+	{
+		midiInput_ = midiInput;
+	}
+
+	void SimpleDiscoverableDevice::setOutput(std::string const &midiOutput)
+	{
+		midiOutput_ = midiOutput;
+	}
+
 	std::string SimpleDiscoverableDevice::midiInput() const
 	{
 		return midiInput_;

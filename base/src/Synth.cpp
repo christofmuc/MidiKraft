@@ -127,7 +127,7 @@ namespace midikraft {
 			}
 		}
 		if (!messages.empty()) {
-			logger->postMessage((boost::format("Sending patch to %s") % getName()).str());
+			logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->patchName() % getName()).str());
 			controller->enableMidiOutput(midiOutput());
 			controller->getMidiOutput(midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
 		}

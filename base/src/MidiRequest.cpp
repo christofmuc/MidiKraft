@@ -6,26 +6,10 @@
 
 #include "MidiRequest.h"
 
+#include "WaitForEvent.h"
 #include "MidiController.h"
 
 namespace midikraft {
-
-	class WaitForEvent : public Thread {
-	public:
-		WaitForEvent(std::function<bool()> hasHappened) : Thread("WaitForEvent"), hasHappened_(hasHappened) {
-		}
-
-		virtual void run() override {
-			while (!threadShouldExit()) {
-				if (hasHappened_()) {
-					return;
-				}
-			}
-		}
-
-	private:
-		std::function<bool()> hasHappened_;
-	};
 
 	midikraft::MidiRequest::MidiRequest(std::string const &midiOutput, MidiMessage const &request, TIsAnswerPredicate pred) : output_(midiOutput), request_(request), pred_(pred)
 	{

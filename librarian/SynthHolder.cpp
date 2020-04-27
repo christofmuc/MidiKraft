@@ -19,12 +19,6 @@ namespace midikraft {
 		return (boost::format("%s-color") % synth->getName()).str();
 	}
 
-	SynthHolder::SynthHolder(std::shared_ptr<Synth> synth, Colour const &color) : device_(synth)
-	{
-		// Override the constructor color with the one from the settings file, if set
-		color_ = Colour::fromString(Settings::instance().get(colorSynthKey(synth), color.toString().toStdString()));
-	}
-
 	SynthHolder::SynthHolder(std::shared_ptr<SimpleDiscoverableDevice> synth, Colour const &color) : device_(synth)
 	{
 		// Override the constructor color with the one from the settings file, if set

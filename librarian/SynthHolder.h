@@ -15,7 +15,6 @@ namespace midikraft {
 
 	class SynthHolder {
 	public:
-		SynthHolder(std::shared_ptr<Synth> synth, Colour const &color);
 		SynthHolder(std::shared_ptr<SimpleDiscoverableDevice> synth, Colour const &color);
 		SynthHolder(std::shared_ptr<SoundExpanderCapability> synth);
 		virtual ~SynthHolder() = default;

@@ -43,6 +43,7 @@ set(Sources
 	include/PatchNumber.h
 	include/ProgramDumpCapability.h
 	include/ProgressHandler.h
+	include/ReadOnlySoundExpander.h src/ReadOnlySoundExpander.cpp
 	include/SimpleDiscoverableDevice.h src/SimpleDiscoverableDevice.cpp
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h

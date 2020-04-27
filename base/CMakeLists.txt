@@ -18,20 +18,25 @@ IF(NOT DEFINED JUCE_LIBRARIES)
 			juce_audio_basics
 			juce_audio_devices
 			juce_data_structures
+			juce_dsp
 	)
 ENDIF()
 
 # Define the sources for the static library
 set(Sources
+	include/Additive.h src/Additive.cpp
+	include/AdditiveCapability.h
 	include/AutoDetection.h src/AutoDetection.cpp
 	include/BankDumpCapability.h
-	include/DiscoverableDevice.h src/DiscoverableDevice.cpp 
-	include/DynamicPlugin.h
 	include/DataFileLoadCapability.h
+	include/DiscoverableDevice.h src/DiscoverableDevice.cpp 
+	include/DrawbarOrgan.h src/DrawbarOrgan.cpp 
+	include/DynamicPlugin.h
 	include/EditBufferCapability.h
 	include/FindSynthOnMidiNetwork.h src/FindSynthOnMidiNetwork.cpp
 	include/GlobalSettingsCapability.h	
 	include/HandshakeLoadingCapability.h
+	include/HybridWaveCapability.h
 	include/LayerCapability.h
 	include/LayeredPatch.h
 	include/MasterkeyboardCapability.h	

@@ -32,8 +32,10 @@ namespace midikraft {
 	PatchHolder::PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, bool autoDetectCategories /* = false */)
 		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false)
 	{
+		name_ = patch->name();
+
 		if (patch && autoDetectCategories) {
-			categories_ = AutoCategory::determineAutomaticCategories(*patch);
+			categories_ = AutoCategory::determineAutomaticCategories(*this);
 		}
 		md5_ = calcMd5(activeSynth, patch);
 	}
@@ -50,6 +52,25 @@ namespace midikraft {
 	int PatchHolder::getType() const
 	{
 		return patch_->dataTypeID();
+	}
+
+	void PatchHolder::setName(std::string const &newName)
+	{
+		auto storedInPatch = std::dynamic_pointer_cast<StoredPatchNameCapability>(patch());
+		if (storedInPatch) {
+			// If the Patch can do it, poke the name into the patch, and then use the result (limited to the characters the synth can do) for the patch holder as well
+			storedInPatch->setName(newName);
+			name_ = patch()->name();
+		}
+		else {
+			// The name is only stored in the PatchHolder, and thus the database, anyway, so we just accept the string
+			name_ = newName;
+		}
+	}
+
+	std::string PatchHolder::name() const
+	{
+		return name_;
 	}
 
 	bool PatchHolder::isFavorite() const
@@ -160,7 +181,7 @@ namespace midikraft {
 	bool PatchHolder::autoCategorizeAgain()
 	{
 		auto previous = categories();
-		auto newCategories = AutoCategory::determineAutomaticCategories(*patch_);
+		auto newCategories = AutoCategory::determineAutomaticCategories(*this);
 		if (previous != newCategories) {
 			for (auto n : newCategories) {
 				if (userDecisions_.find(n) == userDecisions_.end()) {

@@ -80,11 +80,14 @@ namespace midikraft {
 	class PatchHolder {
 	public:
 		PatchHolder();
-		PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, bool autoDetectCategories = false);
+		PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,  bool autoDetectCategories = false);
 
 		std::shared_ptr<DataFile> patch() const;
 
 		int getType() const;
+
+		void setName(std::string const &newName);
+		std::string name() const;
 
 		bool isFavorite() const;
 		Favorite howFavorite() const;
@@ -119,6 +122,7 @@ namespace midikraft {
 		void setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield);
 
 		std::shared_ptr<DataFile> patch_;
+		std::string name_;
 		int type_;
 		Favorite isFavorite_;
 		bool isHidden_;

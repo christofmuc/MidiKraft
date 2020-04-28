@@ -7,6 +7,7 @@
 #include "AutomaticCategory.h"
 
 #include "Patch.h"
+#include "PatchHolder.h"
 
 #include "BinaryResources.h"
 #include "RapidjsonHelper.h"
@@ -35,12 +36,12 @@ namespace midikraft {
 		return result;
 	}
 
-	std::set<Category> AutoCategory::determineAutomaticCategories(DataFile const &patch)
+	std::set<Category> AutoCategory::determineAutomaticCategories(PatchHolder const &patch)
 	{
 		std::set <Category> result;
 		for (auto autoCat : predefinedCategories()) {
 			for (auto matcher : autoCat.patchNameMatchers_) {
-				bool found = std::regex_search(patch.patchName(), matcher);
+				bool found = std::regex_search(patch.name(), matcher);
 				if (found) {
 					result.insert(autoCat.category_);
 				}

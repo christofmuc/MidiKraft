@@ -15,14 +15,13 @@
 
 namespace midikraft {
 
-	class Patch;
-	class DataFile;
+	class PatchHolder;
 
 	class AutoCategory {
 	public:
 		static std::vector<AutoCategory> predefinedCategories();
 		static std::vector<Category> predefinedCategoryVector();
-		static std::set<Category> determineAutomaticCategories(DataFile const &patch);
+		static std::set<Category> determineAutomaticCategories(PatchHolder const &patch);
 
 		AutoCategory(Category category, std::vector<std::string> const &regexes);		
 		AutoCategory(Category category, std::vector<std::regex> const &regexes);

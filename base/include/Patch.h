@@ -13,6 +13,11 @@ namespace midikraft {
 
 	class SynthParameterDefinition;
 
+	class StoredPatchNameCapability {
+	public:
+		virtual void setName(std::string const &name) = 0;
+	};
+
 	class DataFile {
 	public:
 		DataFile(int dataTypeID);
@@ -20,8 +25,7 @@ namespace midikraft {
 
 		int dataTypeID() const;
 
-		virtual std::string patchName() const = 0;
-		virtual void setName(std::string const &name) = 0;
+		virtual std::string name() const = 0;
 
 		// Direct byte access functions
 		virtual void setData(Synth::PatchData const &data);

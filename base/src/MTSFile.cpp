@@ -8,7 +8,7 @@
 
 #include "MidiHelpers.h"
 
-std::string midikraft::MTSFile::patchName() const
+std::string midikraft::MTSFile::name() const
 {
 	MidiTuning result;
 	auto sysexMessage = MidiHelpers::sysexMessage(data());
@@ -18,12 +18,6 @@ std::string midikraft::MTSFile::patchName() const
 	else {
 		return "Parse error in MTS file!";
 	}
-}
-
-void midikraft::MTSFile::setName(std::string const &name)
-{
-	ignoreUnused(name);
-	throw new std::runtime_error("not implemented yet");
 }
 
 std::vector<juce::MidiMessage> midikraft::MTSFile::createMidiMessagesFromDataFile(MidiProgramNumber placeToStore)

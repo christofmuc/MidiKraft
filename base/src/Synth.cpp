@@ -43,13 +43,7 @@ namespace midikraft {
 					result.push_back(patch);
 					// As these are edit buffers, I would not expect the patchNumber to be set by the loading routine
 					patch->setPatchNumber(MidiProgramNumber::fromZeroBase(patchNo));
-
-					// Default name generation for patch formats without a name
-					if (patch->patchName().empty()) {
-						patch->setName((boost::format("Patch #%d") % patch->patchNumber()->friendlyName()).str());
-					}
-
-					Logger::writeToLog("Found patch " + patch->patchName());
+					Logger::writeToLog("Found patch " + patch->name());
 					auto description = patch->patchToTextRaw(false);
 					Logger::writeToLog(description);
 				}
@@ -62,10 +56,6 @@ namespace midikraft {
 				auto patch = programDumpSynth->patchFromProgramDumpSysex(message);
 				if (patch) {
 					result.push_back(patch);
-					// Default name generation for patch formats without a name
-					if (patch->patchName().empty()) {
-						patch->setName((boost::format("Patch #%d") % patch->patchNumber()->friendlyName()).str());
-					}
 					//Logger::writeToLog("Found patch " + patch->patchName());
 					//auto description = patch->patchToTextRaw(false);
 					//Logger::writeToLog(description);
@@ -127,7 +117,7 @@ namespace midikraft {
 			}
 		}
 		if (!messages.empty()) {
-			logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->patchName() % getName()).str());
+			logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
 			controller->enableMidiOutput(midiOutput());
 			controller->getMidiOutput(midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
 		}

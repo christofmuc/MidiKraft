@@ -113,7 +113,7 @@ namespace midikraft {
 				// Insert values into prepared statement
 				sql.bind(":SYN", activeSynth->getName().c_str());
 				sql.bind(":MD5", patch.md5());
-				sql.bind(":NAM", patch.patch()->patchName());
+				sql.bind(":NAM", patch.name());
 				sql.bind(":TYP", patch.getType());
 				sql.bind(":DAT", patch.patch()->data().data(), (int) patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
@@ -217,15 +217,19 @@ namespace midikraft {
 				auto dataColumn = query.getColumn("data");
 				if (dataColumn.isBlob()) {
 					std::vector<uint8> patchData((uint8 *)dataColumn.getBlob(), ((uint8 *)dataColumn.getBlob()) + dataColumn.getBytes());
-					std::string patchName = query.getColumn("name").getString();
+					
 					int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-					newPatch = filter.activeSynth->patchFromPatchData(patchData, patchName, MidiProgramNumber::fromZeroBase(midiProgramNumber));
+					newPatch = filter.activeSynth->patchFromPatchData(patchData, MidiProgramNumber::fromZeroBase(midiProgramNumber));
 				}
 
 				if (newPatch) {
 					auto sourceColumn = query.getColumn("sourceInfo");
 					if (sourceColumn.isText()) {
 						PatchHolder holder(filter.activeSynth, SourceInfo::fromString(sourceColumn.getString()), newPatch, false);
+
+						std::string patchName = query.getColumn("name").getString();
+						holder.setName(patchName);
+
 						auto favoriteColumn = query.getColumn("favorite");
 						if (favoriteColumn.isInteger()) {
 							holder.setFavorite(Favorite(favoriteColumn.getInt()));
@@ -297,7 +301,7 @@ namespace midikraft {
 				SQLite::Statement sql(db_, "UPDATE patches SET categories = :CAT, categoryUserDecision = :CUD, hidden = :HID, name = :NAM, data = :DAT WHERE md5 = :MD5");
 				sql.bind(":CAT", newPatch.categoriesAsBitfield());
 				sql.bind(":CUD", newPatch.userDecisionAsBitfield());
-				sql.bind(":NAM", newPatch.patch()->patchName());
+				sql.bind(":NAM", newPatch.name());
 				sql.bind(":DAT", newPatch.patch()->data().data(), (int)newPatch.patch()->data().size());
 				sql.bind(":HID", newPatch.isHidden());
 				sql.bind(":MD5", newPatch.md5());
@@ -355,7 +359,7 @@ namespace midikraft {
 				if (progress && progress->shouldAbort()) return uploaded;
 				if (md5Inserted.find(newPatch.md5()) != md5Inserted.end()) {
 					auto duplicate = md5Inserted[newPatch.md5()];
-					SimpleLogger::instance()->postMessage("Skipping patch " + String(newPatch.patch()->patchName()) + " because it is a duplicate of " + duplicate.patch()->patchName());
+					SimpleLogger::instance()->postMessage("Skipping patch " + String(newPatch.name()) + " because it is a duplicate of " + duplicate.name());
 				}
 				else {
 					putPatch(activeSynth, newPatch, source_id);

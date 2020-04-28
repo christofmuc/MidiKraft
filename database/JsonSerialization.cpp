@@ -70,7 +70,7 @@ namespace midikraft {
 		rapidjson::Document doc;
 		doc.SetObject();
 		addToJson(JsonSchema::kSynth, synth->getName(), doc, doc);
-		addToJson(JsonSchema::kName, patchholder->patch()->patchName(), doc, doc);
+		addToJson(JsonSchema::kName, patchholder->name(), doc, doc);
 		addToJson(JsonSchema::kSysex, dataToString(patchholder->patch()->data()), doc, doc);
 		auto realPatch = std::dynamic_pointer_cast<Patch>(patchholder->patch());
 		if (realPatch) {
@@ -89,7 +89,7 @@ namespace midikraft {
 		getStringIfSet(patchDoc, JsonSchema::kName, name);
 		getBufferIfSet(patchDoc, JsonSchema::kSysex, data);
 		getNumberIfSet(patchDoc, JsonSchema::kPlace, programNo);
-		auto newPatch = activeSynth->patchFromPatchData(data, name, MidiProgramNumber::fromZeroBase(programNo));
+		auto newPatch = activeSynth->patchFromPatchData(data, MidiProgramNumber::fromZeroBase(programNo));
 		if (newPatch != nullptr) {
 			/*std::string importInfoJson;
 			getStringIfSet(patch, JsonSchema::kImport, importInfoJson);
@@ -105,6 +105,7 @@ namespace midikraft {
 				}
 			}*/
 			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch, true);
+			simple.setName(name);
 			outPatchHolder = simple;
 			return true;
 		}

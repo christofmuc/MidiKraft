@@ -36,6 +36,14 @@ namespace midikraft {
 			std::set<Category> categories;
 		};
 
+		enum UpdateChoice {
+			UPDATE_NAME = 1,
+			UPDATE_CATEGORIES = 2,
+			UPDATE_HIDDEN = 4,
+			UPDATE_DATA = 8,
+			UPDATE_ALL = UPDATE_NAME | UPDATE_CATEGORIES | UPDATE_HIDDEN | UPDATE_DATA
+		};
+
 		PatchDatabase();
 		~PatchDatabase();
 
@@ -43,7 +51,7 @@ namespace midikraft {
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
 		void getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit);
 
-		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress);
+		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice);
 		std::vector<ImportInfo> getImportsList(Synth *activeSynth) const;
 		bool putPatch(Synth *activeSynth, PatchHolder const &patch);
 		bool putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches);

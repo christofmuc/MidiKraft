@@ -24,6 +24,8 @@
 
 namespace midikraft {
 
+	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
+
 	const int SCHEMA_VERSION = 4;
 	/* History */
 	/* 1 - Initial schema */
@@ -42,7 +44,7 @@ namespace midikraft {
 			if (!knobkraft.exists()) {
 				knobkraft.createDirectory();
 			}
-			return knobkraft.getChildFile("SysexDatabaseOfAllPatches.db3").getFullPathName();
+			return knobkraft.getChildFile(kDataBaseFileName).getFullPathName();
 		}
 
 		void migrateSchema(int currentVersion) {
@@ -269,9 +271,11 @@ namespace midikraft {
 				// Query the database if this exists. Normally, I would bulk, but as the database is local for now I think we're going to be fine
 				try {
 					std::string md5 = ph.md5();
-					SQLite::Statement query(db_, "SELECT md5 FROM patches WHERE md5 = :MD5");
+					SQLite::Statement query(db_, "SELECT md5, name FROM patches WHERE md5 = :MD5");
 					query.bind(":MD5", md5);
 					if (query.executeStep()) {
+						std::string name = query.getColumn("name");
+						ph.setName(name);
 						result.emplace(md5, ph);
 					}
 				} 
@@ -283,7 +287,13 @@ namespace midikraft {
 			return result;
 		}
 
-		void updatePatch(Synth *activeSynth, PatchHolder newPatch, PatchHolder existingPatch) {
+		std::string prependWithComma(std::string const &target, std::string const &suffix) {
+			if (target.empty())
+				return suffix;
+			return target + ", " + suffix;
+		}
+
+		void updatePatch(Synth *activeSynth, PatchHolder newPatch, PatchHolder existingPatch, unsigned updateChoices) {
 			// For now, only run an update query if the newPatch Favorite is different from the database Favorite and is not "don't know"
 			if (newPatch.howFavorite().is() != Favorite::TFavorite::DONTKNOW) {
 				SQLite::Statement sql(db_, "UPDATE patches SET favorite = :FAV WHERE md5 = :MD5");
@@ -296,14 +306,28 @@ namespace midikraft {
 				}
 			}
 
-			// Also, update the categories bit vector and the hidden field
-			{
-				SQLite::Statement sql(db_, "UPDATE patches SET categories = :CAT, categoryUserDecision = :CUD, hidden = :HID, name = :NAM, data = :DAT WHERE md5 = :MD5");
-				sql.bind(":CAT", newPatch.categoriesAsBitfield());
-				sql.bind(":CUD", newPatch.userDecisionAsBitfield());
-				sql.bind(":NAM", newPatch.name());
-				sql.bind(":DAT", newPatch.patch()->data().data(), (int)newPatch.patch()->data().size());
-				sql.bind(":HID", newPatch.isHidden());
+			// Also, update the categories bit vector and the hidden field if at least one of the updateChoices is set
+			if (updateChoices) { 
+				std::string updateClause;
+				if (updateChoices & UPDATE_CATEGORIES) updateClause = prependWithComma(updateClause, "categories = :CAT, categoryUserDecision = :CUD");
+				if (updateChoices & UPDATE_NAME) updateClause = prependWithComma(updateClause, "name = :NAM");
+				if (updateChoices & UPDATE_HIDDEN) updateClause = prependWithComma(updateClause, "hidden = :HID");
+				if (updateChoices & UPDATE_DATA) updateClause = prependWithComma(updateClause, "data = :DAT");
+				
+				SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5");
+				if (updateChoices & UPDATE_CATEGORIES) {
+					sql.bind(":CAT", newPatch.categoriesAsBitfield());
+					sql.bind(":CUD", newPatch.userDecisionAsBitfield());
+				}
+				if (updateChoices & UPDATE_NAME) {
+					sql.bind(":NAM", newPatch.name());
+				}
+				if (updateChoices & UPDATE_DATA) {
+					sql.bind(":DAT", newPatch.patch()->data().data(), (int)newPatch.patch()->data().size());
+				}
+				if (updateChoices & UPDATE_HIDDEN) {
+					sql.bind(":HID", newPatch.isHidden());
+				}
 				sql.bind(":MD5", newPatch.md5());
 				if (sql.exec() != 1) {
 					jassert(false);
@@ -312,24 +336,51 @@ namespace midikraft {
 			}
 		}
 
-		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress) {
+		bool hasDefaultName(DataFile *patch) {
+			auto storedPatchNameCapa = dynamic_cast<StoredPatchNameCapability *>(patch);
+			if (storedPatchNameCapa) {
+				return storedPatchNameCapa->isDefaultName();
+			}
+			return false;
+		}
+
+		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice) {
 			// This works by doing a bulk get operation for the patches from the database...
 			auto knownPatches = bulkGetPatches(activeSynth, patches, progress);
 
 			SQLite::Transaction transaction(db_);
 
 			int loop = 0;
+			int updatedNames = 0;
 			for (auto &patch : patches) {
 				if (progress && progress->shouldAbort()) return 0;
-				if (knownPatches.find(patch.md5()) != knownPatches.end()) {
+
+				auto md5_key = patch.md5();
+
+				if (knownPatches.find(md5_key) != knownPatches.end()) {
+					// Super special logic - do not set the name if the patch name is a default name to prevent us from losing manually given names or those imported from "better" sysex files
+					auto storedPatchNameCapa = dynamic_cast<StoredPatchNameCapability *>(patch.patch().get());
+					unsigned onlyUpdateThis = updateChoice;
+					if (hasDefaultName(patch.patch().get())) {
+						onlyUpdateThis = onlyUpdateThis & (~UPDATE_NAME);
+					}
+					if ((onlyUpdateThis & UPDATE_NAME) && (patch.name() != knownPatches[md5_key].name())) {
+						updatedNames++;
+					}
+
 					// Update the database with the new info
-					updatePatch(activeSynth, patch, knownPatches[patch.md5()]);
+					updatePatch(activeSynth, patch, knownPatches[md5_key], onlyUpdateThis);
 				}
 				else {
 					// This is a new patch - it needs to be uploaded into the database!
 					outNewPatches.push_back(patch);
 				}
 				if (progress) progress->setProgressPercentage(loop++ / (double)patches.size());
+			}
+
+			// Did we find better names? Then log it
+			if (updatedNames > 0) {
+				SimpleLogger::instance()->postMessage((boost::format("Updated %d patches in the database with new names") % updatedNames).str());
 			}
 
 			// Check if all new patches are editBuffer patches (aka have an invalid MidiBank)
@@ -359,7 +410,15 @@ namespace midikraft {
 				if (progress && progress->shouldAbort()) return uploaded;
 				if (md5Inserted.find(newPatch.md5()) != md5Inserted.end()) {
 					auto duplicate = md5Inserted[newPatch.md5()];
-					SimpleLogger::instance()->postMessage("Skipping patch " + String(newPatch.name()) + " because it is a duplicate of " + duplicate.name());
+
+					// The new one could have better name?
+					if (hasDefaultName(duplicate.patch().get()) && !hasDefaultName(newPatch.patch().get())) {
+						updatePatch(activeSynth, newPatch, duplicate, UPDATE_NAME);
+						SimpleLogger::instance()->postMessage("Updating patch name " + String(duplicate.name()) + " to better one: " + newPatch.name());
+					}
+					else {
+						SimpleLogger::instance()->postMessage("Skipping patch " + String(newPatch.name()) + " because it is a duplicate of " + duplicate.name());
+					}
 				}
 				else {
 					putPatch(activeSynth, newPatch, source_id);
@@ -419,7 +478,7 @@ namespace midikraft {
 		std::vector<PatchHolder> newPatches;
 		newPatches.push_back(patch);
 		std::vector<PatchHolder> insertedPatches;
-		return impl->mergePatchesIntoDatabase(activeSynth, newPatches, insertedPatches, nullptr);
+		return impl->mergePatchesIntoDatabase(activeSynth, newPatches, insertedPatches, nullptr, UPDATE_ALL);
 	}
 
 	bool PatchDatabase::putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches) {
@@ -449,9 +508,9 @@ namespace midikraft {
 		});
 	}
 
-	size_t PatchDatabase::mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress)
+	size_t PatchDatabase::mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice)
 	{
-		return impl->mergePatchesIntoDatabase(activeSynth, patches, outNewPatches, progress);
+		return impl->mergePatchesIntoDatabase(activeSynth, patches, outNewPatches, progress, updateChoice);
 	}
 
 	std::vector<ImportInfo> PatchDatabase::getImportsList(Synth *activeSynth) const {

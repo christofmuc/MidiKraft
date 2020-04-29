@@ -16,6 +16,7 @@ namespace midikraft {
 	class StoredPatchNameCapability {
 	public:
 		virtual void setName(std::string const &name) = 0;
+		virtual bool isDefaultName() const = 0;
 	};
 
 	class DataFile {

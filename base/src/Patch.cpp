@@ -48,38 +48,6 @@ namespace midikraft {
 		data_[sysExIndex] = value;
 	}
 
-	std::string Patch::patchToTextRaw(bool onlyActive)
-	{
-		std::string result;
-
-		int numLayers = 1;
-		auto layers = dynamic_cast<LayeredPatch *>(this);
-		if (layers) {
-			numLayers = layers->numberOfLayers();
-		}
-
-		for (int layer = 0; layer < numLayers; layer++) {
-			if (layers) {
-				if (layer > 0) result += "\n";
-				result = result + (boost::format("Layer: %s\n") % layers->layerName(layer)).str();
-			}
-			for (auto param : allParameterDefinitions()) {
-				if (layers) {
-					auto multiLayerParam = std::dynamic_pointer_cast<SynthMultiLayerParameterCapability>(param);
-					jassert(multiLayerParam);
-					if (multiLayerParam) {
-						multiLayerParam->setTargetLayer(layer);
-					}
-				}
-				auto activeCheck = std::dynamic_pointer_cast<SynthParameterActiveDetectionCapability>(param);
-				if (!onlyActive || !activeCheck || !(activeCheck->isActive(this))) {
-					result = result + (boost::format("%s: %s\n") % param->description() % param->valueInPatchToText(*this)).str();
-				}
-			}
-		}
-		return result;
-	}
-
 	Synth::PatchData Patch::blankOut(std::vector<Range<int>> const &blankoutZones, Synth::PatchData const &inputData)
 	{
 		auto dataCopy = inputData;

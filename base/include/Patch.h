@@ -49,9 +49,6 @@ namespace midikraft {
 		virtual std::shared_ptr<PatchNumber> patchNumber() const = 0;
 		virtual void setPatchNumber(MidiProgramNumber patchNumber) = 0;
 
-		// High level functions to be overridden by subclasses
-		virtual std::vector<std::shared_ptr<SynthParameterDefinition>> allParameterDefinitions() = 0;
-
 		// Generic utility functions
 		std::string patchToTextRaw(bool onlyActive);
 

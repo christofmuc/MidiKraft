@@ -43,9 +43,6 @@ namespace midikraft {
 					result.push_back(patch);
 					// As these are edit buffers, I would not expect the patchNumber to be set by the loading routine
 					patch->setPatchNumber(MidiProgramNumber::fromZeroBase(patchNo));
-					Logger::writeToLog("Found patch " + patch->name());
-					auto description = patch->patchToTextRaw(false);
-					Logger::writeToLog(description);
 				}
 				else {
 					Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
@@ -56,9 +53,6 @@ namespace midikraft {
 				auto patch = programDumpSynth->patchFromProgramDumpSysex(message);
 				if (patch) {
 					result.push_back(patch);
-					//Logger::writeToLog("Found patch " + patch->patchName());
-					//auto description = patch->patchToTextRaw(false);
-					//Logger::writeToLog(description);
 				}
 				else {
 					Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());

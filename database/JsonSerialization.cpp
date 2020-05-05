@@ -11,7 +11,6 @@
 #include "Synth.h"
 
 #include <boost/format.hpp>
-#include <boost/beast/core/detail/base64.hpp>
 
 namespace midikraft {
 
@@ -40,24 +39,20 @@ namespace midikraft {
 	}
 
 	std::string JsonSerialization::dataToString(std::vector<uint8> const &data) {
-		std::string binaryString;
-		for (auto byte : data) {
-			binaryString.push_back(byte);
-		}
-		// See https://stackoverflow.com/questions/7053538/how-do-i-encode-a-string-to-base64-using-only-boost
-		std::vector<char> buffer(2048);
-		size_t lengthWritten = boost::beast::detail::base64::encode(buffer.data(), data.data(), buffer.size());
-		jassert(lengthWritten < 2048);
-		std::string result(buffer.data(), lengthWritten);
-		return result;
+		return Base64::toBase64(data.data(), data.size()).toStdString();
 	}
 
 	std::vector<uint8> JsonSerialization::stringToData(std::string const string)
 	{
 		std::vector<uint8> outBuffer(2048, 0);
-		auto decoded_bytes = boost::beast::detail::base64::decode(outBuffer.data(), string.c_str(), 2048);
-		outBuffer.resize(decoded_bytes.first); // Trim output so it contains only the written part
-		return outBuffer;
+		MemoryOutputStream output(outBuffer.data(), outBuffer.size());
+		if (Base64::convertFromBase64(output, string)) {
+			return outBuffer;
+		}
+		else {
+			jassertfalse;
+			return {};
+		}
 	}
 
 	std::string JsonSerialization::patchToJson(Synth *synth, PatchHolder *patchholder)

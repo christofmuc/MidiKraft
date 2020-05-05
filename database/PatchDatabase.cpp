@@ -35,7 +35,7 @@ namespace midikraft {
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
-		PatchDatabase::PatchDataBaseImpl() : db_(generateDatabaseLocation().toStdString().c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
+		PatchDataBaseImpl() : db_(generateDatabaseLocation().toStdString().c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
 			createSchema();
 		}
 

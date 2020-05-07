@@ -7,19 +7,23 @@
 #pragma once
 
 #include "DiscoverableDevice.h"
-#include "MidiChannel.h"
+
+#include "MidiLocationCapability.h"
 
 namespace midikraft {
 
-	class SimpleDiscoverableDevice : public DiscoverableDevice {
+	class SimpleDiscoverableDevice : public DiscoverableDevice, public MidiLocationCapability {
 	public:
+		// DiscoverableDevice
 		virtual void setCurrentChannelZeroBased(std::string const &midiInput, std::string const &midiOutput, int midiChannel);
 		virtual void setChannel(MidiChannel newChannel);
 		virtual void setInput(std::string const &midiInput); // To override auto-detection
 		virtual void setOutput(std::string const &midiOutput); // To override auto-detection
-		virtual std::string midiInput() const;
-		virtual std::string midiOutput() const;
-		virtual MidiChannel channel() const;
+
+		// MidiLocationCapability
+		virtual std::string midiInput() const override;
+		virtual std::string midiOutput() const override;
+		virtual MidiChannel channel() const override;
 
 	private:
 		MidiChannel channel_ = MidiChannel::invalidChannel();

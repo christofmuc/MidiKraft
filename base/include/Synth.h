@@ -21,7 +21,7 @@ namespace midikraft {
 
 	typedef std::vector<std::shared_ptr<DataFile>> TPatchVector;
 
-	class Synth : public SimpleDiscoverableDevice {
+	class Synth : public virtual NamedDeviceCapability {
 	public:
 		typedef std::vector<uint8> PatchData;
 

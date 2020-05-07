@@ -81,12 +81,12 @@ namespace midikraft {
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
 				SimpleLogger::instance()->postMessage((boost::format("Found %s on channel %d replying on device %s when sending to %s")
-					% synth->getName() % (loc.midiChannel + 1) % loc.inputName % loc.outputName).str());
+					% synth->getName() % (loc.midiChannel.toOneBasedInt()) % loc.inputName % loc.outputName).str());
 			}
 
 			// Select the last location (the first one might be the "All" devices which we don't want to address the devices individually)
 			size_t loc = locations.size() - 1;
-			synth->setCurrentChannelZeroBased(locations[loc].inputName, locations[loc].outputName, locations[loc].midiChannel);
+			synth->setCurrentChannelZeroBased(locations[loc].inputName, locations[loc].outputName, locations[loc].midiChannel.toZeroBasedInt());
 
 			// Additionally, we want to persist this knowhow in the user settings file!
 			persistSetting(synth);
@@ -118,7 +118,7 @@ namespace midikraft {
 		// Check if we found it
 		bool ok = false;
 		for (auto found : callback.locations()) {
-			if (found.inputName == synth->midiInput() && found.midiChannel == synth->channel().toZeroBasedInt()) {
+			if (found.inputName == synth->midiInput() && found.midiChannel.toZeroBasedInt() == synth->channel().toZeroBasedInt()) {
 				ok = true;
 				// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
 				MidiMessage endDetectMessage;

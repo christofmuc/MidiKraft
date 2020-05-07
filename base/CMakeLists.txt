@@ -42,6 +42,7 @@ set(Sources
 	include/LayeredPatch.h
 	include/MasterkeyboardCapability.h	
 	include/MidiController.h src/MidiController.cpp
+	include/MidiLocationCapability.h
 	include/MidiRequest.h src/MidiRequest.cpp
 	include/MTSFile.h src/MTSFile.cpp
 	include/NamedDeviceCapability.h	

@@ -110,10 +110,11 @@ namespace midikraft {
 				messages = dfcl->dataFileToMessages(dataFile);
 			}
 		}
-		if (!messages.empty()) {
+		auto midiLocation = dynamic_cast<MidiLocationCapability *>(this);
+		if (midiLocation && !messages.empty()) {
 			logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
-			controller->enableMidiOutput(midiOutput());
-			controller->getMidiOutput(midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+			controller->enableMidiOutput(midiLocation->midiOutput());
+			controller->getMidiOutput(midiLocation->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
 		}
 	}
 

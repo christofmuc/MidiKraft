@@ -311,8 +311,12 @@ namespace midikraft {
 		}
 		else if (editBufferCapability) {
 			//messages.push_back(MidiMessage::controllerEvent(synth->channel().toOneBasedInt(), 32, bankNo));
-			messages.push_back(MidiMessage::programChange(synth->channel().toOneBasedInt(), downloadNumber_));
-			messages.push_back(editBufferCapability->requestEditBufferDump());
+			auto midiLocation = dynamic_cast<MidiLocationCapability *>(synth);
+			assert(midiLocation);
+			if (midiLocation) {
+				messages.push_back(MidiMessage::programChange(midiLocation->channel().toOneBasedInt(), downloadNumber_));
+				messages.push_back(editBufferCapability->requestEditBufferDump());
+			}
 		}
 		else {
 			jassert(false);

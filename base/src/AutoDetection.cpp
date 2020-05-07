@@ -42,6 +42,11 @@ namespace midikraft {
 		// For all devices that are discoverable, run the find method
 		for (auto &synthHolder : allSynths) {
 			if (synthHolder) {
+				// Hack - if the wait time is negative, don't autodetect. This needs to be replaced by some proper dynamic cast
+				if (synthHolder->deviceDetectSleepMS() < 0) {
+					continue;
+				}
+
 				auto synth = synthHolder.get();
 				// Load the synthesizer setup from the settings file
 				std::string channelString = Settings::instance().get(midiSetupKey(synth, kChannel));
@@ -77,6 +82,11 @@ namespace midikraft {
 	}
 
 	void AutoDetection::findSynth(SimpleDiscoverableDevice *synth, ProgressHandler *progressHandler) {
+		// Hack - if the wait time is negative, don't autodetect. This needs to be replaced by some proper dynamic cast
+		if (synth->deviceDetectSleepMS() < 0) {
+			return;
+		}
+
 		auto locations = FindSynthOnMidiNetwork::detectSynth(MidiController::instance(), *synth, progressHandler);
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
@@ -98,6 +108,11 @@ namespace midikraft {
 	}
 
 	bool AutoDetection::checkSynth(SimpleDiscoverableDevice *synth) {
+		// Hack - if the wait time is negative, don't autodetect. This needs to be replaced by some proper dynamic cast
+		if (synth->deviceDetectSleepMS() < 0) {
+			return false;
+		}
+
 		// This is the fast version of the FindSynthOnMidiNetwork routine - just a single pass to see if the synth responds
 		IsSynth callback(*synth);
 

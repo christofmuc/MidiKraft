@@ -42,11 +42,6 @@ namespace midikraft {
 		// For all devices that are discoverable, run the find method
 		for (auto &synthHolder : allSynths) {
 			if (synthHolder) {
-				// Hack - if the wait time is negative, don't autodetect. This needs to be replaced by some proper dynamic cast
-				if (synthHolder->deviceDetectSleepMS() < 0) {
-					continue;
-				}
-
 				auto synth = synthHolder.get();
 				// Load the synthesizer setup from the settings file
 				std::string channelString = Settings::instance().get(midiSetupKey(synth, kChannel));
@@ -57,6 +52,10 @@ namespace midikraft {
 						std::string output = Settings::instance().get(midiSetupKey(synth, kOutput));
 						if (!input.empty() && !output.empty()) {
 							synth->setCurrentChannelZeroBased(input, output, channel);
+							// Hack - if the wait time is negative, don't autodetect. This needs to be replaced by some proper dynamic cast
+							if (synthHolder->deviceDetectSleepMS() < 0) {
+								continue;
+							}
 							if (!checkSynth(synth)) {
 								SimpleLogger::instance()->postMessage(
 									(boost::format("Lost communication with %s on channel %d of device %s - please rerun autoconfigure!")

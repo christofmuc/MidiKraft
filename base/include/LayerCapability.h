@@ -6,11 +6,16 @@
 
 #pragma once
 
+#include "JuceHeader.h"
+
 namespace midikraft {
+
+	class DataFile;
 
 	class LayerCapability {
 	public:
 		virtual void switchToLayer(int layerNo) = 0;
+		virtual MidiBuffer layerToSysex(std::shared_ptr<DataFile> const patch, int sourceLayer, int targetLayer) const = 0;
 	};
 
 }

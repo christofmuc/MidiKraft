@@ -62,6 +62,8 @@ namespace midikraft {
 	public:
 		virtual void setTargetLayer(int layerNo) = 0;
 		virtual int getTargetLayer() const = 0;
+		virtual void setSourceLayer(int layerNo) = 0;
+		virtual int getSourceLayer() const = 0;
 	};
 
 	class SynthParameterLiveEditCapability {

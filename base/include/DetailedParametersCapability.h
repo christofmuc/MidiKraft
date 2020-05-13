@@ -12,7 +12,7 @@ namespace midikraft {
 
 	class DetailedParametersCapability {
 	public:
-		virtual std::vector<std::shared_ptr<SynthParameterDefinition>> allParameterDefinitions() = 0;
+		virtual std::vector<std::shared_ptr<SynthParameterDefinition>> allParameterDefinitions() const = 0;
 	};
 
 }

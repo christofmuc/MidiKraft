@@ -67,7 +67,7 @@ namespace midikraft {
 	class SynthParameterLiveEditCapability {
 	public:
 		// This is for live editing!
-		virtual MidiBuffer setValueMessages(Patch const &patch, Synth *synth) const = 0;
+		virtual MidiBuffer setValueMessages(Patch const &patch, Synth const *synth) const = 0;
 	};
 
 	class SynthParameterActiveDetectionCapability {

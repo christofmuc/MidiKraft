@@ -58,7 +58,7 @@ namespace midikraft {
 							}
 							if (!checkSynth(synth)) {
 								SimpleLogger::instance()->postMessage(
-									(boost::format("Lost communication with %s on channel %d of device %s - please rerun autoconfigure!")
+									(boost::format("Lost communication with %s on channel %d of device %s - please rerun auto-detect synths!")
 										% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
 								synth->setChannel(MidiChannel::invalidChannel());
 							}

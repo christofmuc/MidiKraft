@@ -6,6 +6,8 @@
 
 #include "FindSynthOnMidiNetwork.h"
 
+#include "MidiHelpers.h"
+
 #include <boost/format.hpp>
 
 namespace midikraft {
@@ -56,13 +58,13 @@ namespace midikraft {
 				for (int channel = 0; channel < 16; channel++) {
 					// Send the synth detection signal
 					auto detectMessage = synth_.deviceDetect(channel);
-					midiController_->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendMessageNow(detectMessage);
+					midiController_->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
 				}
 			}
 			else {
 				// Just one message is enough
 				auto detectMessage = synth_.deviceDetect(-1);
-				midiController_->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendMessageNow(detectMessage);
+				midiController_->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
 			}
 
 			// Sleep

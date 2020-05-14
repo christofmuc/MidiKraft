@@ -9,6 +9,7 @@
 #include "MidiController.h"
 #include "Logger.h"
 #include "Settings.h"
+#include "MidiHelpers.h"
 
 #include "FindSynthOnMidiNetwork.h"
 
@@ -124,7 +125,7 @@ namespace midikraft {
 
 		// Send the detect message
 		auto detectMessage = synth->deviceDetect(synth->channel().toZeroBasedInt());
-		MidiController::instance()->getMidiOutput(synth->midiOutput())->sendMessageNow(detectMessage);
+		MidiController::instance()->getMidiOutput(synth->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
 
 		// Sleep as long as the synth thinks is enough
 		Thread::sleep(synth->deviceDetectSleepMS());

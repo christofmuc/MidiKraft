@@ -39,12 +39,21 @@ namespace midikraft {
 			createSchema();
 		}
 
-		String generateDatabaseLocation() {
+		static String generateDatabaseLocation() {
 			auto knobkraft = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("KnobKraft");
 			if (!knobkraft.exists()) {
 				knobkraft.createDirectory();
 			}
 			return knobkraft.getChildFile(kDataBaseFileName).getFullPathName();
+		}
+
+		static void makeDatabaseBackup(String const &suffix) {
+			String database = PatchDataBaseImpl::generateDatabaseLocation();
+			File dbFile(database);
+			if (dbFile.existsAsFile()) {
+				File backupCopy(dbFile.getParentDirectory().getNonexistentChildFile(dbFile.getFileNameWithoutExtension() + suffix, dbFile.getFileExtension(), false));
+				dbFile.copyFileTo(backupCopy);
+			}
 		}
 
 		void migrateSchema(int currentVersion) {
@@ -462,6 +471,8 @@ namespace midikraft {
 	};
 
 	PatchDatabase::PatchDatabase() {
+		// Do a backup of the database before opening it
+		PatchDataBaseImpl::makeDatabaseBackup("-backup");
 		impl.reset(new PatchDataBaseImpl());
 	}
 

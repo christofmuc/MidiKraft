@@ -30,7 +30,7 @@ namespace midikraft {
 
 
 	PatchHolder::PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, bool autoDetectCategories /* = false */)
-		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false)
+		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false), synth_(activeSynth)
 	{
 		name_ = patch->name();
 
@@ -47,6 +47,11 @@ namespace midikraft {
 	std::shared_ptr<DataFile> PatchHolder::patch() const
 	{
 		return patch_;
+	}
+
+	midikraft::Synth * PatchHolder::synth() const
+	{
+		return synth_;
 	}
 
 	int PatchHolder::getType() const

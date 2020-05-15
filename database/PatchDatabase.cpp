@@ -471,8 +471,6 @@ namespace midikraft {
 	};
 
 	PatchDatabase::PatchDatabase() {
-		// Do a backup of the database before opening it
-		PatchDataBaseImpl::makeDatabaseBackup("-backup");
 		impl.reset(new PatchDataBaseImpl());
 	}
 

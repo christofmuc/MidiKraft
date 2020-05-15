@@ -39,6 +39,10 @@ namespace midikraft {
 			createSchema();
 		}
 
+		~PatchDataBaseImpl() {
+			PatchDataBaseImpl::makeDatabaseBackup("-backup");
+		}
+
 		static String generateDatabaseLocation() {
 			auto knobkraft = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("KnobKraft");
 			if (!knobkraft.exists()) {
@@ -47,31 +51,46 @@ namespace midikraft {
 			return knobkraft.getChildFile(kDataBaseFileName).getFullPathName();
 		}
 
-		static void makeDatabaseBackup(String const &suffix) {
-			String database = PatchDataBaseImpl::generateDatabaseLocation();
-			File dbFile(database);
-			if (dbFile.existsAsFile()) {
+		void makeDatabaseBackup(String const &suffix) {
+			File dbFile(db_.getFilename());
+			if (dbFile.existsAsFile()) {				
 				File backupCopy(dbFile.getParentDirectory().getNonexistentChildFile(dbFile.getFileNameWithoutExtension() + suffix, dbFile.getFileExtension(), false));
-				dbFile.copyFileTo(backupCopy);
+				db_.backup(backupCopy.getFullPathName().toStdString().c_str(), SQLite::Database::Save);
+			}
+			else {
+				jassertfalse;
+			}
+		}
+
+		void backupIfNecessary(bool &done) {
+			if (!done) {
+				makeDatabaseBackup("-before-migration");
+				done = true;
 			}
 		}
 
 		void migrateSchema(int currentVersion) {
+			bool hasBackuped = false;
+
 			if (currentVersion < 2) {
+				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
 				db_.exec("ALTER TABLE patches ADD COLUMN hidden INTEGER");
 				db_.exec("UPDATE schema_version SET number = 2");
 				transaction.commit();
 			}
 			if (currentVersion < 3) {
+				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
 				db_.exec("ALTER TABLE patches ADD COLUMN type INTEGER");
 				db_.exec("UPDATE schema_version SET number = 3");
 				transaction.commit();
 			}
 			if (currentVersion < 4) {
+				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
 				db_.exec("UPDATE patches SET type = 0 WHERE type is NULL");
+				db_.exec("UPDATE schema_version SET number = 4");
 				transaction.commit();
 			}
 		}

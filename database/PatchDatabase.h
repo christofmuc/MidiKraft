@@ -25,7 +25,7 @@ namespace midikraft {
 	class PatchDatabase {
 	public:
 		struct PatchFilter {
-			Synth *activeSynth;
+			std::map<std::string, Synth *> synths;
 			std::string importID;
 			std::string name;
 			bool onlyFaves;
@@ -51,10 +51,10 @@ namespace midikraft {
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
 		void getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit);
 
-		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice);
+		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice);
 		std::vector<ImportInfo> getImportsList(Synth *activeSynth) const;
-		bool putPatch(Synth *activeSynth, PatchHolder const &patch);
-		bool putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches);
+		bool putPatch(PatchHolder const &patch);
+		bool putPatches(std::vector<PatchHolder> const &patches);
 
 	private:
 		class PatchDataBaseImpl;

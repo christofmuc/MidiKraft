@@ -16,7 +16,8 @@ namespace midikraft {
 	public:
 		virtual MidiMessage requestDump(int number) const = 0;
 		virtual bool isPartOfDump(const MidiMessage& message) const = 0;
-		virtual bool isDumpFinished(std::vector<MidiMessage> const &bankDump) const = 0;
+		virtual bool isDumpFinished(std::vector<MidiMessage> const &streamDump) const = 0;
+		virtual TPatchVector loadStreamDump(std::vector<MidiMessage> const &streamDump) const = 0;
 	};
 
 }

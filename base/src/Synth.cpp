@@ -15,6 +15,7 @@
 #include "ProgramDumpCapability.h"
 #include "BankDumpCapability.h"
 #include "DataFileLoadCapability.h"
+#include "StreamDumpCapability.h"
 
 #include <boost/format.hpp>
 
@@ -36,42 +37,54 @@ namespace midikraft {
 		auto programDumpSynth = dynamic_cast<ProgramDumpCabability *>(this);
 		auto bankDumpSynth = dynamic_cast<BankDumpCapability*>(this);
 		auto dataFileLoadSynth = dynamic_cast<DataFileLoadCapability*>(this);
-		for (auto message : sysexMessages) {
-			if (editBufferSynth && editBufferSynth->isEditBufferDump(message)) {
-				auto patch = editBufferSynth->patchFromSysex(message);
-				if (patch) {
-					result.push_back(patch);
-					// As these are edit buffers, I would not expect the patchNumber to be set by the loading routine
-					patch->setPatchNumber(MidiProgramNumber::fromZeroBase(patchNo));
-				}
-				else {
-					Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
-				}
-				patchNo++;
-			}
-			else if (programDumpSynth && programDumpSynth->isSingleProgramDump(message)) {
-				auto patch = programDumpSynth->patchFromProgramDumpSysex(message);
-				if (patch) {
-					result.push_back(patch);
-				}
-				else {
-					Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
-				}
-				patchNo++;
-			}
-			else if (bankDumpSynth && bankDumpSynth->isBankDump(message)) {
-				auto morePatches = bankDumpSynth->patchesFromSysexBank(message);
-				Logger::writeToLog((boost::format("Loaded bank dump with %d patches") % morePatches.size()).str());
-				std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
-			}
-			else if (dataFileLoadSynth) {
-				// Should test all data file types!
-				for (int dataType = 0; dataType < dataFileLoadSynth->dataTypeNames().size(); dataType++) {
-					if (dataFileLoadSynth->isDataFile(message, dataType)) {
-						// Hit, we can load this
-						auto items = dataFileLoadSynth->loadData({ message }, dataType);
-						std::copy(items.begin(), items.end(), std::back_inserter(result));
+		auto streamDumpSynth = dynamic_cast<StreamDumpCapability*>(this);
+		if (streamDumpSynth) {
+			// The stream dump synth loads all at once
+			result = streamDumpSynth->loadStreamDump(sysexMessages);
+		}
+		else {
+			// The other Synth types load message by message
+			for (auto message : sysexMessages) {
+				if (editBufferSynth && editBufferSynth->isEditBufferDump(message)) {
+					auto patch = editBufferSynth->patchFromSysex(message);
+					if (patch) {
+						result.push_back(patch);
+						// As these are edit buffers, I would not expect the patchNumber to be set by the loading routine
+						patch->setPatchNumber(MidiProgramNumber::fromZeroBase(patchNo));
 					}
+					else {
+						Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
+					}
+					patchNo++;
+				}
+				else if (programDumpSynth && programDumpSynth->isSingleProgramDump(message)) {
+					auto patch = programDumpSynth->patchFromProgramDumpSysex(message);
+					if (patch) {
+						result.push_back(patch);
+					}
+					else {
+						Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
+					}
+					patchNo++;
+				}
+				else if (bankDumpSynth && bankDumpSynth->isBankDump(message)) {
+					auto morePatches = bankDumpSynth->patchesFromSysexBank(message);
+					Logger::writeToLog((boost::format("Loaded bank dump with %d patches") % morePatches.size()).str());
+					std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
+				}
+				else if (dataFileLoadSynth) {
+					// Should test all data file types!
+					for (int dataType = 0; dataType < dataFileLoadSynth->dataTypeNames().size(); dataType++) {
+						if (dataFileLoadSynth->isDataFile(message, dataType)) {
+							// Hit, we can load this
+							auto items = dataFileLoadSynth->loadData({ message }, dataType);
+							std::copy(items.begin(), items.end(), std::back_inserter(result));
+						}
+					}
+				}
+				else {
+					jassertfalse;
+					SimpleLogger::instance()->postMessage("Internal program error - this synth has no method to load the sysex message");
 				}
 			}
 		}
@@ -103,11 +116,17 @@ namespace midikraft {
 			else if (programDumpCapability) {
 				messages = programDumpCapability->patchToProgramDumpSysex(*realPatch);
 			}
+			else {
+				SimpleLogger::instance()->postMessage("Program error - unknown strategy to send patch out to synth");
+			}
 		}
 		else {
 			auto dfcl = dynamic_cast<DataFileSendCapability*>(this);
 			if (dfcl) {
 				messages = dfcl->dataFileToMessages(dataFile);
+			}
+			else {
+				SimpleLogger::instance()->postMessage("Program error - Synth has DataFile as patch, but did not implement DataFileSendCapability");
 			}
 		}
 		auto midiLocation = dynamic_cast<MidiLocationCapability *>(this);

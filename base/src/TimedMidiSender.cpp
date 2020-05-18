@@ -40,16 +40,13 @@ namespace midikraft {
 
 		for (auto &buffer : midiBuffer_) {
 			MidiBuffer outputEvents;
-			MidiBuffer::Iterator iterator(buffer.second);
-			MidiMessage message;
-			int sampleNumber;
-
-			while (iterator.getNextEvent(message, sampleNumber))
+			for (auto m : buffer.second)
 			{
-				if (sampleNumber > currentSampleNumber)
+				if (m.samplePosition > currentSampleNumber)
 					break;
 
-				message.setTimeStamp(sampleNumber / sampleRate_);
+				MidiMessage message = m.getMessage();
+				message.setTimeStamp(m.samplePosition / sampleRate_);
 				outputEvents.addEvent(message, 0);
 			}
 

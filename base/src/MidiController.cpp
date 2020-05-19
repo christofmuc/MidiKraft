@@ -7,6 +7,7 @@
 #include "MidiController.h"
 
 #include "DiscoverableDevice.h"
+#include "Logger.h"
 
 namespace midikraft {
 
@@ -90,7 +91,7 @@ namespace midikraft {
 						newDevice.swap(outputsOpen_[newOutput]);
 						return true;
 					}
-					jassert(false); // Failed to open existing Midi Device
+					SimpleLogger::instance()->postMessage("Failed to open MIDI device " + newOutput + ", maybe it is turned off or used by another software?");
 				}
 			}
 		}

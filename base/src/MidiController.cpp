@@ -119,6 +119,9 @@ namespace midikraft {
 
 	void MidiController::enableMidiInput(std::string const &newInput)
 	{
+		// Do not and never open a MIDI Input with an empty identifier, as this is a "catch all" function for JUCE, and you suddenly get duplicated messages everywhere!
+		if (newInput.empty()) return;
+
 		// Only enable and register once
 		if (!deviceManager.isMidiInputEnabled(newInput)) {
 			deviceManager.setMidiInputEnabled(newInput, true);

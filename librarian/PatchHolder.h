@@ -80,10 +80,11 @@ namespace midikraft {
 	class PatchHolder {
 	public:
 		PatchHolder();
-		PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,  bool autoDetectCategories = false);
+		PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,  bool autoDetectCategories = false);
 
 		std::shared_ptr<DataFile> patch() const;
 		Synth *synth() const;
+		std::shared_ptr<Synth> smartSynth() const; // This is for refactoring
 
 		int getType() const;
 
@@ -123,7 +124,7 @@ namespace midikraft {
 		void setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield);
 
 		std::shared_ptr<DataFile> patch_;
-		Synth *synth_;
+		std::shared_ptr<Synth> synth_;
 		std::string name_;
 		int type_;
 		Favorite isFavorite_;

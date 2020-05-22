@@ -29,7 +29,7 @@ namespace midikraft {
 		*kProgramNo = "program";
 
 
-	PatchHolder::PatchHolder(Synth *activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, bool autoDetectCategories /* = false */)
+	PatchHolder::PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, bool autoDetectCategories /* = false */)
 		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false), synth_(activeSynth)
 	{
 		name_ = patch->name();
@@ -37,7 +37,7 @@ namespace midikraft {
 		if (patch && autoDetectCategories) {
 			categories_ = AutoCategory::determineAutomaticCategories(*this);
 		}
-		md5_ = calcMd5(activeSynth, patch);
+		md5_ = calcMd5(activeSynth.get(), patch);
 	}
 
 	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false)
@@ -50,6 +50,11 @@ namespace midikraft {
 	}
 
 	midikraft::Synth * PatchHolder::synth() const
+	{
+		return synth_ ? synth_.get() : nullptr;
+	}
+
+	std::shared_ptr<midikraft::Synth> PatchHolder::smartSynth() const
 	{
 		return synth_;
 	}

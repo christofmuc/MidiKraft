@@ -25,7 +25,7 @@ namespace midikraft {
 	class PatchDatabase {
 	public:
 		struct PatchFilter {
-			std::map<std::string, Synth *> synths;
+			std::map<std::string, std::weak_ptr<Synth>> synths;
 			std::string importID;
 			std::string name;
 			bool onlyFaves;

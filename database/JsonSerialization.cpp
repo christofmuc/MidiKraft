@@ -55,7 +55,7 @@ namespace midikraft {
 		}
 	}
 
-	std::string JsonSerialization::patchToJson(Synth *synth, PatchHolder *patchholder)
+	std::string JsonSerialization::patchToJson(std::shared_ptr<Synth> synth, PatchHolder *patchholder)
 	{
 		if (!patchholder || !patchholder->patch() || !synth) {
 			jassert(false);
@@ -76,7 +76,7 @@ namespace midikraft {
 		return renderToJson(doc);
 	}
 
-	bool JsonSerialization::jsonToPatch(Synth *activeSynth, rapidjson::Value &patchDoc, PatchHolder &outPatchHolder) {
+	bool JsonSerialization::jsonToPatch(std::shared_ptr<Synth> activeSynth, rapidjson::Value &patchDoc, PatchHolder &outPatchHolder) {
 		// Build the patch via the synth from the sysex data...
 		std::string name;
 		Synth::PatchData data;

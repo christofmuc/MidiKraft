@@ -228,7 +228,7 @@ namespace midikraft {
 		void bindWhereClause(SQLite::Statement &query, PatchFilter filter) {
 			int s = 0;
 			for (auto const &synth : filter.synths) {
-				query.bind(synthVariable(s++), synth.second->getName());
+				query.bind(synthVariable(s++), synth.second.lock()->getName());
 			}
 			if (!filter.importID.empty()) {
 				query.bind(":SID", filter.importID);
@@ -267,7 +267,7 @@ namespace midikraft {
 					SimpleLogger::instance()->postMessage((boost::format("Program error, query returned patch for synth %s which was not part of the filter") % synthName).str());
 					continue;
 				}
-				Synth *thisSynth = filter.synths[synthName];
+				auto thisSynth = filter.synths[synthName].lock();
 
 				// Create the patch itself, from the BLOB stored
 				auto dataColumn = query.getColumn("data");

@@ -49,9 +49,6 @@ namespace midikraft {
 		virtual std::shared_ptr<PatchNumber> patchNumber() const = 0;
 		virtual void setPatchNumber(MidiProgramNumber patchNumber) = 0;
 
-		// Generic utility functions
-		std::string patchToTextRaw(bool onlyActive);
-
 		// For patch comparison
 		static Synth::PatchData blankOut(std::vector<Range<int>> const &blankoutZones, Synth::PatchData const &inputData);
 	};

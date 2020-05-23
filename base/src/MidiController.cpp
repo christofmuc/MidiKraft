@@ -18,8 +18,11 @@ namespace midikraft {
 
 	void SafeMidiOutput::sendMessageNow(const MidiMessage& message) {
 		if (midiOut_) {
-			controller_->logMidiMessage(message, midiOut_->getName(), true);
-			midiOut_->sendMessageNow(message);
+			// Suppress empty sysex messages, they seem to confuse vintage hardware (e.g the Kawai K3 in particular)
+			if (!(message.isSysEx() && message.getSysExDataSize() == 0)) {
+				controller_->logMidiMessage(message, midiOut_->getName(), true);
+				midiOut_->sendMessageNow(message);
+			}
 		}
 	}
 
@@ -36,10 +39,14 @@ namespace midikraft {
 			MidiBuffer::Iterator it(buffer);
 			MidiMessage message;
 			int position;
+			MidiBuffer filtered;
 			while (it.getNextEvent(message, position)) {
+				// Suppress empty sysex messages, they seem to confuse vintage hardware (e.g the Kawai K3 in particular)
+				if (message.isSysEx() && message.getSysExDataSize() == 0) continue;
 				controller_->logMidiMessage(message, midiOut_->getName(), true);
+				filtered.addEvent(message, position);
 			}
-			midiOut_->sendBlockOfMessagesNow(buffer);
+			midiOut_->sendBlockOfMessagesNow(filtered);
 		}
 	}
 

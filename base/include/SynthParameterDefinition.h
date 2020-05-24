@@ -12,7 +12,7 @@
 
 namespace midikraft {
 
-	class Patch;
+	class DataFile;
 	class Synth;
 
 	class SynthParameterDefinition {
@@ -30,7 +30,7 @@ namespace midikraft {
 		virtual std::string name() const = 0; // Short name
 		virtual std::string description() const = 0; // Long name / descriptive name
 
-		virtual std::string valueInPatchToText(Patch const &patch) const = 0;
+		virtual std::string valueInPatchToText(DataFile const &patch) const = 0;
 	};
 
 	class SynthIntParameterCapability {
@@ -40,17 +40,17 @@ namespace midikraft {
 		virtual int sysexIndex() const = 0;
 
 		//! Use this function to retrieve the integer value in the patch
-		virtual bool valueInPatch(Patch const &patch, int &outValue) const = 0;
+		virtual bool valueInPatch(DataFile const &patch, int &outValue) const = 0;
 		//! Use this function to set the integer value in the patch
-		virtual void setInPatch(Patch &patch, int value) const = 0;
+		virtual void setInPatch(DataFile &patch, int value) const = 0;
 	};
 
 	class SynthVectorParameterCapability : public SynthIntParameterCapability {
 	public:
 		virtual int endSysexIndex() const = 0;
 		//! Use this function to retrieve the integer array value in the patch
-		virtual bool valueInPatch(Patch const &patch, std::vector<int> &outValue) const = 0;
-		virtual void setInPatch(Patch &patch, std::vector<int> value) const = 0;
+		virtual bool valueInPatch(DataFile const &patch, std::vector<int> &outValue) const = 0;
+		virtual void setInPatch(DataFile &patch, std::vector<int> value) const = 0;
 	};
 
 	class SynthLookupParameterCapability {
@@ -69,14 +69,14 @@ namespace midikraft {
 	class SynthParameterLiveEditCapability {
 	public:
 		// This is for live editing!
-		virtual MidiBuffer setValueMessages(Patch const &patch, Synth const *synth) const = 0;
+		virtual MidiBuffer setValueMessages(DataFile const &patch, Synth const *synth) const = 0;
 	};
 
 	class SynthParameterActiveDetectionCapability {
 	public:
 		//! A parameter is deemed active when its value can have any meaningful effect on the sound produced
 		// This is very useful - if implemented - to thin out the number of parameters that need to be read to understand a patch
-		virtual bool isActive(Patch const *patch) const = 0;
+		virtual bool isActive(DataFile const *patch) const = 0;
 	};
 
 	class SynthParameterCC {

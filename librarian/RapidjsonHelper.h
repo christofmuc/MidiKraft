@@ -8,6 +8,8 @@
 
 #include <rapidjson/document.h>
 
+#include <string>
+
 rapidjson::Value value(std::string const &string, rapidjson::Document &document);
 std::string renderToJson(rapidjson::Document &doc);
 void addToJson(std::string const &key, std::string const &data, rapidjson::Value &object, rapidjson::Document &doc);

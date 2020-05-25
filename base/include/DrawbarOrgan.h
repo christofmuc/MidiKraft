@@ -8,6 +8,7 @@
 
 #include "Additive.h"
 
+#include <string>
 #include <map>
 
 namespace midikraft {

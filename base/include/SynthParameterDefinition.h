@@ -8,6 +8,8 @@
 
 #include "JuceHeader.h"
 
+#include "MidiChannel.h"
+
 #include <map>
 
 namespace midikraft {
@@ -79,10 +81,12 @@ namespace midikraft {
 		virtual bool isActive(DataFile const *patch) const = 0;
 	};
 
-	class SynthParameterCC {
+	//! Use this to indicate that the parameter can be mapped to CC or NRPN messages
+	// Even if the synth doesn't understand CC or NRPN, this function can be used to map general controllers to the synth
+	class SynthParameterControllerMapping {
 	public:
-		//TODO - is this actually CC or NRPN? The code hints at NRPN
-		virtual bool matchesController(int controllerNumber) const = 0;
+		virtual bool messagesMatchParameter(std::vector<juce::MidiMessage> const& messages) const = 0;
+		virtual std::vector<juce::MidiMessage> createParameterMessages(int newValue, MidiChannel channel) const = 0;
 	};
 
 }

@@ -28,6 +28,7 @@ set(Sources
 	include/AdditiveCapability.h
 	include/AutoDetection.h src/AutoDetection.cpp
 	include/BankDumpCapability.h
+	include/BidirectionalSyncCapability.h
 	include/DataFileLoadCapability.h
 	include/DetailedParametersCapability.h
 	include/DiscoverableDevice.h src/DiscoverableDevice.cpp 

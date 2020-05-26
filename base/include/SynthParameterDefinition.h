@@ -68,7 +68,7 @@ namespace midikraft {
 		virtual int getSourceLayer() const = 0;
 	};
 
-	class SynthParameterLiveEditCapability {
+	class SynthParameterLiveEditCapability { //TODO I think this should go on the synth
 	public:
 		// This is for live editing!
 		virtual MidiBuffer setValueMessages(DataFile const &patch, Synth const *synth) const = 0;
@@ -85,7 +85,7 @@ namespace midikraft {
 	// Even if the synth doesn't understand CC or NRPN, this function can be used to map general controllers to the synth
 	class SynthParameterControllerMapping {
 	public:
-		virtual bool messagesMatchParameter(std::vector<juce::MidiMessage> const& messages) const = 0;
+		virtual bool messagesMatchParameter(std::vector<juce::MidiMessage> const& messages, int &outNewValue) const = 0;
 		virtual std::vector<juce::MidiMessage> createParameterMessages(int newValue, MidiChannel channel) const = 0;
 	};
 

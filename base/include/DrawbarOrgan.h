@@ -35,8 +35,7 @@ namespace midikraft {
 
 		static Additive::Harmonics HarmonicsFromRegistration(std::string const &registrationString);
 
-	private:
-		static std::vector<Drawbar> kHammondDrawbars;
+		static std::vector<Drawbar> hammondDrawbars();
 	};
 
 }

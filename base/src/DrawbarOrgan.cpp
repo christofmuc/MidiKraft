@@ -10,18 +10,6 @@
 
 namespace midikraft {
 
-	std::vector<Drawbar> DrawbarOrgan::kHammondDrawbars = {
-		Drawbar("16'", Drawbar::BROWN, "Sub-octave", "Bass", 1),
-		Drawbar("5 2/3'", Drawbar::BROWN, "5th", "Quint", 3),
-		Drawbar("8'", Drawbar::WHITE, "Unison", "Neutral", 2),
-		Drawbar("4'", Drawbar::WHITE, "8th", "Octave", 4),
-		Drawbar("2 2/3'", Drawbar::BLACK, "12th", "Nazard", 6),
-		Drawbar("2'", Drawbar::WHITE, "15th", "Block-flute", 8),
-		Drawbar("1 3/5'", Drawbar::BLACK, "17th", "Tierce", 10),
-		Drawbar("1 1/3'", Drawbar::BLACK, "19th", "Larigot", 12),
-		Drawbar("1'", Drawbar::WHITE, "22nd", "Sifflute", 16),
-	};
-
 	// Taken from http://www.dairiki.org
 	std::vector<DrawbarOrgan::RegistrationDefinition> DrawbarOrgan::popularRegistrations = {
 		{ "Gospel",{ HarmonicsFromRegistration("88 8000 008") } },
@@ -322,7 +310,7 @@ namespace midikraft {
 		{ "Voix Celeste 8'", { HarmonicsFromRegistration("00 2565 233") } }
 	};
 
-	Additive::Harmonics DrawbarOrgan::HarmonicsFromRegistration(std::string const &registrationString)
+	Additive::Harmonics DrawbarOrgan::HarmonicsFromRegistration(std::string const& registrationString)
 	{
 		// Parse the string - there should be 9 digits in there, ignore spaces
 		Additive::Harmonics harmonics;
@@ -331,7 +319,7 @@ namespace midikraft {
 			if (c >= '0' && c <= '8') {
 				// Valid character
 				int value = c - '0';
-				harmonics.push_back(std::make_pair(kHammondDrawbars[position].harmonic_number_, value / 8.0f));
+				harmonics.push_back(std::make_pair(hammondDrawbars()[position].harmonic_number_, value / 8.0f));
 				position++;
 			}
 			else if (c != ' ') {
@@ -340,6 +328,22 @@ namespace midikraft {
 			}
 		}
 		return harmonics;
+	}
+
+	std::vector<midikraft::Drawbar> DrawbarOrgan::hammondDrawbars()
+	{
+		std::vector<Drawbar> kHammondDrawbars = {
+			Drawbar("16'", Drawbar::BROWN, "Sub-octave", "Bass", 1),
+			Drawbar("5 2/3'", Drawbar::BROWN, "5th", "Quint", 3),
+			Drawbar("8'", Drawbar::WHITE, "Unison", "Neutral", 2),
+			Drawbar("4'", Drawbar::WHITE, "8th", "Octave", 4),
+			Drawbar("2 2/3'", Drawbar::BLACK, "12th", "Nazard", 6),
+			Drawbar("2'", Drawbar::WHITE, "15th", "Block-flute", 8),
+			Drawbar("1 3/5'", Drawbar::BLACK, "17th", "Tierce", 10),
+			Drawbar("1 1/3'", Drawbar::BLACK, "19th", "Larigot", 12),
+			Drawbar("1'", Drawbar::WHITE, "22nd", "Sifflute", 16),
+		};
+		return kHammondDrawbars;
 	}
 
 }

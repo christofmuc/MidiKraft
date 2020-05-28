@@ -15,6 +15,7 @@
 #include "StreamLoadCapability.h"
 #include "HandshakeLoadingCapability.h"
 #include "LegacyLoaderCapability.h"
+#include "SendsProgramChangeCapability.h"
 
 #include "MidiHelpers.h"
 
@@ -126,9 +127,19 @@ namespace midikraft {
 		startDownloadNumber_ = 0;
 		endDownloadNumber_ = 0;
 		auto editBufferCapability = std::dynamic_pointer_cast<EditBufferCapability>(synth);
+		auto programDumpCapability = std::dynamic_pointer_cast<ProgramDumpCabability>(synth);
+		auto programChangeCapability = std::dynamic_pointer_cast<SendsProgramChangeCapability>(synth);
 		if (editBufferCapability) {
 			auto message = editBufferCapability->requestEditBufferDump();
 			midiOutput->sendMessageNow(message);
+		}
+		else if (programDumpCapability && programChangeCapability) {
+			auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
+			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+		}
+		else {
+			MidiController::instance()->removeMessageHandler(handle_);
+			SimpleLogger::instance()->postMessage("The " + synth->getName() + " has no way to request the edit buffer or program place");
 		}
 	}
 

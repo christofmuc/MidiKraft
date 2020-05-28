@@ -51,6 +51,7 @@ set(Sources
 	include/ProgramDumpCapability.h
 	include/ProgressHandler.h
 	include/ReadonlySoundExpander.h src/ReadonlySoundExpander.cpp
+	include/SendsProgramChangeCapability.h
 	include/SimpleDiscoverableDevice.h src/SimpleDiscoverableDevice.cpp
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h

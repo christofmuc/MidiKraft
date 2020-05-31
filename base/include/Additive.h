@@ -12,7 +12,8 @@ namespace midikraft {
 
 	class Additive {
 	public:
-		typedef std::vector<std::pair<int, float>> Harmonics;
+		//! First value is the harmonic number (1-based, 1 is the fundamental), second value its amplitude in [0,1];
+		typedef std::vector<std::pair<int, float>> Harmonics; 
 
 		static std::vector<float> createSamplesFromHarmonics(Harmonics const &harmonics);
 	};

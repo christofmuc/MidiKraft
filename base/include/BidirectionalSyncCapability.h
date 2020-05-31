@@ -12,7 +12,7 @@ namespace midikraft {
 
 	class BidirectionalSyncCapability {
 		public:
-		virtual bool determineParameterChangeFromSysex(std::vector<juce::MidiMessage> const& messages, SynthParameterDefinition** outParam, int& outValue) = 0;
+		virtual bool determineParameterChangeFromSysex(std::vector<juce::MidiMessage> const& messages, std::shared_ptr<SynthParameterDefinition> *outParam, int& outValue) = 0;
 	};
 
 }

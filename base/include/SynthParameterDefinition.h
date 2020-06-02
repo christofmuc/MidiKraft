@@ -9,6 +9,7 @@
 #include "JuceHeader.h"
 
 #include "MidiChannel.h"
+#include "TypedNamedValue.h"
 
 #include <map>
 
@@ -79,6 +80,12 @@ namespace midikraft {
 		//! A parameter is deemed active when its value can have any meaningful effect on the sound produced
 		// This is very useful - if implemented - to thin out the number of parameters that need to be read to understand a patch
 		virtual bool isActive(DataFile const *patch) const = 0;
+	};
+
+	class SynthParameterEditorCapability {
+	public:
+		//! This synth parameter allows to create a TypedNamedValue that can be used to edit it via a UI editor
+		virtual std::shared_ptr<TypedNamedValue> makeTypedNamedValue() = 0;
 	};
 
 	//! Use this to indicate that the parameter can be mapped to CC or NRPN messages

@@ -27,7 +27,7 @@ namespace midikraft {
 		typedef std::function<void(std::vector<PatchHolder>)> TFinishedHandler;
 		typedef std::function<void(std::vector<std::shared_ptr<DataFile>>)> TStepSequencerFinishedHandler;
 
-		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), downloadNumber_(0) {}
+		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), downloadNumber_(0), startDownloadNumber_(0), endDownloadNumber_(0) {}
 
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo,
 			ProgressHandler *progressHandler, TFinishedHandler onFinished);

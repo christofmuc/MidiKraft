@@ -68,10 +68,10 @@ namespace midikraft {
 		virtual int getSourceLayer() const = 0;
 	};
 
-	class SynthParameterLiveEditCapability { //TODO I think this should go on the synth
+	class SynthParameterLiveEditCapability { 
 	public:
 		// This is for live editing!
-		virtual MidiBuffer setValueMessages(DataFile const &patch, Synth const *synth) const = 0;
+		virtual MidiBuffer setValueMessages(std::shared_ptr<DataFile> const patch, Synth const *synth) const = 0;
 	};
 
 	class SynthParameterActiveDetectionCapability {

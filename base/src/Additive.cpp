@@ -16,7 +16,7 @@ namespace midikraft {
 
 		// Build the input array
 		std::vector<dsp::Complex<float>> input(256);
-		for (auto harmonic : harmonics) {
+		for (auto harmonic : harmonics.harmonics()) {
 			input[harmonic.first] = dsp::Complex<float>(0.0f, harmonic.second);
 		}
 
@@ -31,6 +31,17 @@ namespace midikraft {
 		}
 		return result;
 
+	}
+
+	void Additive::Harmonics::setHarmonic(int harmonicNumber, float value)
+	{
+		if (value > 0.0f) {
+			harmonics_[harmonicNumber] = value;
+		}
+		else {
+			auto found = harmonics_.find(harmonicNumber);
+			if (found != harmonics_.end()) harmonics_.erase(found);
+		}
 	}
 
 }

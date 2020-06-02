@@ -319,7 +319,7 @@ namespace midikraft {
 			if (c >= '0' && c <= '8') {
 				// Valid character
 				int value = c - '0';
-				harmonics.push_back(std::make_pair(hammondDrawbars()[position].harmonic_number_, value / 8.0f));
+				harmonics.setHarmonic(hammondDrawbars()[position].harmonic_number_, value / 8.0f);
 				position++;
 			}
 			else if (c != ' ') {

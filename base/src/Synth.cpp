@@ -137,4 +137,9 @@ namespace midikraft {
 		}
 	}
 
+	void Synth::sendBlockOfMessagesToSynth(std::string const& midiOutput, MidiBuffer const& buffer)
+	{
+		MidiController::instance()->getMidiOutput(midiOutput)->sendBlockOfMessagesNow(buffer);
+	}
+
 }

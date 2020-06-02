@@ -41,6 +41,7 @@ namespace midikraft {
 		virtual TPatchVector loadSysex(std::vector<MidiMessage> const &sysexMessages);
 		virtual void saveSysex(std::string const &filename, std::vector<MidiMessage> messages);
 		virtual void sendPatchToSynth(MidiController *controller, SimpleLogger *logger, std::shared_ptr<DataFile> dataFile);
+		virtual void sendBlockOfMessagesToSynth(std::string const &midiOutput, MidiBuffer const& buffer);
 	};
 
 }

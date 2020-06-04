@@ -22,11 +22,6 @@ IF(NOT DEFINED JUCE_LIBRARIES)
 	)
 ENDIF()
 
-IF(APPLE)
-	# Honestly, I don't know why this is not needed on Linux, but on Mac for sure it is
-	find_package(Boost REQUIRED)
-ENDIF()
-
 # Define the sources for the static library
 set(Sources
 	include/Additive.h src/Additive.cpp
@@ -72,11 +67,7 @@ set(Sources
 # Setup library
 add_library(midikraft-base ${Sources})
 target_include_directories(midikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include PRIVATE ${JUCE_INCLUDES} ${boost_SOURCE_DIR})
-IF(APPLE)
-	target_link_libraries(midikraft-base PRIVATE juce-utils Boost::boost)
-ELSE()
-	target_link_libraries(midikraft-base PRIVATE juce-utils)
-ENDIF()
+target_link_libraries(midikraft-base PRIVATE juce-utils ${APPLE_BOOST})
 
 # Pedantic about warnings
 if (MSVC)

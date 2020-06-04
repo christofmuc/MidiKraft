@@ -59,7 +59,7 @@ set_source_files_properties(
 # Setup library
 add_library(midikraft-librarian ${Sources})
 target_include_directories(midikraft-librarian PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${JUCE_INCLUDES} ${boost_SOURCE_DIR} ${MANUALLY_RAPID_JSON})
-target_link_libraries(midikraft-librarian juce-utils midikraft-base)
+target_link_libraries(midikraft-librarian juce-utils midikraft-base ${APPLE_BOOST})
 
 # Pedantic about warnings
 if (MSVC)

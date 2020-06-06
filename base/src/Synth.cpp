@@ -83,8 +83,9 @@ namespace midikraft {
 					}
 				}
 				else {
-					jassertfalse;
-					SimpleLogger::instance()->postMessage("Internal program error - this synth has no method to load the sysex message");
+					// The way I ended up here was to load the ZIP of the Pro3 factory programs, and that includes the weird macOS resource fork
+					// with a syx extension, wrongly getting interpreted as a real sysex file.
+					SimpleLogger::instance()->postMessage("Ignoring sysex message found, not implemented: " + message.getDescription());
 				}
 			}
 		}

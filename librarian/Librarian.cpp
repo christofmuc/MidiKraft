@@ -41,12 +41,13 @@ namespace midikraft {
 		auto handshakeLoadingRequired = std::dynamic_pointer_cast<HandshakeLoadingCapability>(synth);
 		if (streamLoading) {
 			// Simple enough, we hope
-			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput, bankNo](MidiInput *source, const juce::MidiMessage &editBuffer) {
+			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
-				this->handleNextStreamPart(midiOutput, synth, progressHandler, editBuffer, bankNo);
+				this->handleNextStreamPart(midiOutput, synth, progressHandler, editBuffer, StreamLoadCapability::StreamType::BANK_DUMP);
 			});
 			currentDownload_.clear();
-			startDownloadNextPatch(midiOutput, synth);
+			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::BANK_DUMP);
+			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
 		}
 		else if (handshakeLoadingRequired) {
 			// These are proper protocols that are implemented - each message we get from the synth has to be answered by an appropriate next message
@@ -117,19 +118,29 @@ namespace midikraft {
 		downloadNumber_ = 0;
 		currentDownload_.clear();
 		onFinished_ = onFinished;
-		// Uh, stone age, need to start a loop
-		handle_ = MidiController::makeOneHandle();
-		MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
-			ignoreUnused(source);
-			this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0));
-		});
-		// Special case - load only a single patch. In this case we're interested in the edit buffer only!
-		startDownloadNumber_ = 0;
-		endDownloadNumber_ = 0;
 		auto editBufferCapability = std::dynamic_pointer_cast<EditBufferCapability>(synth);
+		auto streamLoading = std::dynamic_pointer_cast<StreamLoadCapability>(synth);
 		auto programDumpCapability = std::dynamic_pointer_cast<ProgramDumpCabability>(synth);
 		auto programChangeCapability = std::dynamic_pointer_cast<SendsProgramChangeCapability>(synth);
-		if (editBufferCapability) {
+		handle_ = MidiController::makeOneHandle();
+		if (streamLoading) {
+			// Simple enough, we hope
+			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
+				ignoreUnused(source);
+				this->handleNextStreamPart(midiOutput, synth, progressHandler, editBuffer, StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP);
+			});
+			currentDownload_.clear();
+			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP);
+			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+		} else if (editBufferCapability) {
+			// Uh, stone age, need to start a loop
+			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
+				ignoreUnused(source);
+				this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0));
+			});
+			// Special case - load only a single patch. In this case we're interested in the edit buffer only!
+			startDownloadNumber_ = 0;
+			endDownloadNumber_ = 0;
 			auto message = editBufferCapability->requestEditBufferDump();
 			midiOutput->sendMessageNow(message);
 		}
@@ -346,31 +357,32 @@ namespace midikraft {
 		midiOutput->sendBlockOfMessagesNow(buffer);
 	}
 
-	void Librarian::handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo)
+	void Librarian::handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &message, StreamLoadCapability::StreamType streamType)
 	{
 		auto streamLoading = std::dynamic_pointer_cast<StreamLoadCapability>(synth);
 		if (streamLoading) {
-			if (streamLoading->isMessagePartOfStream(editBuffer)) {
-				currentDownload_.push_back(editBuffer);
-				if (streamLoading->isStreamComplete(currentDownload_)) {
+			if (streamLoading->isMessagePartOfStream(message, streamType)) {
+				currentDownload_.push_back(message);
+				if (streamLoading->isStreamComplete(currentDownload_, streamType)) {
 					MidiController::instance()->removeMessageHandler(handle_);
 					auto result = synth->loadSysex(currentDownload_);
-					onFinished_(tagPatchesWithImportFromSynth(synth, result, bankNo));
-					progressHandler->onSuccess();
+					onFinished_(tagPatchesWithImportFromSynth(synth, result, MidiBankNumber::fromZeroBase(0)));
+					if (progressHandler) progressHandler->onSuccess();
 				}
-				else if (progressHandler->shouldAbort()) {
+				else if (progressHandler && progressHandler->shouldAbort()) {
 					MidiController::instance()->removeMessageHandler(handle_);
 					progressHandler->onCancel();
 				}
-				else if (streamLoading->shouldStreamAdvance(currentDownload_)) {
+				else if (streamLoading->shouldStreamAdvance(currentDownload_, streamType)) {
 					downloadNumber_++;
-					startDownloadNextPatch(midiOutput, synth);
-					progressHandler->setProgressPercentage(downloadNumber_ / (double)synth->numberOfPatches());
+					auto messages = streamLoading->requestStreamElement(downloadNumber_, streamType);
+					midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+					if (progressHandler) progressHandler->setProgressPercentage(downloadNumber_ / (double)synth->numberOfPatches());
 				}
 			}
 		}
 		else {
-			jassert(false);
+			jassertfalse;
 		}
 	}
 

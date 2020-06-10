@@ -29,6 +29,7 @@ set(Sources
 	include/AutoDetection.h src/AutoDetection.cpp
 	include/BankDumpCapability.h
 	include/DataFileLoadCapability.h
+	include/DataFileSendCapability.h
 	include/DetailedParametersCapability.h
 	include/DiscoverableDevice.h src/DiscoverableDevice.cpp 
 	include/DrawbarOrgan.h src/DrawbarOrgan.cpp 

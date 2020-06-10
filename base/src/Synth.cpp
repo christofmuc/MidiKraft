@@ -15,6 +15,7 @@
 #include "ProgramDumpCapability.h"
 #include "BankDumpCapability.h"
 #include "DataFileLoadCapability.h"
+#include "DataFileSendCapability.h"
 #include "StreamDumpCapability.h"
 
 #include <boost/format.hpp>
@@ -117,24 +118,23 @@ namespace midikraft {
 			else if (programDumpCapability) {
 				messages = programDumpCapability->patchToProgramDumpSysex(*realPatch);
 			}
-			else {
-				SimpleLogger::instance()->postMessage("Program error - unknown strategy to send patch out to synth");
-			}
 		}
-		else {
+		if (messages.empty()) {
 			auto dfcl = dynamic_cast<DataFileSendCapability*>(this);
 			if (dfcl) {
 				messages = dfcl->dataFileToMessages(dataFile);
 			}
-			else {
-				SimpleLogger::instance()->postMessage("Program error - Synth has DataFile as patch, but did not implement DataFileSendCapability");
-			}
 		}
-		auto midiLocation = dynamic_cast<MidiLocationCapability *>(this);
-		if (midiLocation && !messages.empty()) {
-			logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
-			controller->enableMidiOutput(midiLocation->midiOutput());
-			controller->getMidiOutput(midiLocation->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+		if (messages.empty()) {
+			SimpleLogger::instance()->postMessage("Program error - unknown strategy to send patch out to synth");
+		}
+		else {
+			auto midiLocation = dynamic_cast<MidiLocationCapability *>(this);
+			if (midiLocation && !messages.empty()) {
+				logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
+				controller->enableMidiOutput(midiLocation->midiOutput());
+				controller->getMidiOutput(midiLocation->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+			}
 		}
 	}
 

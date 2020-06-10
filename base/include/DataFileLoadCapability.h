@@ -27,11 +27,5 @@ namespace midikraft {
 		virtual std::vector<DataFileDescription> dataTypeNames() const = 0;
 	};
 
-	class DataFileSendCapability {
-	public:
-		virtual std::vector<MidiMessage> dataFileToMessages(std::shared_ptr<DataFile> dataFile) const = 0;
-	};
-
-
 }
 

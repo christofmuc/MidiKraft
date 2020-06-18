@@ -10,6 +10,7 @@
 
 #include <string>
 #include <map>
+#include <string>
 
 namespace midikraft {
 

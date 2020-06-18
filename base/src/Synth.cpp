@@ -15,6 +15,7 @@
 #include "ProgramDumpCapability.h"
 #include "BankDumpCapability.h"
 #include "DataFileLoadCapability.h"
+#include "DataFileSendCapability.h"
 #include "StreamDumpCapability.h"
 
 #include <boost/format.hpp>
@@ -83,8 +84,9 @@ namespace midikraft {
 					}
 				}
 				else {
-					jassertfalse;
-					SimpleLogger::instance()->postMessage("Internal program error - this synth has no method to load the sysex message");
+					// The way I ended up here was to load the ZIP of the Pro3 factory programs, and that includes the weird macOS resource fork
+					// with a syx extension, wrongly getting interpreted as a real sysex file.
+					SimpleLogger::instance()->postMessage("Ignoring sysex message found, not implemented: " + message.getDescription());
 				}
 			}
 		}
@@ -116,24 +118,23 @@ namespace midikraft {
 			else if (programDumpCapability) {
 				messages = programDumpCapability->patchToProgramDumpSysex(*realPatch);
 			}
-			else {
-				SimpleLogger::instance()->postMessage("Program error - unknown strategy to send patch out to synth");
-			}
 		}
-		else {
+		if (messages.empty()) {
 			auto dfcl = dynamic_cast<DataFileSendCapability*>(this);
 			if (dfcl) {
 				messages = dfcl->dataFileToMessages(dataFile);
 			}
-			else {
-				SimpleLogger::instance()->postMessage("Program error - Synth has DataFile as patch, but did not implement DataFileSendCapability");
-			}
 		}
-		auto midiLocation = dynamic_cast<MidiLocationCapability *>(this);
-		if (midiLocation && !messages.empty()) {
-			logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
-			controller->enableMidiOutput(midiLocation->midiOutput());
-			controller->getMidiOutput(midiLocation->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+		if (messages.empty()) {
+			SimpleLogger::instance()->postMessage("Program error - unknown strategy to send patch out to synth");
+		}
+		else {
+			auto midiLocation = dynamic_cast<MidiLocationCapability *>(this);
+			if (midiLocation && !messages.empty()) {
+				logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
+				controller->enableMidiOutput(midiLocation->midiOutput());
+				controller->getMidiOutput(midiLocation->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+			}
 		}
 	}
 

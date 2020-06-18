@@ -31,6 +31,7 @@ set(Sources
 	include/BidirectionalSyncCapability.h
 	include/CreateInitPatchDataCapability.h
 	include/DataFileLoadCapability.h
+	include/DataFileSendCapability.h
 	include/DetailedParametersCapability.h
 	include/DiscoverableDevice.h src/DiscoverableDevice.cpp 
 	include/DrawbarOrgan.h src/DrawbarOrgan.cpp 
@@ -70,7 +71,7 @@ set(Sources
 # Setup library
 add_library(midikraft-base ${Sources})
 target_include_directories(midikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include PRIVATE ${JUCE_INCLUDES} ${boost_SOURCE_DIR})
-target_link_libraries(midikraft-base PRIVATE juce-utils)
+target_link_libraries(midikraft-base PRIVATE juce-utils ${APPLE_BOOST})
 
 # Pedantic about warnings
 if (MSVC)

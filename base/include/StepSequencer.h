@@ -29,10 +29,10 @@ namespace midikraft {
 		virtual int getID() = 0;
 	};
 
-	class StepSequencer : public SimpleDiscoverableDevice, DataFileLoadCapability {
+	class StepSequencer : public SimpleDiscoverableDevice, public DataFileLoadCapability {
 	public:
-		virtual int numberOfSongs() = 0;
-		virtual int numberOfPatternsPerSong() = 0;
+		virtual int numberOfSongs() const = 0;
+		virtual int numberOfPatternsPerSong() const = 0;
 
 		virtual std::shared_ptr<StepSequencerPattern> activePattern() = 0;
 		virtual std::vector<std::shared_ptr<TypedNamedValue>> properties() = 0;

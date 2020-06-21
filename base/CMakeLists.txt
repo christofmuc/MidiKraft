@@ -40,6 +40,7 @@ set(Sources
 	include/FindSynthOnMidiNetwork.h src/FindSynthOnMidiNetwork.cpp
 	include/GlobalSettingsCapability.h	
 	include/HandshakeLoadingCapability.h
+	include/HasBanksCapability.h
 	include/HybridWaveCapability.h
 	include/LayerCapability.h
 	include/LayeredPatch.h

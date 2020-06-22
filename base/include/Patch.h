@@ -30,6 +30,7 @@ namespace midikraft {
 
 		// Direct byte access functions
 		virtual void setData(Synth::PatchData const &data);
+		virtual void setDataFromSysex(MidiMessage const &message);
 		virtual Synth::PatchData const &data() const;
 		virtual int at(int sysExIndex) const;
 		virtual void setAt(int sysExIndex, uint8 value);

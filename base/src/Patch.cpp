@@ -31,6 +31,11 @@ namespace midikraft {
 		data_ = data;
 	}
 
+	void DataFile::setDataFromSysex(MidiMessage const &message)
+	{
+		data_ = std::vector<uint8>(message.getSysExData(), message.getSysExData() + message.getSysExDataSize());
+	}
+
 	Synth::PatchData const & DataFile::data() const
 	{
 		return data_;

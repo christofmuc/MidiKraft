@@ -90,8 +90,8 @@ namespace midikraft {
 		auto locations = FindSynthOnMidiNetwork::detectSynth(MidiController::instance(), *synth, progressHandler);
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
-				SimpleLogger::instance()->postMessage((boost::format("Found %s on channel %d replying on device %s when sending to %s")
-					% synth->getName() % (loc.midiChannel.toOneBasedInt()) % loc.inputName % loc.outputName).str());
+				SimpleLogger::instance()->postMessage((boost::format("Found %s on channel %d replying on device %s when sending to %s on channel %d")
+					% synth->getName() % (loc.midiChannel.toOneBasedInt()) % loc.inputName % loc.outputName % loc.midiChannel.toOneBasedInt()).str());
 			}
 
 			// Select the last location (the first one might be the "All" devices which we don't want to address the devices individually)

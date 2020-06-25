@@ -30,8 +30,8 @@ namespace midikraft {
 
 		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), downloadNumber_(0), startDownloadNumber_(0), endDownloadNumber_(0) {}
 
-		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo,
-			ProgressHandler *progressHandler, TFinishedHandler onFinished);
+		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
+		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 
 		void downloadEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 
@@ -48,7 +48,9 @@ namespace midikraft {
 		void handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &message, StreamLoadCapability::StreamType streamType);
 		void handleNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
 		void handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo);
+
 		std::vector<PatchHolder> tagPatchesWithImportFromSynth(std::shared_ptr<Synth> synth, TPatchVector &patches, MidiBankNumber bankNo);
+		void tagPatchesWithMultiBulkImport(std::vector<PatchHolder> &patches);
 
 		void updateLastPath();
 
@@ -60,6 +62,13 @@ namespace midikraft {
 		int downloadNumber_;
 		int startDownloadNumber_;
 		int endDownloadNumber_;
+
+		// To download multiple banks. This needs to go into its own context object
+		TFinishedHandler nextBankHandler_;
+		std::vector<midikraft::PatchHolder> currentDownloadedPatches_;
+		int downloadBankNumber_;
+		int endDownloadBankNumber_;
+
 		std::string lastPath_;
 	};
 

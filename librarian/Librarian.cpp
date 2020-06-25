@@ -26,6 +26,30 @@
 
 namespace midikraft {
 
+	void Librarian::startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo,
+		ProgressHandler *progressHandler, TFinishedHandler onFinished) {
+		downloadBankNumber_ = 0;
+		if (!bankNo.empty()) {
+			currentDownloadedPatches_.clear();
+			nextBankHandler_ = [this, midiOutput, synth, progressHandler, bankNo, onFinished](std::vector<midikraft::PatchHolder> patchesLoaded) {
+				std::copy(patchesLoaded.begin(), patchesLoaded.end(), std::back_inserter(currentDownloadedPatches_));
+				downloadBankNumber_++;
+				if (downloadBankNumber_ == bankNo.size()) {
+					if (bankNo.size() > 1) {
+						tagPatchesWithMultiBulkImport(currentDownloadedPatches_);
+					}
+					onFinished(currentDownloadedPatches_);
+				}
+				else {
+					if (!progressHandler->shouldAbort()) {
+						startDownloadingAllPatches(midiOutput, synth, bankNo[downloadBankNumber_], progressHandler, nextBankHandler_);
+					}
+				}
+			};
+			startDownloadingAllPatches(midiOutput, synth, bankNo[0], progressHandler, nextBankHandler_);
+		}
+	}
+
 	void Librarian::startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo,
 		ProgressHandler *progressHandler, TFinishedHandler onFinished)
 	{
@@ -75,7 +99,7 @@ namespace midikraft {
 						if (state->wasSuccessful()) {
 							// Parse patches and send them back 
 							auto patches = synth->loadSysex(currentDownload_);
-							onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
+							onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));							
 							progressHandler->onSuccess();
 						}
 						else {
@@ -526,6 +550,15 @@ namespace midikraft {
 			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, true));
 		}
 		return result;
+	}
+
+	void Librarian::tagPatchesWithMultiBulkImport(std::vector<PatchHolder> &patches) {
+		// We have multiple import sources, so we need to modify the SourceInfo in the patches with a BulkImport info
+		Time now = Time::getCurrentTime();
+		for (auto &patch : patches) {
+			auto bulkInfo = std::make_shared<FromBulkImportSource>(now, patch.sourceInfo());
+			patch.setSourceInfo(bulkInfo);
+		}
 	}
 
 }

@@ -15,6 +15,8 @@
 
 #include "ProgressHandler.h"
 
+#include "FileHelpers.h"
+
 #include <iostream>
 #include <boost/format.hpp>
 
@@ -25,6 +27,7 @@
 namespace midikraft {
 
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
+	const std::string kDataBaseBackupSuffix = "-backup";
 
 	const int SCHEMA_VERSION = 4;
 	/* History */
@@ -37,10 +40,11 @@ namespace midikraft {
 	public:
 		PatchDataBaseImpl() : db_(generateDatabaseLocation().toStdString().c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
 			createSchema();
+			manageBackupDiskspace(kDataBaseBackupSuffix);
 		}
 
 		~PatchDataBaseImpl() {
-			PatchDataBaseImpl::makeDatabaseBackup("-backup");
+			PatchDataBaseImpl::makeDatabaseBackup(kDataBaseBackupSuffix);
 		}
 
 		static String generateDatabaseLocation() {
@@ -66,6 +70,34 @@ namespace midikraft {
 			if (!done) {
 				makeDatabaseBackup("-before-migration");
 				done = true;
+			}
+		}
+
+		//TODO a better strategy than the last 3 backups would be to group by week, month, to keep older ones
+		void manageBackupDiskspace(String suffix) {
+			// Build a list of all backups on disk and calculate the size of it. Do not keep more than 500 mio bytes or the last 3 copies if they together make up more than 500 mio bytes
+			File activeDBFile(db_.getFilename());
+			File backupDirectory(activeDBFile.getParentDirectory());
+			auto backupsFiles = backupDirectory.findChildFiles(File::TypesOfFileToFind::findFiles, false, activeDBFile.getFileNameWithoutExtension() + suffix + "*" + activeDBFile.getFileExtension());
+			size_t backupSize = 0;
+			size_t keptBackupSize = 0;
+			size_t numKept = 0;
+			// Sort by date ascending
+			backupsFiles.sort(FileDateComparatorNewestFirst(), false);
+			for (auto file : backupsFiles) {
+				backupSize += file.getSize();
+				if (backupSize > 500000000 && numKept > 2) {
+					//SimpleLogger::instance()->postMessage("Removing database backup file to keep disk space used below 50 million bytes: " + file.getFullPathName());
+					if (!file.deleteFile()) {
+						SimpleLogger::instance()->postMessage("Error - failed to remove extra backup file, please check file permissions: " + file.getFullPathName());
+					}
+				} else {
+					numKept++;
+					keptBackupSize += file.getSize();
+				}
+			}
+			if (backupSize != keptBackupSize) {
+				SimpleLogger::instance()->postMessage((boost::format("Removing all but %d backup files reducing disk space used from %d to %d bytes") % numKept % backupSize % keptBackupSize).str());
 			}
 		}
 

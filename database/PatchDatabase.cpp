@@ -286,10 +286,17 @@ namespace midikraft {
 		}
 
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder> &result, int skip, int limit) {
-			SQLite::Statement query(db_, "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiProgramNo LIMIT :LIM OFFSET :OFS");
+			std::string selectStatement = "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiProgramNo ";
+			if (limit != -1) {
+				selectStatement += " LIMIT :LIM ";
+				selectStatement += " OFFSET :OFS";
+			}
+			SQLite::Statement query(db_, selectStatement.c_str());
 			bindWhereClause(query, filter);
-			query.bind(":LIM", limit);
-			query.bind(":OFS", skip);
+			if (limit != -1) {
+				query.bind(":LIM", limit);
+				query.bind(":OFS", skip);
+			}
 			while (query.executeStep()) {
 				std::shared_ptr<DataFile> newPatch;
 

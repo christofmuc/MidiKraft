@@ -32,7 +32,7 @@ namespace midikraft {
 	class SourceInfo {
 	public:
 		virtual std::string toString() const;
-		virtual std::string toDisplayString(Synth *synth) const = 0;
+		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const = 0;
 		static std::shared_ptr<SourceInfo> fromString(std::string const &str);
 
 		static bool isEditBufferImport(std::shared_ptr<SourceInfo> sourceInfo);
@@ -45,7 +45,7 @@ namespace midikraft {
 	public:
 		explicit FromSynthSource(Time timestamp); // Use this for edit buffer
 		FromSynthSource(Time timestamp, MidiBankNumber bankNo); // Use this when the program place is known
-		virtual std::string toDisplayString(Synth *synth) const override;
+		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const override;
 		static std::shared_ptr<FromSynthSource> fromString(std::string const &jsonString);
 
 		MidiBankNumber bankNumber() const;
@@ -58,7 +58,7 @@ namespace midikraft {
 	class FromFileSource : public SourceInfo {
 	public:
 		FromFileSource(std::string const &filename, std::string const &fullpath, MidiProgramNumber program);
-		virtual std::string toDisplayString(Synth *synth) const override;
+		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const override;
 		static std::shared_ptr<FromFileSource> fromString(std::string const &jsonString);
 
 	private:
@@ -68,7 +68,7 @@ namespace midikraft {
 	class FromBulkImportSource : public SourceInfo {
 	public:
 		FromBulkImportSource(Time timestamp, std::shared_ptr<SourceInfo> individualInfo);
-		virtual std::string toDisplayString(Synth *synth) const override;
+		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const override;
 		static std::shared_ptr<FromBulkImportSource> fromString(std::string const &jsonString);
 		std::shared_ptr<SourceInfo> individualInfo() const;
 

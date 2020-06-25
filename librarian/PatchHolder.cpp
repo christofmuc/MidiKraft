@@ -309,8 +309,9 @@ namespace midikraft {
 	{
 	}
 
-	std::string FromSynthSource::toDisplayString(Synth *synth) const
+	std::string FromSynthSource::toDisplayString(Synth *synth, bool shortVersion) const
 	{
+		ignoreUnused(shortVersion);
 		std::string bank = "";
 		if (bankNo_.isValid()) {
 			bank = (boost::format(" bank %s") % synth->friendlyBankName(bankNo_)).str();;
@@ -318,7 +319,7 @@ namespace midikraft {
 		else {
 			bank = " edit buffer";
 		}
-		if (timestamp_.toMilliseconds() != 0) {
+		if (!shortVersion && timestamp_.toMilliseconds() != 0) {
 			// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
 			return (boost::format("Imported from synth%s on %s") % bank % timestamp_.formatted("%x at %X").toStdString()).str();
 		}
@@ -367,8 +368,9 @@ namespace midikraft {
 
 	}
 
-	std::string FromFileSource::toDisplayString(Synth *) const
+	std::string FromFileSource::toDisplayString(Synth *, bool shortVersion) const
 	{
+		ignoreUnused(shortVersion);
 		return (boost::format("Imported from file %s") % filename_).str();
 	}
 
@@ -400,12 +402,17 @@ namespace midikraft {
 		jsonRep_ = renderToJson(doc);
 	}
 
-	std::string FromBulkImportSource::toDisplayString(Synth *synth) const
+	std::string FromBulkImportSource::toDisplayString(Synth *synth, bool shortVersion) const
 	{
-		ignoreUnused(synth);
 		if (timestamp_.toMilliseconds() != 0) {
-			// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
-			return (boost::format("Bulk file import %s") % timestamp_.formatted("%x at %X").toStdString()).str();
+			if (shortVersion) {
+				// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
+				return (boost::format("Bulk import (%s)") % individualInfo_->toDisplayString(synth, true)).str();
+			}
+			else {
+				// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
+				return (boost::format("Bulk import %s (%s)") % timestamp_.formatted("%x at %X").toStdString() % individualInfo_->toDisplayString(synth, true)).str();
+			}
 		}
 		return "Bulk file import";
 	}
@@ -422,9 +429,9 @@ namespace midikraft {
 					std::string timestring = obj.FindMember(kTimeStamp).operator*().value.GetString();
 					timestamp = Time::fromISO8601(timestring);
 				}
-				std::shared_ptr<FromFileSource> individualInfo;
+				std::shared_ptr<SourceInfo> individualInfo;
 				if (obj.HasMember(kFileInBulk)) {
-					individualInfo = FromFileSource::fromString(obj.FindMember(kFileInBulk).operator*().value.GetString());
+					individualInfo = SourceInfo::fromString(obj.FindMember(kFileInBulk).operator*().value.GetString());
 				}
 				return std::make_shared<FromBulkImportSource>(timestamp, individualInfo);
 			}

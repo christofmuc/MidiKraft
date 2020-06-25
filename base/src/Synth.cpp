@@ -104,7 +104,7 @@ namespace midikraft {
 		}
 	}
 
-	void Synth::sendPatchToSynth(MidiController *controller, SimpleLogger *logger, std::shared_ptr<DataFile> dataFile)
+	std::vector<juce::MidiMessage> Synth::patchToSysex(std::shared_ptr<DataFile> dataFile)
 	{
 		std::vector<MidiMessage> messages;
 		auto realPatch = std::dynamic_pointer_cast<midikraft::Patch>(dataFile);
@@ -126,9 +126,16 @@ namespace midikraft {
 			}
 		}
 		if (messages.empty()) {
+			jassertfalse;
 			SimpleLogger::instance()->postMessage("Program error - unknown strategy to send patch out to synth");
 		}
-		else {
+		return messages;
+	}
+
+	void Synth::sendPatchToSynth(MidiController *controller, SimpleLogger *logger, std::shared_ptr<DataFile> dataFile)
+	{
+		auto messages = patchToSysex(dataFile);
+		if (!messages.empty()) {
 			auto midiLocation = dynamic_cast<MidiLocationCapability *>(this);
 			if (midiLocation && !messages.empty()) {
 				logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());

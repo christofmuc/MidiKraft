@@ -18,6 +18,7 @@
 #include "SendsProgramChangeCapability.h"
 
 #include "MidiHelpers.h"
+#include "FileHelpers.h"
 
 #include <boost/format.hpp>
 #include <set>
@@ -240,8 +241,7 @@ namespace midikraft {
 		std::vector<PatchHolder> result_;
 	};
 
-	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth)
-	{
+	void Librarian::updateLastPath() {
 		if (lastPath_.empty()) {
 			// Read from settings
 			lastPath_ = Settings::instance().get("lastImportPath", "");
@@ -250,6 +250,11 @@ namespace midikraft {
 				lastPath_ = File::getSpecialLocation(File::userDocumentsDirectory).getFullPathName().toStdString();
 			}
 		}
+	}
+
+	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth)
+	{
+		updateLastPath();
 
 		std::string standardFileExtensions = "*.syx;*.mid;*.zip;*.txt";
 		auto legacyLoader = std::dynamic_pointer_cast<LegacyLoaderCapability>(synth);
@@ -322,6 +327,69 @@ namespace midikraft {
 			i++;
 		}
 		return result;
+	}
+
+	class ProgressWindow: public ThreadWithProgressWindow {
+	public:
+		ProgressWindow(String title, double *progress) : ThreadWithProgressWindow(title, true, false), progress_(progress) {}
+
+		virtual void run() override
+		{
+			while (!threadShouldExit() && *progress_ < 1.0) {
+				setProgress(*progress_);
+				Thread::sleep(50);
+			}
+		}	
+
+	private:
+		double *progress_;
+	};
+
+	void Librarian::saveSysexPatchesToDisk(std::vector<PatchHolder> const &patches)
+	{
+		updateLastPath();
+		FileChooser sysexChooser("Please enter the name of the zip file to create...", File(lastPath_), ".zip");
+		if (sysexChooser.browseForFileToSave(true)) {
+			File zipFile = sysexChooser.getResult();
+			if (zipFile.existsAsFile()) {
+				zipFile.deleteFile();
+			}
+			else if (zipFile.exists()) {
+				// This is a directory
+				SimpleLogger::instance()->postMessage("Can't overwrite a directory, please choose a different name!");
+				return;
+			}
+
+			// Create a temporary directory to build the result
+			TemporaryDirectory tempDir;
+
+			// Now, iterate over the list of patches and pack them one by one into the zip file!
+			ZipFile::Builder builder;
+			for (auto patch : patches) {
+				if (patch.patch()) {
+					auto sysexMessages = patch.synth()->patchToSysex(patch.patch());
+					String fileName = patch.name();
+					std::string result = Sysex::saveSysexIntoNewFile(tempDir.name(), File::createLegalFileName(fileName.trim()).toStdString(), sysexMessages);
+					//TODO what a peculiar return type
+					if (result != "Failure") {
+						builder.addFile(File(result), 6);
+					}
+					else {
+						jassertfalse;
+					}
+				}
+				else {
+					jassertfalse;
+				}
+			}
+
+			FileOutputStream targetStream(zipFile);
+			double progress=0.0;
+			ProgressWindow progressWindow("Compressing ZIP File", &progress);
+			progressWindow.launchThread();
+			builder.writeToStream(targetStream, &progress);
+			progressWindow.stopThread(200);
+		}
 	}
 
 	void Librarian::startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth) {

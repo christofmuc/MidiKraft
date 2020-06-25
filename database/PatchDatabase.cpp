@@ -181,7 +181,7 @@ namespace midikraft {
 				sql.bind(":FAV", (int)patch.howFavorite().is());
 				sql.bind(":HID", patch.isHidden());
 				sql.bind(":SID", sourceID);
-				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth()));
+				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
 				auto realPatch = std::dynamic_pointer_cast<Patch>(patch.patch());
 				if (realPatch) {
@@ -493,7 +493,7 @@ namespace midikraft {
 					source_id = source_uuid.toString().toStdString();
 					if (importName.empty()) {
 						// Use the importName of the first patch. This is not ideal, but currently I have no better idea
-						importName = newPatch.sourceInfo()->toDisplayString(newPatch.synth());
+						importName = newPatch.sourceInfo()->toDisplayString(newPatch.synth(), false);
 					}
 				}
 			}

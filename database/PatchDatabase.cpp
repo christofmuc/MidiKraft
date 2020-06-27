@@ -83,7 +83,8 @@ namespace midikraft {
 			size_t keptBackupSize = 0;
 			size_t numKept = 0;
 			// Sort by date ascending
-			backupsFiles.sort(FileDateComparatorNewestFirst(), false);
+			auto sortComperator = FileDateComparatorNewestFirst(); // gcc wants this as an l-value
+			backupsFiles.sort(sortComperator, false);
 			for (auto file : backupsFiles) {
 				backupSize += file.getSize();
 				if (backupSize > 500000000 && numKept > 2) {

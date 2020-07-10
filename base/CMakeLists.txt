@@ -45,6 +45,7 @@ set(Sources
 	include/LayerCapability.h
 	include/LayeredPatch.h
 	include/MasterkeyboardCapability.h	
+	include/MidiClockCapability.h
 	include/MidiController.h src/MidiController.cpp
 	include/MidiLocationCapability.h
 	include/MidiRequest.h src/MidiRequest.cpp

@@ -17,6 +17,7 @@
 
 namespace midikraft {
 
+	class SendTarget;
 	class DataFile;
 	class Patch;
 
@@ -37,8 +38,8 @@ namespace midikraft {
 		// Generic functions that should function with most Synthesizers, only overload if required
 		virtual TPatchVector loadSysex(std::vector<MidiMessage> const &sysexMessages);
 		virtual void saveSysex(std::string const &filename, std::vector<MidiMessage> messages);
-		virtual std::vector<MidiMessage> patchToSysex(std::shared_ptr<DataFile> dataFile);
-		virtual void sendPatchToSynth(MidiController *controller, SimpleLogger *logger, std::shared_ptr<DataFile> dataFile);
+		virtual std::vector<MidiMessage> patchToSysex(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
+		virtual void sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
 		virtual void sendBlockOfMessagesToSynth(std::string const &midiOutput, MidiBuffer const& buffer);
 	};
 

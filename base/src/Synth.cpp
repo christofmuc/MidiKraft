@@ -104,12 +104,13 @@ namespace midikraft {
 		}
 	}
 
-	std::vector<juce::MidiMessage> Synth::patchToSysex(std::shared_ptr<DataFile> dataFile)
+	std::vector<juce::MidiMessage> Synth::patchToSysex(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
 		std::vector<MidiMessage> messages;
 		auto realPatch = std::dynamic_pointer_cast<midikraft::Patch>(dataFile);
-		if (realPatch) {
+		if (realPatch && !target) {
 			// Default implementation is to just shoot it to the Midi output and hope for the best, no handshake is done
+			// There must be no target specified, for backwards compatibility the old behavior is implemented here to always target the edit buffer of the device
 			auto editBufferCapability = dynamic_cast<EditBufferCapability *>(this);
 			auto programDumpCapability = dynamic_cast<ProgramDumpCabability *>(this);
 			if (editBufferCapability) {
@@ -122,7 +123,7 @@ namespace midikraft {
 		if (messages.empty()) {
 			auto dfcl = dynamic_cast<DataFileSendCapability*>(this);
 			if (dfcl) {
-				messages = dfcl->dataFileToMessages(dataFile);
+				messages = dfcl->dataFileToMessages(dataFile, target);
 			}
 		}
 		if (messages.empty()) {
@@ -132,15 +133,15 @@ namespace midikraft {
 		return messages;
 	}
 
-	void Synth::sendPatchToSynth(MidiController *controller, SimpleLogger *logger, std::shared_ptr<DataFile> dataFile)
+	void Synth::sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
-		auto messages = patchToSysex(dataFile);
+		auto messages = patchToSysex(dataFile, target);
 		if (!messages.empty()) {
 			auto midiLocation = dynamic_cast<MidiLocationCapability *>(this);
 			if (midiLocation && !messages.empty()) {
-				logger->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
-				controller->enableMidiOutput(midiLocation->midiOutput());
-				controller->getMidiOutput(midiLocation->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+				SimpleLogger::instance()->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
+				MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
+				MidiController::instance()->getMidiOutput(midiLocation->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
 			}
 		}
 	}

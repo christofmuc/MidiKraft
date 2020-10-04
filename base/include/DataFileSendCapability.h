@@ -12,10 +12,21 @@
 
 namespace midikraft {
 
+	class SendTarget {
+	public:
+		virtual std::string name() const = 0;
+	};
+
 	class DataFileSendCapability {
 	public:
-		virtual std::vector<MidiMessage> dataFileToMessages(std::shared_ptr<DataFile> dataFile) const = 0;
+		virtual std::vector<MidiMessage> dataFileToMessages(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target) const = 0;
 	};
+
+	class MultipleSendTargetCapability {
+	public:
+		virtual std::vector<std::shared_ptr<SendTarget>> getSendTargetNameList() const = 0;
+	};
+
 
 }
 

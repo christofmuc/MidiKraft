@@ -397,7 +397,7 @@ namespace midikraft {
 			ZipFile::Builder builder;
 			for (auto patch : patches) {
 				if (patch.patch()) {
-					auto sysexMessages = patch.synth()->patchToSysex(patch.patch());
+					auto sysexMessages = patch.synth()->patchToSysex(patch.patch(), nullptr);
 					String fileName = patch.name();
 					std::string result = Sysex::saveSysexIntoNewFile(tempDir.name(), File::createLegalFileName(fileName.trim()).toStdString(), sysexMessages);
 					//TODO what a peculiar return type

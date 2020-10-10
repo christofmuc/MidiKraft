@@ -87,6 +87,10 @@ namespace midikraft {
 			return;
 		}
 
+		if (progressHandler) {
+			progressHandler->setMessage((boost::format("Trying to detect %s...") % synth->getName()).str());
+		}
+
 		auto locations = FindSynthOnMidiNetwork::detectSynth(MidiController::instance(), *synth, progressHandler);
 		if (locations.size() > 0) {
 			for (auto loc : locations) {

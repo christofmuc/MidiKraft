@@ -54,7 +54,6 @@ set(Sources
 	include/Patch.h src/Patch.cpp
 	include/PatchNumber.h
 	include/ProgramDumpCapability.h
-	include/ProgressHandler.h
 	include/ReadonlySoundExpander.h src/ReadonlySoundExpander.cpp
 	include/SendsProgramChangeCapability.h
 	include/SimpleDiscoverableDevice.h src/SimpleDiscoverableDevice.cpp

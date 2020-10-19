@@ -525,7 +525,10 @@ namespace midikraft {
 			if (editBufferCapability  && editBufferCapability->isEditBufferDump(editBuffer)) {
 				// For reloading, also persist a message in the file that will force the Synth to store the edit buffer so you can reload the file with any sysex tool
 				//TODO Not all synths support this, so this should become a capability
-				currentDownload_.push_back(editBufferCapability->saveEditBufferToProgram(downloadNumber_));
+
+				// Disabled for now - the main reason to implement this was the Korg DW8000, when you want to produce a bank file that can be sent directly to the synth with no Orm in-between. I don't think I will do this 
+				// soon, so this mechanism should be reserved for creating bank files on disk from a database selection.
+				//currentDownload_.push_back(editBufferCapability->saveEditBufferToProgram(downloadNumber_));
 			}
 
 			// Finished?

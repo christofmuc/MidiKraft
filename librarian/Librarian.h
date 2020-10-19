@@ -17,7 +17,7 @@
 #include "DataFileLoadCapability.h"
 #include "StreamLoadCapability.h"
 
-#include <vector>
+#include <stack>
 
 namespace midikraft {
 
@@ -42,6 +42,8 @@ namespace midikraft {
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::string const &fullpath, std::string const &filename);
 		void saveSysexPatchesToDisk(std::vector<PatchHolder> const &patches);
 
+		void clearHandlers();
+
 	private:
 		void startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth);
 		void startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier);
@@ -56,7 +58,7 @@ namespace midikraft {
 
 		std::vector<SynthHolder> synths_;
 		std::vector<MidiMessage> currentDownload_;
-		MidiController::HandlerHandle handle_ = MidiController::makeNoneHandle();
+		std::stack<MidiController::HandlerHandle> handles_;
 		TFinishedHandler onFinished_;
 		TStepSequencerFinishedHandler onSequencerFinished_;
 		int downloadNumber_;

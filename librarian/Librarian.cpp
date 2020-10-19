@@ -28,6 +28,7 @@ namespace midikraft {
 
 	void Librarian::startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo,
 		ProgressHandler *progressHandler, TFinishedHandler onFinished) {
+
 		downloadBankNumber_ = 0;
 		if (!bankNo.empty()) {
 			currentDownloadedPatches_.clear();
@@ -55,6 +56,10 @@ namespace midikraft {
 	void Librarian::startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo,
 		ProgressHandler *progressHandler, TFinishedHandler onFinished)
 	{
+		// First things first - this should not be called more than once at a time, and there should be no other Librarian callback handlers be registered!
+		jassert(handles_.empty());
+		clearHandlers();
+
 		// Ok, for this we need to send a program change message, and then a request edit buffer message from the active synth
 		// Once we get that, store the patch and increment number by one
 		downloadNumber_ = 0;
@@ -62,16 +67,17 @@ namespace midikraft {
 		onFinished_ = onFinished;
 
 		// Determine what we will do with the answer...
-		handle_ = MidiController::makeOneHandle();
+		auto handle = MidiController::makeOneHandle();
 		auto streamLoading = std::dynamic_pointer_cast<StreamLoadCapability>(synth);
 		auto bankCapableSynth = std::dynamic_pointer_cast<BankDumpCapability>(synth);
 		auto handshakeLoadingRequired = std::dynamic_pointer_cast<HandshakeLoadingCapability>(synth);
 		if (streamLoading) {
 			// Simple enough, we hope
-			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
+			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
 				this->handleNextStreamPart(midiOutput, synth, progressHandler, editBuffer, StreamLoadCapability::StreamType::BANK_DUMP);
 			});
+			handles_.push(handle);
 			currentDownload_.clear();
 			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::BANK_DUMP);
 			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
@@ -80,7 +86,7 @@ namespace midikraft {
 			// These are proper protocols that are implemented - each message we get from the synth has to be answered by an appropriate next message
 			std::shared_ptr<HandshakeLoadingCapability::ProtocolState>  state = handshakeLoadingRequired->createStateObject();
 			if (state) {
-				MidiController::instance()->addMessageHandler(handle_, [this, handshakeLoadingRequired, state, progressHandler, midiOutput, synth, bankNo](MidiInput *source, const juce::MidiMessage &protocolMessage) {
+				MidiController::instance()->addMessageHandler(handle, [this, handshakeLoadingRequired, state, progressHandler, midiOutput, synth, bankNo](MidiInput *source, const juce::MidiMessage &protocolMessage) {
 					ignoreUnused(source);
 					std::vector<MidiMessage> answer;
 					if (handshakeLoadingRequired->isNextMessage(protocolMessage, answer, state)) {
@@ -97,7 +103,7 @@ namespace midikraft {
 
 					// Stop handler when finished
 					if (state->isFinished() || progressHandler->shouldAbort()) {
-						MidiController::instance()->removeMessageHandler(handle_);
+						clearHandlers();
 						if (state->wasSuccessful()) {
 							// Parse patches and send them back 
 							auto patches = synth->loadSysex(currentDownload_);
@@ -109,6 +115,7 @@ namespace midikraft {
 						}
 					}
 				});
+				handles_.push(handle);
 				handshakeLoadingRequired->startDownload(midiOutput, state);
 			}
 			else {
@@ -118,19 +125,21 @@ namespace midikraft {
 		else if (bankCapableSynth) {
 			// This is a mixture - you send one message (bank request), and then you get either one message back (like Kawai K3) or a stream of messages with
 			// one message per patch (e.g. Access Virus or Matrix1000)
-			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput, bankNo](MidiInput *source, const juce::MidiMessage &editBuffer) {
+			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
 				this->handleNextBankDump(midiOutput, synth, progressHandler, editBuffer, bankNo);
 			});
+			handles_.push(handle);
 			currentDownload_.clear();
 			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(bankCapableSynth->requestBankDump(bankNo)));
 		}
 		else {
 			// Uh, stone age, need to start a loop
-			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput, bankNo](MidiInput *source, const juce::MidiMessage &editBuffer) {
+			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
 				this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, bankNo);
 			});
+			handles_.push(handle);
 			downloadNumber_ = bankNo.toZeroBased() * synth->numberOfPatches();
 			startDownloadNumber_ = downloadNumber_;
 			endDownloadNumber_ = downloadNumber_ + synth->numberOfPatches() - 1;
@@ -140,6 +149,10 @@ namespace midikraft {
 
 	void Librarian::downloadEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, TFinishedHandler onFinished)
 	{
+		// First things first - this should not be called more than once at a time, and there should be no other Librarian callback handlers be registered!
+		jassert(handles_.empty());
+		clearHandlers();
+
 		// Ok, for this we need to send a program change message, and then a request edit buffer message from the active synth
 		// Once we get that, store the patch and increment number by one
 		downloadNumber_ = 0;
@@ -149,22 +162,24 @@ namespace midikraft {
 		auto streamLoading = std::dynamic_pointer_cast<StreamLoadCapability>(synth);
 		auto programDumpCapability = std::dynamic_pointer_cast<ProgramDumpCabability>(synth);
 		auto programChangeCapability = std::dynamic_pointer_cast<SendsProgramChangeCapability>(synth);
-		handle_ = MidiController::makeOneHandle();
+		auto handle = MidiController::makeOneHandle();
 		if (streamLoading) {
 			// Simple enough, we hope
-			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
+			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
 				this->handleNextStreamPart(midiOutput, synth, progressHandler, editBuffer, StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP);
 			});
+			handles_.push(handle);
 			currentDownload_.clear();
 			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP);
 			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
 		} else if (editBufferCapability) {
 			// Uh, stone age, need to start a loop
-			MidiController::instance()->addMessageHandler(handle_, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
+			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
 				this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0));
 			});
+			handles_.push(handle);
 			// Special case - load only a single patch. In this case we're interested in the edit buffer only!
 			startDownloadNumber_ = 0;
 			endDownloadNumber_ = 0;
@@ -176,31 +191,34 @@ namespace midikraft {
 			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
 		}
 		else {
-			MidiController::instance()->removeMessageHandler(handle_);
 			SimpleLogger::instance()->postMessage("The " + synth->getName() + " has no way to request the edit buffer or program place");
 		}
 	}
 
 	void Librarian::startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished)
 	{
+		// First things first - this should not be called more than once at a time, and there should be no other Librarian callback handlers be registered!
+		jassert(handles_.empty());
+		clearHandlers();
+
 		downloadNumber_ = 0;
 		currentDownload_.clear();
 		onSequencerFinished_ = onFinished;
 
-		handle_ = MidiController::makeOneHandle();
-		MidiController::instance()->addMessageHandler(handle_, [this, sequencer, progressHandler, midiOutput, dataFileIdentifier](MidiInput *source, const MidiMessage &message) {
+		auto handle = MidiController::makeOneHandle();
+		MidiController::instance()->addMessageHandler(handle, [this, sequencer, progressHandler, midiOutput, dataFileIdentifier](MidiInput *source, const MidiMessage &message) {
 			ignoreUnused(source);
 			if (sequencer->isDataFile(message, dataFileIdentifier)) {
 				currentDownload_.push_back(message);
 				downloadNumber_++;
 				if (downloadNumber_ >= sequencer->numberOfDataItemsPerType(dataFileIdentifier)) {
 					auto loadedData = sequencer->loadData(currentDownload_, dataFileIdentifier);
-					MidiController::instance()->removeMessageHandler(handle_);
+					clearHandlers();
 					onSequencerFinished_(loadedData);
 					if (progressHandler) progressHandler->onSuccess();
 				}
 				else if (progressHandler->shouldAbort()) {
-					MidiController::instance()->removeMessageHandler(handle_);
+					clearHandlers();					
 					if (progressHandler) progressHandler->onCancel();
 				}
 				else {
@@ -209,6 +227,7 @@ namespace midikraft {
 				}
 			}
 		});
+		handles_.push(handle);
 		startDownloadNextDataItem(midiOutput, sequencer, dataFileIdentifier);
 	}
 
@@ -424,6 +443,16 @@ namespace midikraft {
 		}
 	}
 
+	void Librarian::clearHandlers()
+	{
+		// This is to clear up any remaining MIDI callback handlers, e.g. on User canceling an operation
+		while (!handles_.empty()) {
+			auto handle = handles_.top();
+			handles_.pop();
+			MidiController::instance()->removeMessageHandler(handle);
+		}
+	}
+
 	void Librarian::startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth) {
 		auto editBufferCapability = std::dynamic_pointer_cast<EditBufferCapability>(synth);
 		auto programDumpCapability = std::dynamic_pointer_cast<ProgramDumpCabability>(synth);
@@ -464,13 +493,13 @@ namespace midikraft {
 			if (streamLoading->isMessagePartOfStream(message, streamType)) {
 				currentDownload_.push_back(message);
 				if (streamLoading->isStreamComplete(currentDownload_, streamType)) {
-					MidiController::instance()->removeMessageHandler(handle_);
+					clearHandlers();
 					auto result = synth->loadSysex(currentDownload_);
 					onFinished_(tagPatchesWithImportFromSynth(synth, result, MidiBankNumber::fromZeroBase(0)));
 					if (progressHandler) progressHandler->onSuccess();
 				}
 				else if (progressHandler && progressHandler->shouldAbort()) {
-					MidiController::instance()->removeMessageHandler(handle_);
+					clearHandlers();
 					progressHandler->onCancel();
 				}
 				else if (streamLoading->shouldStreamAdvance(currentDownload_, streamType)) {
@@ -501,13 +530,13 @@ namespace midikraft {
 
 			// Finished?
 			if (downloadNumber_ >= endDownloadNumber_) {
-				MidiController::instance()->removeMessageHandler(handle_);
+				clearHandlers();
 				auto patches = synth->loadSysex(currentDownload_);
 				onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
 				if (progressHandler) progressHandler->onSuccess();
 			}
 			else if (progressHandler->shouldAbort()) {
-				MidiController::instance()->removeMessageHandler(handle_);
+				clearHandlers();
 				if (progressHandler) progressHandler->onCancel();
 			}
 			else {
@@ -530,13 +559,13 @@ namespace midikraft {
 		if (bankDumpCapability && bankDumpCapability->isBankDump(bankDump)) {
 			currentDownload_.push_back(bankDump);
 			if (bankDumpCapability->isBankDumpFinished(currentDownload_)) {
-				MidiController::instance()->removeMessageHandler(handle_);
+				clearHandlers();
 				auto patches = synth->loadSysex(currentDownload_);
 				onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
 				progressHandler->onSuccess();
 			}
 			else if (progressHandler->shouldAbort()) {
-				MidiController::instance()->removeMessageHandler(handle_);
+				clearHandlers();				
 				progressHandler->onCancel();
 			}
 			else {

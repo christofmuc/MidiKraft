@@ -36,12 +36,14 @@ namespace midikraft {
 		// Implementation of task
 		virtual void run() override;
 
-		static std::vector<MidiNetworkLocation> detectSynth(MidiController *midiController, DiscoverableDevice &synth, ProgressHandler *progressHandler);
+		static std::vector<MidiNetworkLocation> detectSynth(DiscoverableDevice &synth, ProgressHandler *progressHandler);
 
 	private:
-		FindSynthOnMidiNetwork(MidiController *midiController, DiscoverableDevice &synth, std::string const &text, ProgressHandler *progressHandler);
+		FindSynthOnMidiNetwork(DiscoverableDevice &synth, std::string const &text, ProgressHandler *progressHandler);
+		virtual ~FindSynthOnMidiNetwork();
 
-		MidiController *midiController_;
+		MidiController::HandlerHandle handler_;
+		std::weak_ptr<IsSynth> isSynth_; // The synth that is to be detected
 		DiscoverableDevice &synth_;
 		std::vector<MidiNetworkLocation> locations_;
 		ProgressHandler *progressHandler_;

@@ -24,9 +24,19 @@ namespace midikraft {
 		}
 	}
 
-	FindSynthOnMidiNetwork::FindSynthOnMidiNetwork(MidiController *midiController, DiscoverableDevice &synth, std::string const &text, ProgressHandler *progressHandler) :
-		midiController_(midiController), synth_(synth), Thread(text), progressHandler_(progressHandler)
+	FindSynthOnMidiNetwork::FindSynthOnMidiNetwork(DiscoverableDevice &synth, std::string const &text, ProgressHandler *progressHandler) :
+		synth_(synth), Thread(text), progressHandler_(progressHandler), handler_(MidiController::makeOneHandle())
 	{
+		MidiController::instance()->addMessageHandler(handler_, [this](MidiInput *source, MidiMessage const &midimessage) {
+			if (!isSynth_.expired()) {
+				isSynth_.lock()->handleIncomingMidiMessage(source, midimessage);
+			}
+		});
+	}
+
+	FindSynthOnMidiNetwork::~FindSynthOnMidiNetwork()
+	{
+		MidiController::instance()->removeMessageHandler(handler_);
 	}
 
 	void FindSynthOnMidiNetwork::run()
@@ -37,17 +47,14 @@ namespace midikraft {
 		int midiOuts = MidiOutput::getDevices().size();
 
 		// This detector can be enabled on all ins during the scan
-		IsSynth callback(synth_);
+		std::shared_ptr<IsSynth> callback = std::make_shared<IsSynth>(synth_);
+		isSynth_ = callback;
 
 		// Loop over all inputs and enable them, add the callback
 		for (int input = 0; input < midiIns; input++) {
 			auto inputName = MidiInput::getDevices()[input];
-			midiController_->enableMidiInput(inputName.toStdString());
+			MidiController::instance()->enableMidiInput(inputName.toStdString());
 		}
-		MidiController::HandlerHandle handler = MidiController::makeOneHandle();
-		midiController_->addMessageHandler(handler, [&](MidiInput *source, MidiMessage const &midimessage) {
-			callback.handleIncomingMidiMessage(source, midimessage);
-		});
 
 		// Now loop over outputs
 		for (int output = 0; output < midiOuts; output++) {
@@ -58,13 +65,13 @@ namespace midikraft {
 				for (int channel = 0; channel < 16; channel++) {
 					// Send the synth detection signal
 					auto detectMessage = synth_.deviceDetect(channel);
-					midiController_->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
+					MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
 				}
 			}
 			else {
 				// Just one message is enough
 				auto detectMessage = synth_.deviceDetect(-1);
-				midiController_->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
+				MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
 			}
 
 			// Sleep
@@ -79,14 +86,14 @@ namespace midikraft {
 			if (progressHandler_) progressHandler_->setProgressPercentage(output / (double)midiOuts);
 
 			// Copy results
-			for (auto found : callback.locations()) {
+			for (auto found : callback->locations()) {
 				auto withOutput = found;
 				withOutput.outputName = MidiOutput::getDevices()[output].toStdString();
 				locations_.push_back(withOutput);
 				// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
 				MidiMessage endDetectMessage;
 				if (synth_.endDeviceDetect(endDetectMessage)) {
-					midiController_->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendMessageNow(endDetectMessage);
+					MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendMessageNow(endDetectMessage);
 				}
 			}
 		}
@@ -94,14 +101,14 @@ namespace midikraft {
 		// Loop over all inputs and turn them off, remove callback
 		for (int input = 0; input < midiIns; input++) {
 			auto inputName = MidiInput::getDevices()[input];
-			midiController_->disableMidiInput(inputName.toStdString());
+			MidiController::instance()->disableMidiInput(inputName.toStdString());
 		}
-		midiController_->removeMessageHandler(handler);
+		
 	}
 
-	std::vector<MidiNetworkLocation> FindSynthOnMidiNetwork::detectSynth(MidiController *midiController, DiscoverableDevice &synth, ProgressHandler *progressHandler)
+	std::vector<MidiNetworkLocation> FindSynthOnMidiNetwork::detectSynth(DiscoverableDevice &synth, ProgressHandler *progressHandler)
 	{
-		FindSynthOnMidiNetwork m(midiController, synth, (boost::format("Looking for %s on your MIDI network...") % synth.getName()).str(), progressHandler);
+		FindSynthOnMidiNetwork m(synth, (boost::format("Looking for %s on your MIDI network...") % synth.getName()).str(), progressHandler);
 		m.startThread();
 		if (m.waitForThreadToExit(15000))
 		{

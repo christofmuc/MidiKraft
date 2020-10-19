@@ -64,7 +64,11 @@ namespace midikraft {
 	private:
 		static MidiController *instance_;
 		AudioDeviceManager deviceManager;
+
+		// The list of handlers needs to be locked for thread-safe access
+		CriticalSection messageHandlerList_;
 		std::map<HandlerHandle, MidiCallback> messageHandlers_;
+
 		std::map< std::string, std::unique_ptr<MidiOutput>> outputsOpen_;
 		std::map< std::string, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
 		std::map< std::string, MidiInputCallback *>  callbacks_;

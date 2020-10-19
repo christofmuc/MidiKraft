@@ -6,12 +6,9 @@
 
 #include "AutoDetection.h"
 
-#include "MidiController.h"
 #include "Logger.h"
 #include "Settings.h"
 #include "MidiHelpers.h"
-
-#include "FindSynthOnMidiNetwork.h"
 
 #include <boost/format.hpp>
 
@@ -24,6 +21,20 @@ namespace midikraft {
 
 	std::string midiSetupKey(DiscoverableDevice *synth, std::string const &trait) {
 		return (boost::format("%s-%s") % synth->getName() % trait).str();
+	}
+
+	AutoDetection::AutoDetection() : handler_(MidiController::makeOneHandle())
+	{
+		MidiController::instance()->addMessageHandler(handler_, [this](MidiInput *source, MidiMessage const &midimessage) {
+			if (!isSynth_.expired()) {
+				isSynth_.lock()->handleIncomingMidiMessage(source, midimessage);
+			}
+		});
+	}
+
+	AutoDetection::~AutoDetection()
+	{
+		MidiController::instance()->removeMessageHandler(handler_);
 	}
 
 	void AutoDetection::autoconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths, ProgressHandler *progressHandler)
@@ -91,7 +102,7 @@ namespace midikraft {
 			progressHandler->setMessage((boost::format("Trying to detect %s...") % synth->getName()).str());
 		}
 
-		auto locations = FindSynthOnMidiNetwork::detectSynth(MidiController::instance(), *synth, progressHandler);
+		auto locations = FindSynthOnMidiNetwork::detectSynth(*synth, progressHandler);
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
 				SimpleLogger::instance()->postMessage((boost::format("Found %s on channel %d replying on device %s when sending to %s on channel %d")
@@ -118,13 +129,8 @@ namespace midikraft {
 		}
 
 		// This is the fast version of the FindSynthOnMidiNetwork routine - just a single pass to see if the synth responds
-		IsSynth callback(*synth);
-
-		MidiController::HandlerHandle handler = MidiController::makeOneHandle();
-		MidiController::instance()->addMessageHandler(handler, [&](MidiInput *source, MidiMessage const &midimessage) {
-			callback.handleIncomingMidiMessage(source, midimessage);
-		});
-
+		std::shared_ptr<IsSynth> callback = std::make_shared<IsSynth>(*synth);
+		isSynth_ = callback;
 		MidiController::instance()->enableMidiInput(synth->midiInput());
 
 		// Send the detect message
@@ -136,7 +142,7 @@ namespace midikraft {
 
 		// Check if we found it
 		bool ok = false;
-		for (auto found : callback.locations()) {
+		for (auto found : callback->locations()) {
 			if (found.inputName == synth->midiInput() && found.midiChannel.toZeroBasedInt() == synth->channel().toZeroBasedInt()) {
 				ok = true;
 				// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
@@ -147,7 +153,6 @@ namespace midikraft {
 			}
 		}
 		MidiController::instance()->disableMidiInput(synth->midiInput());
-		MidiController::instance()->removeMessageHandler(handler);
 		return ok;
 	}
 

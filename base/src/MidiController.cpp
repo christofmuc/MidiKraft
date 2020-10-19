@@ -61,7 +61,7 @@ namespace midikraft {
 	MidiController::~MidiController()
 	{
 		// Remove all registered callbacks
-		for (auto callback : callbacks_) {
+		for (auto const &callback : callbacks_) {
 			deviceManager.removeMidiInputCallback(callback.first, callback.second);
 		}
 	}
@@ -158,19 +158,24 @@ namespace midikraft {
 		// Call all currently registered handlers, but make sure to iterate over a copy of the list as it might get modified while the handlers run
 		// First the new style handlers;
 		std::vector < std::function<void(MidiInput *, MidiMessage const &)>> newhandlers;
-		for (auto handler : messageHandlers_) {
-			newhandlers.push_back(handler.second);
+		{
+			ScopedLock lock(messageHandlerList_);
+			for (auto const &handler : messageHandlers_) {
+				newhandlers.push_back(handler.second);
+			}
 		}
-		for (auto handler : newhandlers) {
+		for (auto const &handler : newhandlers) {
 			handler(source, message);
 		}
 	}
 
 	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler) {
+		ScopedLock lock(messageHandlerList_);
 		messageHandlers_.insert(std::make_pair(handle, handler));
 	}
 
 	bool MidiController::removeMessageHandler(HandlerHandle const &handle) {
+		ScopedLock lock(messageHandlerList_);
 		if (messageHandlers_.find(handle) != messageHandlers_.end()) {
 			messageHandlers_.erase(handle);
 			return true;

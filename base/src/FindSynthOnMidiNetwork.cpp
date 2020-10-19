@@ -59,7 +59,7 @@ namespace midikraft {
 		// Now loop over outputs
 		for (int output = 0; output < midiOuts; output++) {
 			if (progressHandler_ && progressHandler_->shouldAbort()) break;
-			callback.reset();
+			callback->restart();
 			if (synth_.needsChannelSpecificDetection()) {
 				// Test all 16 channels
 				for (int channel = 0; channel < 16; channel++) {
@@ -86,7 +86,7 @@ namespace midikraft {
 			if (progressHandler_) progressHandler_->setProgressPercentage(output / (double)midiOuts);
 
 			// Copy results
-			for (auto found : callback->locations()) {
+			for (auto const &found : callback->locations()) {
 				auto withOutput = found;
 				withOutput.outputName = MidiOutput::getDevices()[output].toStdString();
 				locations_.push_back(withOutput);

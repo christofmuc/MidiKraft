@@ -22,7 +22,7 @@ namespace midikraft {
 		virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
 
 		std::vector<MidiNetworkLocation> locations() { return found_; };
-		void reset() { found_.clear(); }
+		void restart() { found_.clear(); }
 
 	private:
 		DiscoverableDevice & synth_;

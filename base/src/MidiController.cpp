@@ -180,6 +180,7 @@ namespace midikraft {
 			messageHandlers_.erase(handle);
 			return true;
 		}
+		jassertfalse;
 		return false;
 	}
 

@@ -38,21 +38,13 @@ namespace midikraft {
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
-		PatchDataBaseImpl() : db_(generateDatabaseLocation().toStdString().c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
+		PatchDataBaseImpl(std::string const &databaseFile) : db_(databaseFile.c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
 			createSchema();
 			manageBackupDiskspace(kDataBaseBackupSuffix);
 		}
 
 		~PatchDataBaseImpl() {
 			PatchDataBaseImpl::makeDatabaseBackup(kDataBaseBackupSuffix);
-		}
-
-		static String generateDatabaseLocation() {
-			auto knobkraft = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("KnobKraft");
-			if (!knobkraft.exists()) {
-				knobkraft.createDirectory();
-			}
-			return knobkraft.getChildFile(kDataBaseFileName).getFullPathName();
 		}
 
 		void makeDatabaseBackup(String const &suffix) {
@@ -566,15 +558,44 @@ namespace midikraft {
 			return sumOfAll;
 		}
 
+		std::string databaseFileName() const
+		{
+			return db_.getFilename();
+		}
+
+
 	private:
 		SQLite::Database db_;
 	};
 
 	PatchDatabase::PatchDatabase() {
-		impl.reset(new PatchDataBaseImpl());
+		impl.reset(new PatchDataBaseImpl(generateDefaultDatabaseLocation()));
+	}
+
+	PatchDatabase::PatchDatabase(std::string const &databaseFile) {
+		impl.reset(new PatchDataBaseImpl(databaseFile));
 	}
 
 	PatchDatabase::~PatchDatabase() {
+	}
+
+	std::string PatchDatabase::getCurrentDatabaseFileName() const
+	{
+		return impl->databaseFileName();
+	}
+
+	bool PatchDatabase::switchDatabaseFile(std::string const &newDatabaseFile)
+	{
+		try {
+			auto newDatabase = new PatchDataBaseImpl(newDatabaseFile);
+			// If no exception was thrown, this worked
+			impl.reset(newDatabase);
+			return true;
+		}
+		catch (SQLite::Exception &ex) {
+			SimpleLogger::instance()->postMessage("Failed to open database: " + String(ex.what()));
+		}
+		return false;
 	}
 
 	int PatchDatabase::getPatchesCount(PatchFilter filter)
@@ -626,6 +647,16 @@ namespace midikraft {
 	std::vector<ImportInfo> PatchDatabase::getImportsList(Synth *activeSynth) const {
 		return impl->getImportsList(activeSynth);
 	}
+
+	std::string PatchDatabase::generateDefaultDatabaseLocation() {
+		auto knobkraft = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("KnobKraft");
+		if (!knobkraft.exists()) {
+			knobkraft.createDirectory();
+		}
+		return knobkraft.getChildFile(kDataBaseFileName).getFullPathName().toStdString();
+	}
+
+
 
 }
 

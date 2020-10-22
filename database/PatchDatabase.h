@@ -44,8 +44,12 @@ namespace midikraft {
 			UPDATE_ALL = UPDATE_NAME | UPDATE_CATEGORIES | UPDATE_HIDDEN | UPDATE_DATA
 		};
 
-		PatchDatabase();
+		PatchDatabase(); // Default location
+		PatchDatabase(std::string const &databaseFile); // Specific file
 		~PatchDatabase();
+
+		std::string getCurrentDatabaseFileName() const;
+		bool switchDatabaseFile(std::string const &newDatabaseFile);
 
 		int getPatchesCount(PatchFilter filter);
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
@@ -55,6 +59,9 @@ namespace midikraft {
 		std::vector<ImportInfo> getImportsList(Synth *activeSynth) const;
 		bool putPatch(PatchHolder const &patch);
 		bool putPatches(std::vector<PatchHolder> const &patches);
+
+		// For backward compatibility
+		static std::string generateDefaultDatabaseLocation();
 
 	private:
 		class PatchDataBaseImpl;

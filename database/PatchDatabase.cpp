@@ -157,6 +157,12 @@ namespace midikraft {
 				if (version < SCHEMA_VERSION) {
 					migrateSchema(version);
 				}
+				else if (version > SCHEMA_VERSION) {
+					// This is a database from the future, can't open!
+					std::string message = (boost::format("Cannot open database file %s - this was produced with a newer version of KnobKraft Orm, schema version is %d.") % db_.getFilename() % version).str();
+					AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Database Error", message);
+					throw new SQLite::Exception(message);
+				}
 			}
 			else {
 				// Ups, completely empty database, need to insert current schema version

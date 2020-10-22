@@ -74,6 +74,10 @@ namespace midikraft {
 										% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
 								synth->setChannel(MidiChannel::invalidChannel());
 							}
+							else {
+								SimpleLogger::instance()->postMessage((boost::format("Detected %s on channel %d of device %s") 
+									% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
+							}
 						}
 					}
 				}

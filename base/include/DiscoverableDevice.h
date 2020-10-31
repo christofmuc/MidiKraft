@@ -22,6 +22,8 @@ namespace midikraft {
 		virtual MidiChannel channelIfValidDeviceResponse(const MidiMessage &message) = 0;
 		virtual bool needsChannelSpecificDetection() = 0;
 		virtual bool endDeviceDetect(MidiMessage &endMessageOut) const;
+		virtual bool wasDetected() const = 0;
+		virtual void setWasDetected(bool wasDetected) = 0;
 	};
 
 }

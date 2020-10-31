@@ -20,6 +20,7 @@ namespace midikraft {
 	{
 		MidiChannel channel = synth_.channelIfValidDeviceResponse(message);
 		if (channel.isValid()) {
+			synth_.setWasDetected(true);
 			found_.push_back(MidiNetworkLocation(source->getName().toStdString(), "unknown", channel));
 		}
 	}

@@ -30,6 +30,16 @@ namespace midikraft {
 		midiOutput_ = midiOutput;
 	}
 
+	bool SimpleDiscoverableDevice::wasDetected() const
+	{
+		return wasDetected_;
+	}
+
+	void SimpleDiscoverableDevice::setWasDetected(bool wasDetected)
+	{
+		wasDetected_ = wasDetected;
+	}
+
 	std::string SimpleDiscoverableDevice::midiInput() const
 	{
 		return midiInput_;

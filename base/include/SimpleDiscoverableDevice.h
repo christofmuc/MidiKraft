@@ -14,11 +14,14 @@ namespace midikraft {
 
 	class SimpleDiscoverableDevice : public DiscoverableDevice, public MidiLocationCapability {
 	public:
-		// DiscoverableDevice
 		virtual void setCurrentChannelZeroBased(std::string const &midiInput, std::string const &midiOutput, int midiChannel);
 		virtual void setChannel(MidiChannel newChannel);
 		virtual void setInput(std::string const &midiInput); // To override auto-detection
 		virtual void setOutput(std::string const &midiOutput); // To override auto-detection
+		
+		// DiscoverableDevice
+		virtual bool wasDetected() const override;
+		virtual void setWasDetected(bool wasDetected) override;
 
 		// MidiLocationCapability
 		virtual std::string midiInput() const override;
@@ -27,6 +30,7 @@ namespace midikraft {
 
 	private:
 		MidiChannel channel_ = MidiChannel::invalidChannel();
+		bool wasDetected_ = false;
 		std::string midiInput_;
 		std::string midiOutput_;
 	};

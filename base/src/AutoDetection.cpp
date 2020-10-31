@@ -56,32 +56,21 @@ namespace midikraft {
 			if (synthHolder) {
 				auto synth = synthHolder.get();
 				// Load the synthesizer setup from the settings file
-				std::string channelString = Settings::instance().get(midiSetupKey(synth, kChannel));
-				if (!channelString.empty()) {
-					int channel = std::atoi(channelString.c_str());
-					if (channel >= 0 && channel < 16) {
-						std::string input = Settings::instance().get(midiSetupKey(synth, kInput));
-						std::string output = Settings::instance().get(midiSetupKey(synth, kOutput));
-						if (!input.empty() && !output.empty()) {
-							synth->setCurrentChannelZeroBased(input, output, channel);
-							// Hack - if the wait time is negative, don't autodetect. This needs to be replaced by some proper dynamic cast
-							if (synthHolder->deviceDetectSleepMS() < 0) {
-								continue;
-							}
-							if (!checkSynth(synth)) {
-								SimpleLogger::instance()->postMessage(
-									(boost::format("Lost communication with %s on channel %d of device %s - please rerun auto-detect synths!")
-										% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
-								synth->setChannel(MidiChannel::invalidChannel());
-							}
-							else {
-								SimpleLogger::instance()->postMessage((boost::format("Detected %s on channel %d of device %s") 
-									% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
-							}
-						}
-					}
+				loadSettings(synth);
+				// Hack - if the wait time is negative, don't autodetect. This needs to be replaced by some proper dynamic cast
+				if (synthHolder->deviceDetectSleepMS() < 0) {
+					continue;
 				}
-			}
+				if (!checkSynth(synth)) {
+					SimpleLogger::instance()->postMessage(
+						(boost::format("Lost communication with %s on channel %d of device %s - please rerun auto-detect synths!")
+							% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
+				}
+				else {
+					SimpleLogger::instance()->postMessage((boost::format("Detected %s on channel %d of device %s") 
+						% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
+				}
+		}
 		}
 		listenerToAllFound(allSynths);
 		sendChangeMessage();
@@ -94,6 +83,23 @@ namespace midikraft {
 		}
 		Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput());
 		Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput());
+	}
+
+	void AutoDetection::loadSettings(SimpleDiscoverableDevice *synth)
+	{
+		std::string input = Settings::instance().get(midiSetupKey(synth, kInput));
+		synth->setInput(input);
+		std::string output = Settings::instance().get(midiSetupKey(synth, kOutput));
+		synth->setOutput(output);
+
+		synth->setChannel(MidiChannel::invalidChannel());
+		std::string channelString = Settings::instance().get(midiSetupKey(synth, kChannel));
+		if (!channelString.empty()) {
+			int channel = std::atoi(channelString.c_str());
+			if (channel >= 0 && channel < 16) {
+				synth->setChannel(MidiChannel::fromZeroBase(channel));
+			}
+		}
 	}
 
 	void AutoDetection::findSynth(SimpleDiscoverableDevice *synth, ProgressHandler *progressHandler) {
@@ -163,7 +169,7 @@ namespace midikraft {
 	void AutoDetection::listenerToAllFound(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths) {
 		// Listen to all detected synths
 		for (auto synth : allSynths) {
-			if (synth->channel().isValid()) {
+			if (synth->wasDetected()) {
 				MidiController::instance()->enableMidiInput(synth->midiInput());
 			}
 		}

@@ -163,6 +163,7 @@ namespace midikraft {
 			}
 		}
 		MidiController::instance()->disableMidiInput(synth->midiInput());
+		synth->setWasDetected(ok);
 		return ok;
 	}
 

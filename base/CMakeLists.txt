@@ -44,6 +44,7 @@ set(Sources
 	include/HybridWaveCapability.h
 	include/LayerCapability.h
 	include/LayeredPatch.h
+	include/LoopDetection.h src/LoopDetection.cpp
 	include/MasterkeyboardCapability.h	
 	include/MidiClockCapability.h
 	include/MidiController.h src/MidiController.cpp

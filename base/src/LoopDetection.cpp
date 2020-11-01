@@ -25,14 +25,8 @@ namespace midikraft {
 
 		void run() override
 		{
-			// We will do the following - activate all MIDI ins, and then send a loop detection message to all MIDI outputs, waiting to see if it comes back from somewhere
-			std::vector<String> inputsToDisable;
-
 			// Listen to all devices connected at the same time
 			for (auto const &input : MidiInput::getAvailableDevices()) {
-				if (!MidiController::instance()->isMidiInputEnabled(input.name.toStdString())) {
-					inputsToDisable.push_back(input.name);
-				}
 				MidiController::instance()->enableMidiInput(input.name.toStdString());
 			}
 
@@ -61,11 +55,6 @@ namespace midikraft {
 					progressHandler_.lock()->setProgressPercentage(++output_count / (double)MidiOutput::getAvailableDevices().size());
 				}
 			}
-
-			// Try to reset same state as before
-			//for (auto const &input : inputsToDisable) {
-				//MidiController::instance()->disableMidiInput(input.toStdString());
-			//}
 		}
 
 	private:

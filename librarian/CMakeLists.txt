@@ -43,6 +43,7 @@ set(Sources
 	Category.cpp Category.h
 	Librarian.cpp Librarian.h
 	PatchHolder.cpp PatchHolder.h
+	PatchInterchangeFormat.cpp PatchInterchangeFormat.h
 	RapidjsonHelper.cpp RapidjsonHelper.h
 	Session.h
 	SynthHolder.cpp SynthHolder.h

@@ -16,6 +16,7 @@
 #include "HandshakeLoadingCapability.h"
 #include "LegacyLoaderCapability.h"
 #include "SendsProgramChangeCapability.h"
+#include "PatchInterchangeFormat.h"
 
 #include "MidiHelpers.h"
 #include "FileHelpers.h"
@@ -301,13 +302,13 @@ namespace midikraft {
 	{
 		updateLastPath();
 
-		std::string standardFileExtensions = "*.syx;*.mid;*.zip;*.txt";
+		std::string standardFileExtensions = "*.syx;*.mid;*.zip;*.txt;*.json";
 		auto legacyLoader = std::dynamic_pointer_cast<LegacyLoaderCapability>(synth);
 		if (legacyLoader) {
 			standardFileExtensions += ";" + legacyLoader->additionalFileExtensions();
 		}
 
-		FileChooser sysexChooser("Please select the sysex you want to load...",
+		FileChooser sysexChooser("Please select the sysex or other patch file you want to load...",
 			File(lastPath_), standardFileExtensions);
 		if (sysexChooser.browseForMultipleFilesToOpen())
 		{
@@ -346,6 +347,9 @@ namespace midikraft {
 				inputStream.read(&data[0], (int)inputStream.getTotalLength()); // 4 GB Limit
 				patches = legacyLoader->load(fullpath, data);
 			}
+		}
+		else if (File(fullpath).getFileExtension() == ".json") {
+			return PatchInterchangeFormat::load(synth, fullpath);
 		}
 		else {
 			auto messagesLoaded = Sysex::loadSysex(fullpath);

@@ -37,6 +37,14 @@ namespace midikraft {
 		Settings::instance().set(colorSynthKey(device()), newColor.toString().toStdString());
 	}
 
+	std::string SynthHolder::getName() const
+	{
+		if (device_) {
+			return device_->getName();
+		}
+		return "invalid";
+	}
+
 	std::shared_ptr<Synth> SynthHolder::findSynth(std::vector<SynthHolder> &synths, std::string const &synthName)
 	{
 		for (auto synth : synths) {

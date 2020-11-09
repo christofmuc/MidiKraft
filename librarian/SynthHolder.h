@@ -25,6 +25,8 @@ namespace midikraft {
 		Colour color() { return color_; }
 		void setColor(Colour const &newColor);
 
+		std::string getName() const;
+
 		static std::shared_ptr<Synth> findSynth(std::vector<SynthHolder> &synths, std::string const &synthName);
 
 	private:

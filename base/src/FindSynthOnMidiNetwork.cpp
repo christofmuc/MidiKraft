@@ -70,8 +70,8 @@ namespace midikraft {
 				}
 			}
 			else {
-				// Just one message is enough
-				auto detectMessage = synth_.deviceDetect(-1);
+				// Just one message is enough - use a "broadcast" channel or sysex device ID as parameter
+				auto detectMessage = synth_.deviceDetect(0x7f);
 				MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
 			}
 

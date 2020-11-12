@@ -144,7 +144,7 @@ namespace midikraft {
 		MidiController::instance()->enableMidiInput(synth->midiInput());
 
 		// Send the detect message
-		auto detectMessage = synth->deviceDetect(synth->channel().toZeroBasedInt());
+		auto detectMessage = synth->deviceDetect(synth->channel().toZeroBasedInt() & 0x7f);
 		MidiController::instance()->getMidiOutput(synth->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
 
 		// Sleep as long as the synth thinks is enough

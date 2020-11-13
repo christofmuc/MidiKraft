@@ -117,8 +117,6 @@ namespace midikraft {
 		bool autoCategorizeAgain(); // Returns true if categories have changed!
 		
 		std::string md5() const;
-
-		static std::string calcMd5(Synth *activeSynth, std::shared_ptr<DataFile> dataFile);
 		
 	private:
 		void setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield);
@@ -132,7 +130,6 @@ namespace midikraft {
 		std::set<Category> categories_;
 		std::set<Category> userDecisions_;
 		std::shared_ptr<SourceInfo> sourceInfo_;
-		std::string md5_;
 	};
 
 }

@@ -37,7 +37,6 @@ namespace midikraft {
 			if (autoDetectCategories) {
 				categories_ = AutoCategory::determineAutomaticCategories(*this);
 			}
-			md5_ = calcMd5(activeSynth.get(), patch);
 		}
 	}
 
@@ -215,16 +214,9 @@ namespace midikraft {
 		}
 	}
 
-	std::string PatchHolder::calcMd5(Synth *activeSynth, std::shared_ptr<DataFile> dataFile)
-	{
-		auto filteredData = activeSynth->filterVoiceRelevantData(dataFile);
-		MD5 md5(&filteredData[0], filteredData.size());
-		return md5.toHexString().toStdString();
-	}
-
 	std::string PatchHolder::md5() const
 	{
-		return md5_;
+		return synth_->calculateFingerprint(patch_);
 	}
 
 	void PatchHolder::setUserDecision(Category const &clicked)

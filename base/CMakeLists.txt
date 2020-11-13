@@ -19,6 +19,7 @@ IF(NOT DEFINED JUCE_LIBRARIES)
 			juce_audio_devices
 			juce_data_structures
 			juce_dsp
+			juce_cryptography # Only for the MD5 class			
 	)
 ENDIF()
 

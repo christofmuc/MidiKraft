@@ -29,6 +29,13 @@ namespace midikraft {
 		return unfilteredData->data();
 	}
 
+	std::string Synth::calculateFingerprint(std::shared_ptr<DataFile> patch) const
+	{
+		auto filteredData = filterVoiceRelevantData(patch);
+		juce::MD5 md5(&filteredData[0], filteredData.size());
+		return md5.toHexString().toStdString();
+	}
+
 	TPatchVector Synth::loadSysex(std::vector<MidiMessage> const &sysexMessages)
 	{
 		TPatchVector result;

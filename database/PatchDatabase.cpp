@@ -195,7 +195,8 @@ namespace midikraft {
 				sql.exec();
 			}
 			catch (SQLite::Exception &ex) {
-				AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Exception", ex.what());
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR: SQL Exception %s") % ex.what()).str());
+				//AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Exception", ex.what());
 			}
 			return true;
 		}
@@ -373,7 +374,7 @@ namespace midikraft {
 					}
 				} 
 				catch (SQLite::Exception &ex) {
-					AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Exception", ex.what());
+					SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR: SQL Exception %s") % ex.what()).str());
 				}
 				if (progress) progress->setProgressPercentage(checkedForExistance++ / (double)patches.size());
 			}
@@ -442,7 +443,7 @@ namespace midikraft {
 			// This works by doing a bulk get operation for the patches from the database...
 			auto knownPatches = bulkGetPatches(patches, progress);
 
-			SQLite::Transaction transaction(db_);
+			SQLite::Transaction transaction(db_); 
 
 			int loop = 0;
 			int updatedNames = 0;

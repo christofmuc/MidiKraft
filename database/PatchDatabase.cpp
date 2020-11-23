@@ -454,7 +454,6 @@ namespace midikraft {
 
 				if (knownPatches.find(md5_key) != knownPatches.end()) {
 					// Super special logic - do not set the name if the patch name is a default name to prevent us from losing manually given names or those imported from "better" sysex files
-					auto storedPatchNameCapa = dynamic_cast<StoredPatchNameCapability *>(patch.patch().get());
 					unsigned onlyUpdateThis = updateChoice;
 					if (hasDefaultName(patch.patch().get())) {
 						onlyUpdateThis = onlyUpdateThis & (~UPDATE_NAME);
@@ -614,6 +613,7 @@ namespace midikraft {
 	}
 
 	bool PatchDatabase::putPatches(std::vector<PatchHolder> const &patches) {
+		ignoreUnused(patches);
 		jassert(false);
 		return false;
 	}

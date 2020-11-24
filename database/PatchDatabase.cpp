@@ -292,6 +292,7 @@ namespace midikraft {
 				selectStatement += " OFFSET :OFS";
 			}
 			SQLite::Statement query(db_, selectStatement.c_str());
+
 			bindWhereClause(query, filter);
 			if (limit != -1) {
 				query.bind(":LIM", limit);
@@ -558,6 +559,22 @@ namespace midikraft {
 			return sumOfAll;
 		}
 
+		int deletePatches(PatchFilter filter) {
+			SQLite::Transaction transaction(db_);
+
+			// Build a delete query
+			std::string deleteStatement = "DELETE FROM patches " + buildWhereClause(filter);
+			SQLite::Statement query(db_, deleteStatement.c_str());
+			bindWhereClause(query, filter);
+
+			// Execute
+			int rowsDeleted = query.exec();
+
+			transaction.commit();
+
+			return rowsDeleted;
+		}
+
 		std::string databaseFileName() const
 		{
 			return db_.getFilename();
@@ -616,6 +633,11 @@ namespace midikraft {
 		ignoreUnused(patches);
 		jassert(false);
 		return false;
+	}
+
+	int PatchDatabase::deletePatches(PatchFilter filter)
+	{
+		return impl->deletePatches(filter);
 	}
 
 	std::vector<PatchHolder> PatchDatabase::getPatches(PatchFilter filter, int skip, int limit)

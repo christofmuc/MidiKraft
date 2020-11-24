@@ -17,7 +17,7 @@
     "Bass": [ "^bs[^a-z]", "bs$", "bass", "bas$", " ba$", "^BAS:" ],
     "Arp": [ "[^h]arp", "^ARP:", "^SEQ:" ],
     "Pluck": [ "pluck", "gitar", "guitar", "harp", "^PLK:" ],
-    "Done": [ "drone", "^DRO:" ],
+    "Drone": [ "drone", "^DRO:" ],
     "Drum": [ "snare", "base", "bd$", "dr\\.", "drum", " tom", "kick", "perc", "^PRC:" ],
     "Bell": [ "bell", "tines", "chime", "^CHR:" ],
     "SFX": [ "fx" ],

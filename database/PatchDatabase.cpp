@@ -646,7 +646,12 @@ namespace midikraft {
 	}
 
 	std::vector<ImportInfo> PatchDatabase::getImportsList(Synth *activeSynth) const {
-		return impl->getImportsList(activeSynth);
+		if (activeSynth) {
+			return impl->getImportsList(activeSynth);
+		}
+		else {
+			return {};
+		}
 	}
 
 	std::string PatchDatabase::generateDefaultDatabaseLocation() {

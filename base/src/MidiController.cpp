@@ -9,6 +9,8 @@
 #include "DiscoverableDevice.h"
 #include "Logger.h"
 
+#define VERBOSE 1
+
 namespace midikraft {
 
 	SafeMidiOutput::SafeMidiOutput(MidiController *controller, MidiOutput *midiOutput) :
@@ -94,7 +96,9 @@ namespace midikraft {
 					if (newDevice) {
 						// Take responsibility for the lifetime of the returned output
 						newDevice.swap(outputsOpen_[newOutput]);
-						//SimpleLogger::instance()->postMessage("Successfully opened MIDI output device " + String(newOutput) + " with ID " + device.identifier);
+#ifdef VERBOSE
+						SimpleLogger::instance()->postMessage("MIDI output " + String(newOutput) + " opened with ID " + device.identifier);
+#endif
 						return true;
 					}
 					SimpleLogger::instance()->postMessage("MIDI output " + newOutput + " could not be opened, maybe it is turned off or used by another software?");
@@ -138,7 +142,9 @@ namespace midikraft {
 					inputsOpen_[newInput] = MidiInput::openDevice(device.identifier, this);
 					if (inputsOpen_[newInput]) {
 						inputsOpen_[newInput]->start();
-						//SimpleLogger::instance()->postMessage("Successfully opened MIDI input device " + String(newInput) + " with ID " + device.identifier);
+#ifdef VERBOSE
+						SimpleLogger::instance()->postMessage("MIDI input " + String(newInput) + " opened with ID " + device.identifier);
+#endif
 						return true;
 					}
 					else {
@@ -150,7 +156,9 @@ namespace midikraft {
 				else {
 					// Make sure it is still open and running. This could happen when e.g. a MIDI USB device is removed and inserted back in
 					inputsOpen_[newInput]->start();
-					//SimpleLogger::instance()->postMessage("MIDI input device " + newInput + " restarted");
+#ifdef VERBOSE
+					SimpleLogger::instance()->postMessage("MIDI input device " + newInput + " restarted");
+#endif
 					return true;
 				}
 			}
@@ -164,9 +172,14 @@ namespace midikraft {
 
 		// Has this device ever been opened?
 		if (inputsOpen_.find(input) == inputsOpen_.end()) {
-			//SimpleLogger::instance()->postMessage("Device " + input + " never was opened, can't disable!. Program error?");
+#ifdef VERBOSE
+			SimpleLogger::instance()->postMessage("MIDI input " + input + " never was opened, can't disable!. Program error?");
+#endif
 		}
 		else {
+#ifdef VERBOSE
+			SimpleLogger::instance()->postMessage("MIDI input" + input + " stopped");
+#endif
 			inputsOpen_[input]->stop();
 		}
 	}

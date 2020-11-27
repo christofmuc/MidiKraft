@@ -9,6 +9,7 @@
 #include "JuceHeader.h"
 
 #include <map>
+#include <set>
 
 #include "DebounceTimer.h"
 
@@ -33,15 +34,15 @@ namespace midikraft {
 		DebounceTimer debouncer_;
 	};
 
-	class MidiController : public MidiInputCallback
+	// TODO - another example of bad naming. This is rather the "MidiDeviceManager"
+	class MidiController : public ChangeBroadcaster, private MidiInputCallback, private Timer
 	{
 	public:
 		typedef juce::Uuid HandlerHandle;
 		static HandlerHandle makeOneHandle() { return juce::Uuid(); }
 		static HandlerHandle makeNoneHandle() { return juce::Uuid::null(); }
 
-		MidiController();
-		~MidiController();
+		MidiController(); // Public for PyBind11
 
 		static MidiController *instance();
 		static void shutdown(); // Call this last, and never call instance() again after this
@@ -55,23 +56,28 @@ namespace midikraft {
 
 		bool enableMidiOutput(std::string const &newOutput);
 		std::shared_ptr<SafeMidiOutput> getMidiOutput(std::string const &name);
-		void enableMidiInput(std::string const &newInput);
+		bool enableMidiInput(std::string const &newInput);
 		void disableMidiInput(std::string const &input);
 
+	private:
 		// Implementation of Callback
 		virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
+		virtual void timerCallback() override;
 
-	private:
+		std::set<std::string> currentInputs();
+		std::set<std::string> currentOutputs();
+
 		static MidiController *instance_;
-		AudioDeviceManager deviceManager;
 
 		// The list of handlers needs to be locked for thread-safe access
 		CriticalSection messageHandlerList_;
 		std::map<HandlerHandle, MidiCallback> messageHandlers_;
 
+		std::set<std::string> knownInputs_;
+		std::set<std::string> knownOutputs_;
 		std::map< std::string, std::unique_ptr<MidiOutput>> outputsOpen_;
 		std::map< std::string, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
-		std::map< std::string, MidiInputCallback *>  callbacks_;
+		std::map< std::string, std::unique_ptr<MidiInput>> inputsOpen_;
 		std::function<void(const MidiMessage& message, const String& source, bool)> midiLogFunction_;
 	};
 	

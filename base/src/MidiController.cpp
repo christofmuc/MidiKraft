@@ -54,20 +54,18 @@ namespace midikraft {
 			throw new std::runtime_error("This is a singleton, can't create twice");
 		}
 		instance_ = this;
-	}
 
-	MidiController::~MidiController()
-	{
-		// Remove all registered callbacks
-		for (auto const &callback : callbacks_) {
-			deviceManager.removeMidiInputCallback(callback.first, callback.second);
-		}
+		// Find the current list of connected MIDI ports
+		knownOutputs_ = currentOutputs();
+		knownInputs_ = currentInputs();
+
+		startTimer(500); // Do start a timer monitoring new devices from appearing and known devices from disappearing, as there is USB after all
 	}
 
 	MidiController * MidiController::instance()
 	{
 		if (instance_ == nullptr) {
-			instance_ = new MidiController;
+			instance_ = new MidiController();
 		}
 		return instance_;
 	}
@@ -85,21 +83,26 @@ namespace midikraft {
 
 	bool MidiController::enableMidiOutput(std::string const &newOutput)
 	{
+		if (newOutput.empty()) return false;
+
 		// Check if it is already open
 		if (outputsOpen_.find(newOutput) == outputsOpen_.end()) {
-			auto devices = MidiOutput::getDevices();
-			for (int index = 0; index < devices.strings.size(); index++) {
-				if (devices.strings[index] == juce::String(newOutput)) {
-					auto newDevice = MidiOutput::openDevice(index);
+			auto devices = MidiOutput::getAvailableDevices();
+			for (const auto& device : devices) {
+				if (device.name == juce::String(newOutput)) {
+					auto newDevice = MidiOutput::openDevice(device.identifier);
 					if (newDevice) {
 						// Take responsibility for the lifetime of the returned output
 						newDevice.swap(outputsOpen_[newOutput]);
+						//SimpleLogger::instance()->postMessage("Successfully opened MIDI output device " + String(newOutput) + " with ID " + device.identifier);
 						return true;
 					}
-					SimpleLogger::instance()->postMessage("Failed to open MIDI device " + newOutput + ", maybe it is turned off or used by another software?");
+					SimpleLogger::instance()->postMessage("MIDI output " + newOutput + " could not be opened, maybe it is turned off or used by another software?");
+					return false;
 				}
 			}
 		}
+		SimpleLogger::instance()->postMessage("MIDI output " + newOutput + " could not be opened, not found. Please plugin/turn on the device.");
 		return false;
 	}
 
@@ -113,6 +116,7 @@ namespace midikraft {
 			if (outputsOpen_.find(name) == outputsOpen_.end()) {
 				// Lazy open
 				if (!enableMidiOutput(name)) {
+					// Create a safe empty wrapper
 					safeOutputs_[name] = std::make_shared<SafeMidiOutput>(this, nullptr);
 					return safeOutputs_[name];
 				}
@@ -122,28 +126,48 @@ namespace midikraft {
 		return safeOutputs_[name];
 	}
 
-	void MidiController::enableMidiInput(std::string const &newInput)
+	bool MidiController::enableMidiInput(std::string const &newInput)
 	{
 		// Do not and never open a MIDI Input with an empty identifier, as this is a "catch all" function for JUCE, and you suddenly get duplicated messages everywhere!
-		if (newInput.empty()) return;
+		if (newInput.empty()) return false;
 
-		// Only enable and register once
-		if (!deviceManager.isMidiInputEnabled(newInput)) {
-			deviceManager.setMidiInputEnabled(newInput, true);
+		for (const auto& device : MidiInput::getAvailableDevices()) {
+			if (device.name == String(newInput)) {
+				// Has this device already been opened?
+				if (inputsOpen_.find(newInput) == inputsOpen_.end()) {
+					inputsOpen_[newInput] = MidiInput::openDevice(device.identifier, this);
+					if (inputsOpen_[newInput]) {
+						inputsOpen_[newInput]->start();
+						//SimpleLogger::instance()->postMessage("Successfully opened MIDI input device " + String(newInput) + " with ID " + device.identifier);
+						return true;
+					}
+					else {
+						inputsOpen_.erase(newInput);
+						SimpleLogger::instance()->postMessage("MIDI input" + newInput + " could not be opened, maybe it is locked by another software running?");
+						return false;
+					}
+				}
+				else {
+					// Make sure it is still open and running. This could happen when e.g. a MIDI USB device is removed and inserted back in
+					inputsOpen_[newInput]->start();
+					//SimpleLogger::instance()->postMessage("MIDI input device " + newInput + " restarted");
+					return true;
+				}
+			}
 		}
-		if (callbacks_.find(newInput) == callbacks_.end()) {
-			deviceManager.addMidiInputCallback(newInput, this);
-			callbacks_[newInput] = this;
-		}
+		SimpleLogger::instance()->postMessage("MIDI input " + newInput + " could not be opened, not found. Please plugin/turn on the device.");
+		return false;
 	}
 
 	void MidiController::disableMidiInput(std::string const &input) {
-		if (deviceManager.isMidiInputEnabled(input)) {
-			deviceManager.setMidiInputEnabled(input, false);
+		if (input.empty()) return;
+
+		// Has this device ever been opened?
+		if (inputsOpen_.find(input) == inputsOpen_.end()) {
+			//SimpleLogger::instance()->postMessage("Device " + input + " never was opened, can't disable!. Program error?");
 		}
-		if (callbacks_.find(input) == callbacks_.end()) {
-			deviceManager.removeMidiInputCallback(input, callbacks_[input]);
-			callbacks_.erase(input);
+		else {
+			inputsOpen_[input]->stop();
 		}
 	}
 
@@ -165,6 +189,65 @@ namespace midikraft {
 		for (auto const &handler : newhandlers) {
 			handler(source, message);
 		}
+	}
+
+	void MidiController::timerCallback()
+	{
+		 // Check if all devices are still there. We won't get notified, so better be safe than sorry and let's count them!
+		bool dirty = false;
+		
+		// Check if all open devices are still there, else stop them and delete them
+		std::vector<std::string> toDelete;
+		auto inputDevices = currentInputs();
+		for (auto input = inputsOpen_.begin(); input != inputsOpen_.end(); input++) {
+			if (inputDevices.find(input->first) == inputDevices.end()) {
+				// Nope, that one is gone, closing it!
+				SimpleLogger::instance()->postMessage("MIDI Input " + input->first + " unplugged.");
+				input->second.reset();
+				toDelete.push_back(input->first);
+				dirty = true;
+			}
+		}
+
+		for (auto del : toDelete) {
+			inputsOpen_.erase(del);
+		}
+
+		std::vector<std::string> toDeleteOutput;
+		auto outputDevices = currentOutputs();
+		for (auto output = outputsOpen_.begin(); output != outputsOpen_.end(); output++) {
+			if (outputDevices.find(output->first) == outputDevices.end()) {
+				SimpleLogger::instance()->postMessage("MIDI Output " + output->first + " unplugged.");
+				output->second.reset();
+				toDeleteOutput.push_back(output->first);
+				dirty = true;
+			}
+		}
+
+		for (auto del : toDeleteOutput) {
+			outputsOpen_.erase(del);
+			safeOutputs_.erase(del);
+		}
+
+		if (dirty) {
+			sendChangeMessage();
+		}
+	}
+
+	std::set<std::string> MidiController::currentInputs()
+	{
+		std::set<std::string> inputDevices;
+		auto availableInputs = MidiInput::getAvailableDevices();
+		std::for_each(availableInputs.begin(), availableInputs.end(), [&](MidiDeviceInfo device) {inputDevices.insert(device.name.toStdString()); });
+		return inputDevices;
+	}
+
+	std::set<std::string> MidiController::currentOutputs()
+	{
+		std::set<std::string> outputDevices;
+		auto availableOuputs = MidiOutput::getAvailableDevices();
+		std::for_each(availableOuputs.begin(), availableOuputs.end(), [&](MidiDeviceInfo device) {outputDevices.insert(device.name.toStdString()); });
+		return outputDevices;
 	}
 
 	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler) {

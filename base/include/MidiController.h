@@ -28,6 +28,8 @@ namespace midikraft {
 		void sendMessageDebounced(const MidiMessage &message, int milliseconds);
 		void sendBlockOfMessagesNow(const MidiBuffer& buffer);
 
+		bool isValid() const;
+
 	private:
 		MidiOutput * midiOut_;
 		MidiController *controller_;

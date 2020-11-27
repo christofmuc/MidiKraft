@@ -9,7 +9,7 @@
 #include "DiscoverableDevice.h"
 #include "Logger.h"
 
-#define VERBOSE 1
+//#define VERBOSE 1
 
 namespace midikraft {
 
@@ -48,6 +48,11 @@ namespace midikraft {
 			}
 			midiOut_->sendBlockOfMessagesNow(filtered);
 		}
+	}
+
+	bool SafeMidiOutput::isValid() const
+	{
+		return midiOut_ != nullptr;
 	}
 
 	MidiController::MidiController()
@@ -116,7 +121,7 @@ namespace midikraft {
 
 	std::shared_ptr<SafeMidiOutput> MidiController::getMidiOutput(std::string const &name)
 	{
-		if (safeOutputs_.find(name) == safeOutputs_.end()) {
+		if (safeOutputs_.find(name) == safeOutputs_.end() || !safeOutputs_[name]->isValid()) {
 			if (outputsOpen_.find(name) == outputsOpen_.end()) {
 				// Lazy open
 				if (!enableMidiOutput(name)) {

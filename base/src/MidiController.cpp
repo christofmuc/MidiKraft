@@ -197,12 +197,13 @@ namespace midikraft {
 		bool dirty = false;
 		
 		// Check if all open devices are still there, else stop them and delete them
+		//TODO Could I use the new set knownDevices_ here to an advantage?
 		std::vector<std::string> toDelete;
 		auto inputDevices = currentInputs();
 		for (auto input = inputsOpen_.begin(); input != inputsOpen_.end(); input++) {
 			if (inputDevices.find(input->first) == inputDevices.end()) {
 				// Nope, that one is gone, closing it!
-				SimpleLogger::instance()->postMessage("MIDI Input " + input->first + " unplugged.");
+				SimpleLogger::instance()->postMessage("MIDI Input " + input->first + " unplugged");
 				input->second.reset();
 				toDelete.push_back(input->first);
 				dirty = true;
@@ -217,7 +218,7 @@ namespace midikraft {
 		if (inputDevices != knownInputs_) {
 			for (auto input : inputDevices) {
 				if (knownInputs_.find(input) == knownInputs_.end()) {
-					SimpleLogger::instance()->postMessage("MIDI Input " + input + " connected!");
+					SimpleLogger::instance()->postMessage("MIDI Input " + input + " connected");
 					dirty = true;
 				}
 			}
@@ -229,7 +230,7 @@ namespace midikraft {
 		auto outputDevices = currentOutputs();
 		for (auto output = outputsOpen_.begin(); output != outputsOpen_.end(); output++) {
 			if (outputDevices.find(output->first) == outputDevices.end()) {
-				SimpleLogger::instance()->postMessage("MIDI Output " + output->first + " unplugged.");
+				SimpleLogger::instance()->postMessage("MIDI Output " + output->first + " unplugged");
 				output->second.reset();
 				toDeleteOutput.push_back(output->first);
 				dirty = true;
@@ -245,7 +246,7 @@ namespace midikraft {
 		if (outputDevices!= knownOutputs_) {
 			for (auto output: outputDevices) {
 				if (knownOutputs_.find(output) == knownOutputs_.end()) {
-					SimpleLogger::instance()->postMessage("MIDI output " + output+ " connected!");
+					SimpleLogger::instance()->postMessage("MIDI output " + output+ " connected");
 					dirty = true;
 				}
 			}

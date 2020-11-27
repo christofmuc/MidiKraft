@@ -59,13 +59,14 @@ namespace midikraft {
 		bool enableMidiInput(std::string const &newInput);
 		void disableMidiInput(std::string const &input);
 
+		std::set<std::string> currentInputs(bool withHistory);
+		std::set<std::string> currentOutputs(bool withHistory);
+
 	private:
 		// Implementation of Callback
 		virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
 		virtual void timerCallback() override;
 
-		std::set<std::string> currentInputs();
-		std::set<std::string> currentOutputs();
 
 		static MidiController *instance_;
 
@@ -73,8 +74,8 @@ namespace midikraft {
 		CriticalSection messageHandlerList_;
 		std::map<HandlerHandle, MidiCallback> messageHandlers_;
 
-		std::set<std::string> knownInputs_;
-		std::set<std::string> knownOutputs_;
+		std::set<std::string> knownInputs_, historyOfAllInputs_;
+		std::set<std::string> knownOutputs_, historyOfAllOutpus_;
 		std::map< std::string, std::unique_ptr<MidiOutput>> outputsOpen_;
 		std::map< std::string, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
 		std::map< std::string, std::unique_ptr<MidiInput>> inputsOpen_;

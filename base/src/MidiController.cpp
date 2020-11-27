@@ -56,8 +56,8 @@ namespace midikraft {
 		instance_ = this;
 
 		// Find the current list of connected MIDI ports
-		knownOutputs_ = currentOutputs();
-		knownInputs_ = currentInputs();
+		knownOutputs_ = currentOutputs(false);
+		knownInputs_ = currentInputs(false);
 
 		startTimer(500); // Do start a timer monitoring new devices from appearing and known devices from disappearing, as there is USB after all
 	}
@@ -199,7 +199,7 @@ namespace midikraft {
 		// Check if all open devices are still there, else stop them and delete them
 		//TODO Could I use the new set knownDevices_ here to an advantage?
 		std::vector<std::string> toDelete;
-		auto inputDevices = currentInputs();
+		auto inputDevices = currentInputs(false);
 		for (auto input = inputsOpen_.begin(); input != inputsOpen_.end(); input++) {
 			if (inputDevices.find(input->first) == inputDevices.end()) {
 				// Nope, that one is gone, closing it!
@@ -224,10 +224,11 @@ namespace midikraft {
 			}
 		}
 		knownInputs_ = inputDevices;
+		historyOfAllInputs_.insert(knownInputs_.begin(), knownInputs_.end());
 
 		// Now the same for the Output devices
 		std::vector<std::string> toDeleteOutput;
-		auto outputDevices = currentOutputs();
+		auto outputDevices = currentOutputs(false);
 		for (auto output = outputsOpen_.begin(); output != outputsOpen_.end(); output++) {
 			if (outputDevices.find(output->first) == outputDevices.end()) {
 				SimpleLogger::instance()->postMessage("MIDI Output " + output->first + " unplugged");
@@ -252,25 +253,32 @@ namespace midikraft {
 			}
 		}
 		knownOutputs_ = outputDevices;
+		historyOfAllOutpus_.insert(knownOutputs_.begin(), knownOutputs_.end());
 
 		if (dirty) {
 			sendChangeMessage();
 		}
 	}
 
-	std::set<std::string> MidiController::currentInputs()
+	std::set<std::string> MidiController::currentInputs(bool withHistory)
 	{
 		std::set<std::string> inputDevices;
 		auto availableInputs = MidiInput::getAvailableDevices();
 		std::for_each(availableInputs.begin(), availableInputs.end(), [&](MidiDeviceInfo device) {inputDevices.insert(device.name.toStdString()); });
+		if (withHistory) {
+			inputDevices.insert(historyOfAllInputs_.begin(), historyOfAllInputs_.end());
+		}
 		return inputDevices;
 	}
 
-	std::set<std::string> MidiController::currentOutputs()
+	std::set<std::string> MidiController::currentOutputs(bool withHistory)
 	{
 		std::set<std::string> outputDevices;
 		auto availableOuputs = MidiOutput::getAvailableDevices();
 		std::for_each(availableOuputs.begin(), availableOuputs.end(), [&](MidiDeviceInfo device) {outputDevices.insert(device.name.toStdString()); });
+		if (withHistory) {
+			outputDevices.insert(historyOfAllOutpus_.begin(), historyOfAllOutpus_.end());
+		}
 		return outputDevices;
 	}
 

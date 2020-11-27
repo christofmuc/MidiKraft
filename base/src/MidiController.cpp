@@ -213,6 +213,18 @@ namespace midikraft {
 			inputsOpen_.erase(del);
 		}
 
+		// Check if any new devices came up
+		if (inputDevices != knownInputs_) {
+			for (auto input : inputDevices) {
+				if (knownInputs_.find(input) == knownInputs_.end()) {
+					SimpleLogger::instance()->postMessage("MIDI Input " + input + " connected!");
+					dirty = true;
+				}
+			}
+		}
+		knownInputs_ = inputDevices;
+
+		// Now the same for the Output devices
 		std::vector<std::string> toDeleteOutput;
 		auto outputDevices = currentOutputs();
 		for (auto output = outputsOpen_.begin(); output != outputsOpen_.end(); output++) {
@@ -228,6 +240,17 @@ namespace midikraft {
 			outputsOpen_.erase(del);
 			safeOutputs_.erase(del);
 		}
+
+		// Check if any new devices came up
+		if (outputDevices!= knownOutputs_) {
+			for (auto output: outputDevices) {
+				if (knownOutputs_.find(output) == knownOutputs_.end()) {
+					SimpleLogger::instance()->postMessage("MIDI output " + output+ " connected!");
+					dirty = true;
+				}
+			}
+		}
+		knownOutputs_ = outputDevices;
 
 		if (dirty) {
 			sendChangeMessage();

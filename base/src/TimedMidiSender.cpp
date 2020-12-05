@@ -51,7 +51,7 @@ namespace midikraft {
 			}
 
 			if (!outputEvents.isEmpty()) {
-				midikraft::MidiController::instance()->getMidiOutput(buffer.first)->sendBlockOfMessagesNow(outputEvents);
+				midikraft::MidiController::instance()->getMidiOutput(buffer.first)->sendBlockOfMessagesFullSpeed(outputEvents);
 			}
 			buffer.second.clear(previousSampleNumber_, currentSampleNumber - previousSampleNumber_); 
 		}

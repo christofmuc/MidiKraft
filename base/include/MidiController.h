@@ -26,8 +26,10 @@ namespace midikraft {
 
 		void sendMessageNow(const MidiMessage& message);
 		void sendMessageDebounced(const MidiMessage &message, int milliseconds);
-		void sendBlockOfMessagesNow(const MidiBuffer& buffer);
+		void sendBlockOfMessagesFullSpeed(const MidiBuffer& buffer);
+		void sendBlockOfMessagesThrottled(const MidiBuffer &buffer, int millisecondsWait);
 
+		std::string name() const;
 		bool isValid() const;
 
 	private:

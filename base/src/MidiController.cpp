@@ -9,6 +9,8 @@
 #include "DiscoverableDevice.h"
 #include "Logger.h"
 
+#include "MidiHelpers.h"
+
 //#define VERBOSE 1
 
 namespace midikraft {
@@ -36,18 +38,39 @@ namespace midikraft {
 			milliseconds);
 	}
 
-	void SafeMidiOutput::sendBlockOfMessagesNow(const MidiBuffer& buffer) {
+	void SafeMidiOutput::sendBlockOfMessagesFullSpeed(const MidiBuffer& buffer) {
 		if (midiOut_) {
-			MidiBuffer filtered;
-			for (auto message : buffer) {
+			MidiBuffer filtered = MidiHelpers::removeEmptySysexMessages(buffer);
+			for (auto message : filtered) {
 				auto m = message.getMessage();
-				// Suppress empty sysex messages, they seem to confuse vintage hardware (e.g the Kawai K3 in particular)
-				if (m.isSysEx() && m.getSysExDataSize() == 0) continue;
 				controller_->logMidiMessage(m, midiOut_->getName(), true);
-				filtered.addEvent(m, message.samplePosition);
 			}
 			midiOut_->sendBlockOfMessagesNow(filtered);
 		}
+	}
+
+	void SafeMidiOutput::sendBlockOfMessagesThrottled(const MidiBuffer& buffer, int millisecondsWait) {
+		//TODO - this blocks the UI thread, but I don't want any logic to continue right now here.
+		if (midiOut_) {
+			MidiBuffer filtered = MidiHelpers::removeEmptySysexMessages(buffer);
+			bool first = true;
+			for (auto message : filtered) {
+				auto m = message.getMessage();
+				if (!first) {
+					Thread::sleep(millisecondsWait);
+				}
+				else {
+					first = false;
+				}
+				midiOut_->sendMessageNow(m);
+				controller_->logMidiMessage(m, midiOut_->getName(), true);
+			}
+		}
+	}
+
+	std::string SafeMidiOutput::name() const
+	{
+		return isValid() ? midiOut_->getName().toStdString() : "invalid_midi_out";
 	}
 
 	bool SafeMidiOutput::isValid() const

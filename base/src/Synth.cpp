@@ -148,14 +148,14 @@ namespace midikraft {
 			if (midiLocation && !messages.empty()) {
 				SimpleLogger::instance()->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
 				MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
-				MidiController::instance()->getMidiOutput(midiLocation->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+				sendBlockOfMessagesToSynth(midiLocation->midiOutput(), MidiHelpers::bufferFromMessages(messages));
 			}
 		}
 	}
 
 	void Synth::sendBlockOfMessagesToSynth(std::string const& midiOutput, MidiBuffer const& buffer)
 	{
-		MidiController::instance()->getMidiOutput(midiOutput)->sendBlockOfMessagesNow(buffer);
+		MidiController::instance()->getMidiOutput(midiOutput)->sendBlockOfMessagesFullSpeed(buffer);
 	}
 
 }

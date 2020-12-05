@@ -145,7 +145,9 @@ namespace midikraft {
 
 		// Send the detect message
 		auto detectMessage = synth->deviceDetect(synth->channel().toZeroBasedInt() & 0x7f);
-		MidiController::instance()->getMidiOutput(synth->midiOutput())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
+		// As of Dec 2020 the only Synth that needs more than one message for detection seems to be the Matrix 6, which is fast. 
+		//TODO:  I cannot use the synth's sendBlockOfMessagesToSynth() here because I do not have a synth pointer. Smell?
+		MidiController::instance()->getMidiOutput(synth->midiOutput())->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
 
 		// Sleep as long as the synth thinks is enough
 		Thread::sleep(synth->deviceDetectSleepMS());

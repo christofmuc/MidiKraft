@@ -66,13 +66,15 @@ namespace midikraft {
 				for (int channel = 0; channel < 16; channel++) {
 					// Send the synth detection signal
 					auto detectMessage = synth_.deviceDetect(channel);
-					MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
+					//TODO:  I cannot use the synth's sendBlockOfMessagesToSynth() here because I do not have a synth pointer. Smell?
+					MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
 				}
 			}
 			else {
 				// Just one message is enough - use a "broadcast" channel or sysex device ID as parameter
 				auto detectMessage = synth_.deviceDetect(0x7f);
-				MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(detectMessage));
+				//TODO:  I cannot use the synth's sendBlockOfMessagesToSynth() here because I do not have a synth pointer. Smell?
+				MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
 			}
 
 			// Sleep

@@ -81,7 +81,7 @@ namespace midikraft {
 			handles_.push(handle);
 			currentDownload_.clear();
 			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::BANK_DUMP);
-			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+			synth->sendBlockOfMessagesToSynth(midiOutput->name(), MidiHelpers::bufferFromMessages(messages));
 		}
 		else if (handshakeLoadingRequired) {
 			// These are proper protocols that are implemented - each message we get from the synth has to be answered by an appropriate next message
@@ -97,7 +97,7 @@ namespace midikraft {
 					// Send an answer if the handshake handler constructed one
 					if (!answer.empty()) {
 						auto buffer = MidiHelpers::bufferFromMessages(answer);
-						midiOutput->sendBlockOfMessagesNow(buffer);
+						synth->sendBlockOfMessagesToSynth(midiOutput->name(), buffer);
 					}
 					// Update progress handler
 					progressHandler->setProgressPercentage(state->progress());
@@ -132,7 +132,7 @@ namespace midikraft {
 			});
 			handles_.push(handle);
 			currentDownload_.clear();
-			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(bankCapableSynth->requestBankDump(bankNo)));
+			synth->sendBlockOfMessagesToSynth(midiOutput->name(), MidiHelpers::bufferFromMessages(bankCapableSynth->requestBankDump(bankNo)));
 		}
 		else {
 			// Uh, stone age, need to start a loop
@@ -173,7 +173,7 @@ namespace midikraft {
 			handles_.push(handle);
 			currentDownload_.clear();
 			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP);
-			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+			synth->sendBlockOfMessagesToSynth(midiOutput->name(), MidiHelpers::bufferFromMessages(messages));
 		} else if (editBufferCapability) {
 			// Uh, stone age, need to start a loop
 			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
@@ -189,7 +189,7 @@ namespace midikraft {
 		}
 		else if (programDumpCapability && programChangeCapability) {
 			auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
-			midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+			synth->sendBlockOfMessagesToSynth(midiOutput->name(), MidiHelpers::bufferFromMessages(messages));
 		}
 		else {
 			SimpleLogger::instance()->postMessage("The " + synth->getName() + " has no way to request the edit buffer or program place");
@@ -480,14 +480,24 @@ namespace midikraft {
 		}
 
 		// Send messages
-		auto buffer = MidiHelpers::bufferFromMessages(messages);
-		midiOutput->sendBlockOfMessagesNow(buffer);
+		if (!messages.empty()) {
+			auto buffer = MidiHelpers::bufferFromMessages(messages);
+			synth->sendBlockOfMessagesToSynth(midiOutput->name(), buffer);
+		}
 	}
 
 	void Librarian::startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier) {
 		std::vector<MidiMessage> request = sequencer->requestDataItem(downloadNumber_, dataFileIdentifier);
 		auto buffer = MidiHelpers::bufferFromMessages(request);
-		midiOutput->sendBlockOfMessagesNow(buffer);
+		// If this is a synth, it has a throttled send method
+		auto synth = dynamic_cast<Synth *>(sequencer);
+		if (synth) {
+			synth->sendBlockOfMessagesToSynth(midiOutput->name(), buffer);
+		}
+		else {
+			// This is not a synth... fall back to old behavior
+			midiOutput->sendBlockOfMessagesFullSpeed(buffer);
+		}
 	}
 
 	void Librarian::handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &message, StreamLoadCapability::StreamType streamType)
@@ -509,7 +519,7 @@ namespace midikraft {
 				else if (streamLoading->shouldStreamAdvance(currentDownload_, streamType)) {
 					downloadNumber_++;
 					auto messages = streamLoading->requestStreamElement(downloadNumber_, streamType);
-					midiOutput->sendBlockOfMessagesNow(MidiHelpers::bufferFromMessages(messages));
+					synth->sendBlockOfMessagesToSynth(midiOutput->name(), MidiHelpers::bufferFromMessages(messages));
 					if (progressHandler) progressHandler->setProgressPercentage(downloadNumber_ / (double)synth->numberOfPatches());
 				}
 			}

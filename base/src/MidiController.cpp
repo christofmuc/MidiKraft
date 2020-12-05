@@ -53,15 +53,9 @@ namespace midikraft {
 		//TODO - this blocks the UI thread, but I don't want any logic to continue right now here.
 		if (midiOut_) {
 			MidiBuffer filtered = MidiHelpers::removeEmptySysexMessages(buffer);
-			bool first = true;
 			for (auto message : filtered) {
 				auto m = message.getMessage();
-				if (!first) {
-					Thread::sleep(millisecondsWait);
-				}
-				else {
-					first = false;
-				}
+				Thread::sleep(millisecondsWait);
 				midiOut_->sendMessageNow(m);
 				controller_->logMidiMessage(m, midiOut_->getName(), true);
 			}

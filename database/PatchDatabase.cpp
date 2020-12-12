@@ -289,51 +289,61 @@ namespace midikraft {
 		}
 
 		bool loadPatchFromQueryRow(std::shared_ptr<Synth> synth, SQLite::Statement &query, std::vector<PatchHolder> &result) {
-				std::shared_ptr<DataFile> newPatch;
+			std::shared_ptr<DataFile> newPatch;
 
-				// Create the patch itself, from the BLOB stored
-				auto dataColumn = query.getColumn("data");
-				if (dataColumn.isBlob()) {
-					std::vector<uint8> patchData((uint8 *)dataColumn.getBlob(), ((uint8 *)dataColumn.getBlob()) + dataColumn.getBytes());
+			// Create the patch itself, from the BLOB stored
+			auto dataColumn = query.getColumn("data");
+			if (dataColumn.isBlob()) {
+				std::vector<uint8> patchData((uint8 *)dataColumn.getBlob(), ((uint8 *)dataColumn.getBlob()) + dataColumn.getBytes());
 
-					int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
+				int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
 				newPatch = synth->patchFromPatchData(patchData, MidiProgramNumber::fromZeroBase(midiProgramNumber));
-				}
+			}
 
-				if (newPatch) {
-					auto sourceColumn = query.getColumn("sourceInfo");
-					if (sourceColumn.isText()) {
+			if (newPatch) {
+				auto sourceColumn = query.getColumn("sourceInfo");
+				if (sourceColumn.isText()) {
 					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, false);
 
-						std::string patchName = query.getColumn("name").getString();
-						holder.setName(patchName);
-						std::string sourceId = query.getColumn("sourceID");
-						holder.setSourceId(sourceId);
+					std::string patchName = query.getColumn("name").getString();
+					holder.setName(patchName);
+					std::string sourceId = query.getColumn("sourceID");
+					holder.setSourceId(sourceId);
 
-						auto favoriteColumn = query.getColumn("favorite");
-						if (favoriteColumn.isInteger()) {
-							holder.setFavorite(Favorite(favoriteColumn.getInt()));
-						}
-						/*auto typeColumn = query.getColumn("type");
-						if (typeColumn.isInteger()) {
-							holder.setType(typeColumn.getInt());
-						}*/
-						auto hiddenColumn = query.getColumn("hidden");
-						if (hiddenColumn.isInteger()) {
-							holder.setHidden(hiddenColumn.getInt() == 1);
-						}
-						holder.setCategoriesFromBitfield(query.getColumn("categories").getInt64());
-						holder.setUserDecisionsFromBitfield(query.getColumn("categoryUserDecision").getInt64());
-						result.push_back(holder);
+					auto favoriteColumn = query.getColumn("favorite");
+					if (favoriteColumn.isInteger()) {
+						holder.setFavorite(Favorite(favoriteColumn.getInt()));
+					}
+					/*auto typeColumn = query.getColumn("type");
+					if (typeColumn.isInteger()) {
+						holder.setType(typeColumn.getInt());
+					}*/
+					auto hiddenColumn = query.getColumn("hidden");
+					if (hiddenColumn.isInteger()) {
+						holder.setHidden(hiddenColumn.getInt() == 1);
+					}
+					holder.setCategoriesFromBitfield(query.getColumn("categories").getInt64());
+					holder.setUserDecisionsFromBitfield(query.getColumn("categoryUserDecision").getInt64());
+					result.push_back(holder);
 					return true;
-					}
-					else {
-						jassert(false);
-					}
 				}
 				else {
 					jassert(false);
 				}
+			}
+			else {
+				jassert(false);
+			}
+			return false;
+		}
+
+		bool getSinglePatch(std::shared_ptr<Synth> synth, std::string const &md5, std::vector<PatchHolder> &result) {
+			SQLite::Statement query(db_, "SELECT * FROM patches WHERE md5 = :MD5 and synth = :SYN");
+			query.bind(":SYN", synth->getName());
+			query.bind(":MD5", md5);
+			if (query.executeStep()) {
+				return loadPatchFromQueryRow(synth, query, result);
+			}
 			return false;
 		}
 
@@ -404,30 +414,37 @@ namespace midikraft {
 			return target + ", " + suffix;
 		}
 
-		void updatePatch(PatchHolder newPatch, PatchHolder existingPatch, unsigned updateChoices) {
-			// For now, only run an update query if the newPatch Favorite is different from the database Favorite and is not "don't know"
-			if (newPatch.howFavorite().is() != Favorite::TFavorite::DONTKNOW) {
-				SQLite::Statement sql(db_, "UPDATE patches SET favorite = :FAV WHERE md5 = :MD5 and synth = :SYN");
-				sql.bind(":SYN", existingPatch.synth()->getName());
-				sql.bind(":FAV", (int)newPatch.howFavorite().is());
-				sql.bind(":MD5", newPatch.md5());
-				if (sql.exec() != 1) {
-					//TODO - this would happen e.g. if the database is locked, because somebody is trying to modify it with DB browser (me for instance)
-					jassert(false);
-					throw new std::runtime_error("FATAL, I don't want to ruin your database");
-				}
-			}
+		void calculateMergedCategories(PatchHolder &newPatch, PatchHolder existingPatch) {
+			// Now this is fun - we are adding information of a new Patch to an existing Patch. We will try to respect the user decision,
+			// but as we in the reindexing case do not know whether the new or the existing has "better" information, we will just merge the existing categories and 
+			// user decisions. Adding a category most often is more useful than removing one
+			newPatch.setCategoriesFromBitfield(newPatch.categoriesAsBitfield() | existingPatch.categoriesAsBitfield());
+			newPatch.setUserDecisionsFromBitfield(newPatch.userDecisionAsBitfield() | existingPatch.userDecisionAsBitfield());
+		}
 
-			// Also, update the categories bit vector and the hidden field if at least one of the updateChoices is set
+		int calculateMergedFavorite(PatchHolder const &newPatch, PatchHolder const &existingPatch) {
+			if (newPatch.howFavorite().is() == Favorite::TFavorite::DONTKNOW) {
+				// Keep the old value
+				return (int)existingPatch.howFavorite().is();
+			}
+			else {
+				// Use the new one
+				return (int)newPatch.howFavorite().is();
+			}
+		}
+
+		void updatePatch(PatchHolder newPatch, PatchHolder existingPatch, unsigned updateChoices) {
 			if (updateChoices) {
 				std::string updateClause;
 				if (updateChoices & UPDATE_CATEGORIES) updateClause = prependWithComma(updateClause, "categories = :CAT, categoryUserDecision = :CUD");
 				if (updateChoices & UPDATE_NAME) updateClause = prependWithComma(updateClause, "name = :NAM");
 				if (updateChoices & UPDATE_HIDDEN) updateClause = prependWithComma(updateClause, "hidden = :HID");
 				if (updateChoices & UPDATE_DATA) updateClause = prependWithComma(updateClause, "data = :DAT");
+				if (updateChoices & UPDATE_FAVORITE) updateClause = prependWithComma(updateClause, "favorite = :FAV");
 
-				SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5");
+				SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5 and synth = :SYN");
 				if (updateChoices & UPDATE_CATEGORIES) {
+					calculateMergedCategories(newPatch, existingPatch);
 					sql.bind(":CAT", newPatch.categoriesAsBitfield());
 					sql.bind(":CUD", newPatch.userDecisionAsBitfield());
 				}
@@ -440,7 +457,11 @@ namespace midikraft {
 				if (updateChoices & UPDATE_HIDDEN) {
 					sql.bind(":HID", newPatch.isHidden());
 				}
+				if (updateChoices & UPDATE_FAVORITE) {
+					sql.bind(":FAV", calculateMergedFavorite(newPatch, existingPatch));
+				}
 				sql.bind(":MD5", newPatch.md5());
+				sql.bind(":SYN", existingPatch.synth()->getName());
 				if (sql.exec() != 1) {
 					jassert(false);
 					throw new std::runtime_error("FATAL, I don't want to ruin your database");
@@ -482,8 +503,20 @@ namespace midikraft {
 						updatedNames++;
 					}
 
-					// Update the database with the new info
-					updatePatch(patch, knownPatches[md5_key], onlyUpdateThis);
+					// Update the database with the new info. If more than the name should be updated, we first need to load the full existing patch (the bulkGetPatches only is a projection with the name loaded only)
+					if (onlyUpdateThis != UPDATE_NAME) {
+						std::vector<PatchHolder> result;
+						if (getSinglePatch(patch.smartSynth(), md5_key, result)) {
+							updatePatch(patch, result.back(), onlyUpdateThis);
+						}
+						else {
+							jassertfalse;
+						}
+					}
+					else {
+						// We don't need to get back to the database if we only update the name
+						updatePatch(patch, knownPatches[md5_key], UPDATE_NAME);
+					}
 				}
 				else {
 					// This is a new patch - it needs to be uploaded into the database!

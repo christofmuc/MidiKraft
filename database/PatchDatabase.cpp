@@ -47,14 +47,16 @@ namespace midikraft {
 			PatchDataBaseImpl::makeDatabaseBackup(kDataBaseBackupSuffix);
 		}
 
-		void makeDatabaseBackup(String const &suffix) {
+		std::string makeDatabaseBackup(String const &suffix) {
 			File dbFile(db_.getFilename());
-			if (dbFile.existsAsFile()) {				
+			if (dbFile.existsAsFile()) {
 				File backupCopy(dbFile.getParentDirectory().getNonexistentChildFile(dbFile.getFileNameWithoutExtension() + suffix, dbFile.getFileExtension(), false));
 				db_.backup(backupCopy.getFullPathName().toStdString().c_str(), SQLite::Database::Save);
+				return backupCopy.getFullPathName().toStdString();
 			}
 			else {
 				jassertfalse;
+				return "";
 			}
 		}
 
@@ -176,7 +178,7 @@ namespace midikraft {
 				sql.bind(":MD5", patch.md5());
 				sql.bind(":NAM", patch.name());
 				sql.bind(":TYP", patch.getType());
-				sql.bind(":DAT", patch.patch()->data().data(), (int) patch.patch()->data().size());
+				sql.bind(":DAT", patch.patch()->data().data(), (int)patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
 				sql.bind(":HID", patch.isHidden());
 				sql.bind(":SID", sourceID);
@@ -191,7 +193,7 @@ namespace midikraft {
 				}
 				sql.bind(":CAT", patch.categoriesAsBitfield());
 				sql.bind(":CUD", patch.userDecisionAsBitfield());
-				
+
 				sql.exec();
 			}
 			catch (SQLite::Exception &ex) {
@@ -313,7 +315,7 @@ namespace midikraft {
 				auto dataColumn = query.getColumn("data");
 				if (dataColumn.isBlob()) {
 					std::vector<uint8> patchData((uint8 *)dataColumn.getBlob(), ((uint8 *)dataColumn.getBlob()) + dataColumn.getBytes());
-					
+
 					int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
 					newPatch = thisSynth->patchFromPatchData(patchData, MidiProgramNumber::fromZeroBase(midiProgramNumber));
 				}
@@ -373,7 +375,7 @@ namespace midikraft {
 						ph.setName(name);
 						result.emplace(md5, ph);
 					}
-				} 
+				}
 				catch (SQLite::Exception &ex) {
 					SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR: SQL Exception %s") % ex.what()).str());
 				}
@@ -393,7 +395,7 @@ namespace midikraft {
 			if (newPatch.howFavorite().is() != Favorite::TFavorite::DONTKNOW) {
 				SQLite::Statement sql(db_, "UPDATE patches SET favorite = :FAV WHERE md5 = :MD5 and synth = :SYN");
 				sql.bind(":SYN", existingPatch.synth()->getName());
-				sql.bind(":FAV", (int) newPatch.howFavorite().is());
+				sql.bind(":FAV", (int)newPatch.howFavorite().is());
 				sql.bind(":MD5", newPatch.md5());
 				if (sql.exec() != 1) {
 					//TODO - this would happen e.g. if the database is locked, because somebody is trying to modify it with DB browser (me for instance)
@@ -403,13 +405,13 @@ namespace midikraft {
 			}
 
 			// Also, update the categories bit vector and the hidden field if at least one of the updateChoices is set
-			if (updateChoices) { 
+			if (updateChoices) {
 				std::string updateClause;
 				if (updateChoices & UPDATE_CATEGORIES) updateClause = prependWithComma(updateClause, "categories = :CAT, categoryUserDecision = :CUD");
 				if (updateChoices & UPDATE_NAME) updateClause = prependWithComma(updateClause, "name = :NAM");
 				if (updateChoices & UPDATE_HIDDEN) updateClause = prependWithComma(updateClause, "hidden = :HID");
 				if (updateChoices & UPDATE_DATA) updateClause = prependWithComma(updateClause, "data = :DAT");
-				
+
 				SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5");
 				if (updateChoices & UPDATE_CATEGORIES) {
 					sql.bind(":CAT", newPatch.categoriesAsBitfield());
@@ -444,7 +446,7 @@ namespace midikraft {
 			// This works by doing a bulk get operation for the patches from the database...
 			auto knownPatches = bulkGetPatches(patches, progress);
 
-			SQLite::Transaction transaction(db_); 
+			SQLite::Transaction transaction(db_);
 
 			int loop = 0;
 			int updatedNames = 0;
@@ -517,15 +519,15 @@ namespace midikraft {
 					}
 				}
 				else {
-					putPatch(newPatch, source_id);
+						putPatch(newPatch, source_id);
 					md5Inserted[newPatch.md5()] = newPatch;
 					sumOfAll++;
-					if (synthsWithUploadedItems.find(newPatch.synth()) == synthsWithUploadedItems.end()) {
-						// First time this synth sees an upload
-						synthsWithUploadedItems[newPatch.synth()] = 0;
+						if (synthsWithUploadedItems.find(newPatch.synth()) == synthsWithUploadedItems.end()) {
+							// First time this synth sees an upload
+							synthsWithUploadedItems[newPatch.synth()] = 0;
+						}
+						synthsWithUploadedItems[newPatch.synth()] += 1;
 					}
-					synthsWithUploadedItems[newPatch.synth()] += 1;
-				}
 				if (progress) progress->setProgressPercentage(sumOfAll / (double)outNewPatches.size());
 			}
 
@@ -642,14 +644,14 @@ namespace midikraft {
 
 	std::vector<PatchHolder> PatchDatabase::getPatches(PatchFilter filter, int skip, int limit)
 	{
-			std::vector<PatchHolder> result;
+		std::vector<PatchHolder> result;
 			bool success = impl->getPatches(filter, result, skip, limit);
-			if (success) {
+		if (success) {
 			return result;
-			}
-			else {
+		}
+		else {
 			return {};
-			}
+		}
 	}
 
 	void PatchDatabase::getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit)
@@ -684,7 +686,9 @@ namespace midikraft {
 		return knobkraft.getChildFile(kDataBaseFileName).getFullPathName().toStdString();
 	}
 
-
+	std::string PatchDatabase::makeDatabaseBackup(std::string const &suffix) {
+		return impl->makeDatabaseBackup(suffix);
+	}
 
 }
 

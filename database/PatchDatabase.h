@@ -61,6 +61,7 @@ namespace midikraft {
 		bool putPatches(std::vector<PatchHolder> const &patches);
 
 		int deletePatches(PatchFilter filter);
+		std::string makeDatabaseBackup(std::string const &suffix);
 
 		// For backward compatibility
 		static std::string generateDefaultDatabaseLocation();

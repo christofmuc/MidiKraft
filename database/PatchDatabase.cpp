@@ -288,29 +288,8 @@ namespace midikraft {
 			return 0;
 		}
 
-		bool getPatches(PatchFilter filter, std::vector<PatchHolder> &result, std::vector<std::pair<std::string, PatchHolder>> &needsReindexing, int skip, int limit) {
-			std::string selectStatement = "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiProgramNo ";
-			if (limit != -1) {
-				selectStatement += " LIMIT :LIM ";
-				selectStatement += " OFFSET :OFS";
-			}
-			SQLite::Statement query(db_, selectStatement.c_str());
-
-			bindWhereClause(query, filter);
-			if (limit != -1) {
-				query.bind(":LIM", limit);
-				query.bind(":OFS", skip);
-			}
-			while (query.executeStep()) {
+		bool loadPatchFromQueryRow(std::shared_ptr<Synth> synth, SQLite::Statement &query, std::vector<PatchHolder> &result) {
 				std::shared_ptr<DataFile> newPatch;
-
-				// Find the synth this patch is for
-				auto synthName = query.getColumn("synth");
-				if (filter.synths.find(synthName) == filter.synths.end()) {
-					SimpleLogger::instance()->postMessage((boost::format("Program error, query returned patch for synth %s which was not part of the filter") % synthName).str());
-					continue;
-				}
-				auto thisSynth = filter.synths[synthName].lock();
 
 				// Create the patch itself, from the BLOB stored
 				auto dataColumn = query.getColumn("data");
@@ -318,13 +297,13 @@ namespace midikraft {
 					std::vector<uint8> patchData((uint8 *)dataColumn.getBlob(), ((uint8 *)dataColumn.getBlob()) + dataColumn.getBytes());
 
 					int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-					newPatch = thisSynth->patchFromPatchData(patchData, MidiProgramNumber::fromZeroBase(midiProgramNumber));
+				newPatch = synth->patchFromPatchData(patchData, MidiProgramNumber::fromZeroBase(midiProgramNumber));
 				}
 
 				if (newPatch) {
 					auto sourceColumn = query.getColumn("sourceInfo");
 					if (sourceColumn.isText()) {
-						PatchHolder holder(thisSynth, SourceInfo::fromString(sourceColumn.getString()), newPatch, false);
+					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, false);
 
 						std::string patchName = query.getColumn("name").getString();
 						holder.setName(patchName);
@@ -346,12 +325,7 @@ namespace midikraft {
 						holder.setCategoriesFromBitfield(query.getColumn("categories").getInt64());
 						holder.setUserDecisionsFromBitfield(query.getColumn("categoryUserDecision").getInt64());
 						result.push_back(holder);
-
-						// Check if the MD5 is the correct one (the algorithm might have changed!)
-						std::string md5stored = query.getColumn("md5");
-						if (holder.md5() != md5stored) {
-							needsReindexing.emplace_back(md5stored, holder);
-						}
+					return true;
 					}
 					else {
 						jassert(false);
@@ -359,6 +333,38 @@ namespace midikraft {
 				}
 				else {
 					jassert(false);
+				}
+			return false;
+		}
+
+		bool getPatches(PatchFilter filter, std::vector<PatchHolder> &result, std::vector<std::pair<std::string, PatchHolder>> &needsReindexing, int skip, int limit) {
+			std::string selectStatement = "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiProgramNo ";
+			if (limit != -1) {
+				selectStatement += " LIMIT :LIM ";
+				selectStatement += " OFFSET :OFS";
+			}
+			SQLite::Statement query(db_, selectStatement.c_str());
+
+			bindWhereClause(query, filter);
+			if (limit != -1) {
+				query.bind(":LIM", limit);
+				query.bind(":OFS", skip);
+			}
+			while (query.executeStep()) {
+				// Find the synth this patch is for
+				auto synthName = query.getColumn("synth");
+				if (filter.synths.find(synthName) == filter.synths.end()) {
+					SimpleLogger::instance()->postMessage((boost::format("Program error, query returned patch for synth %s which was not part of the filter") % synthName).str());
+					continue;
+				}
+				auto thisSynth = filter.synths[synthName].lock();
+
+				if (loadPatchFromQueryRow(thisSynth, query, result)) {
+					// Check if the MD5 is the correct one (the algorithm might have changed!)
+					std::string md5stored = query.getColumn("md5");
+					if (result.back().md5() != md5stored) {
+						needsReindexing.emplace_back(md5stored, result.back());
+					}
 				}
 			}
 			return true;

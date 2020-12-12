@@ -418,7 +418,7 @@ namespace midikraft {
 			// Now this is fun - we are adding information of a new Patch to an existing Patch. We will try to respect the user decision,
 			// but as we in the reindexing case do not know whether the new or the existing has "better" information, we will just merge the existing categories and 
 			// user decisions. Adding a category most often is more useful than removing one
-			newPatch.setCategoriesFromBitfield(newPatch.categoriesAsBitfield() | existingPatch.categoriesAsBitfield());
+			newPatch.setCategoriesFromBitfield(newPatch.categoriesAsBitfield() | (existingPatch.categoriesAsBitfield() & ~(newPatch.userDecisionAsBitfield())));
 			newPatch.setUserDecisionsFromBitfield(newPatch.userDecisionAsBitfield() | existingPatch.userDecisionAsBitfield());
 		}
 

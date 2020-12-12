@@ -450,11 +450,14 @@ namespace midikraft {
 			return false;
 		}
 
-		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice) {
+		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice, bool useTransaction) {
 			// This works by doing a bulk get operation for the patches from the database...
 			auto knownPatches = bulkGetPatches(patches, progress);
 
-			SQLite::Transaction transaction(db_);
+			std::unique_ptr<SQLite::Transaction> transaction;
+			if (useTransaction) {
+				transaction = std::make_unique<SQLite::Transaction>(db_);
+			}
 
 			int loop = 0;
 			int updatedNames = 0;
@@ -569,14 +572,12 @@ namespace midikraft {
 				}
 			}
 
-			transaction.commit();
+			if (transaction) transaction->commit();
 
 			return sumOfAll;
 		}
 
 		int deletePatches(PatchFilter filter) {
-			SQLite::Transaction transaction(db_);
-
 			// Build a delete query
 			std::string deleteStatement = "DELETE FROM patches " + buildWhereClause(filter);
 			SQLite::Statement query(db_, deleteStatement.c_str());
@@ -584,15 +585,10 @@ namespace midikraft {
 
 			// Execute
 			int rowsDeleted = query.exec();
-
-			transaction.commit();
-
 			return rowsDeleted;
 		}
 
 		int deletePatches(std::string const &synth, std::vector<std::string> const &md5s) {
-			SQLite::Transaction transaction(db_);
-
 			int rowsDeleted = 0;
 			for (auto md5 : md5s) {
 				// Build a delete query
@@ -603,9 +599,6 @@ namespace midikraft {
 				// Execute
 				rowsDeleted += query.exec();
 			}
-
-			transaction.commit();
-
 			return rowsDeleted;
 		}
 
@@ -628,6 +621,9 @@ namespace midikraft {
 						toBeReinserted.push_back(d.second);
 					}
 
+					// This is a complex database operation, use a transaction to make sure we get all or nothing
+					SQLite::Transaction transaction(db_);
+
 					// We got everything into the RAM - do we dare do delete them from the database now?
 					int deleted = deletePatches(filter.synths.begin()->second.lock()->getName(), toBeDeleted);
 					if (deleted != toBeReindexed.size()) {
@@ -637,7 +633,9 @@ namespace midikraft {
 
 					// Now insert the retrieved patches back into the database. The merge logic will handle the multiple instance situation
 					std::vector<PatchHolder> remainingPatches;
-					mergePatchesIntoDatabase(toBeReinserted, remainingPatches, nullptr, UPDATE_ALL);
+					mergePatchesIntoDatabase(toBeReinserted, remainingPatches, nullptr, UPDATE_ALL, false);
+					transaction.commit();
+
 					return getPatchesCount(filter);
 				}
 				else {
@@ -703,7 +701,7 @@ namespace midikraft {
 		std::vector<PatchHolder> newPatches;
 		newPatches.push_back(patch);
 		std::vector<PatchHolder> insertedPatches;
-		return impl->mergePatchesIntoDatabase(newPatches, insertedPatches, nullptr, UPDATE_ALL);
+		return impl->mergePatchesIntoDatabase(newPatches, insertedPatches, nullptr, UPDATE_ALL, true);
 	}
 
 	bool PatchDatabase::putPatches(std::vector<PatchHolder> const &patches) {
@@ -750,7 +748,7 @@ namespace midikraft {
 
 	size_t PatchDatabase::mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice)
 	{
-		return impl->mergePatchesIntoDatabase(patches, outNewPatches, progress, updateChoice);
+		return impl->mergePatchesIntoDatabase(patches, outNewPatches, progress, updateChoice, true);
 	}
 
 	std::vector<ImportInfo> PatchDatabase::getImportsList(Synth *activeSynth) const {

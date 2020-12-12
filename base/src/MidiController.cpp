@@ -128,8 +128,7 @@ namespace midikraft {
 				}
 			}
 		}
-		SimpleLogger::instance()->postMessage("MIDI output " + newOutput + " could not be opened, not found. Please plugin/turn on the device.");
-		return false;
+		return true;
 	}
 
 	void MidiController::setMidiLogFunction(std::function<void(const MidiMessage& message, const String& source, bool isOut)> logFunction) {

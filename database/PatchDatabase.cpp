@@ -811,5 +811,16 @@ namespace midikraft {
 		return impl->makeDatabaseBackup(suffix);
 	}
 
-}
+	midikraft::PatchDatabase::PatchFilter PatchDatabase::allForSynth(std::shared_ptr<Synth> synth)
+	{
+		PatchFilter filter;
+		filter.onlyFaves = false;
+		filter.onlySpecifcType = false;
+		filter.onlyUntagged = false;
+		filter.showHidden = true;
+		filter.synths.emplace(synth->getName(), synth);
+		return filter;
+	}
+
+	}
 

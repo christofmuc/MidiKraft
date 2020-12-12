@@ -33,7 +33,7 @@ namespace midikraft {
 			int typeID;
 			bool showHidden;
 			bool onlyUntagged;
-			std::set<Category> categories;
+			std::set<Category> categories;			
 		};
 
 		enum UpdateChoice {
@@ -65,6 +65,9 @@ namespace midikraft {
 		int reindexPatches(PatchFilter filter);
 
 		std::string makeDatabaseBackup(std::string const &suffix);
+
+		// Convenience functions
+		static PatchFilter allForSynth(std::shared_ptr<Synth> synth);
 
 		// For backward compatibility
 		static std::string generateDefaultDatabaseLocation();

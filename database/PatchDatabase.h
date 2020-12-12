@@ -61,11 +61,13 @@ namespace midikraft {
 		bool putPatches(std::vector<PatchHolder> const &patches);
 
 		int deletePatches(PatchFilter filter);
+		int reindexPatches(PatchFilter filter);
+
 		std::string makeDatabaseBackup(std::string const &suffix);
 
 		// For backward compatibility
 		static std::string generateDefaultDatabaseLocation();
-
+	
 	private:
 		class PatchDataBaseImpl;
 		std::unique_ptr<PatchDataBaseImpl> impl;

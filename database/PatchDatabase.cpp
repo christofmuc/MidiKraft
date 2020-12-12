@@ -86,7 +86,8 @@ namespace midikraft {
 					if (!file.deleteFile()) {
 						SimpleLogger::instance()->postMessage("Error - failed to remove extra backup file, please check file permissions: " + file.getFullPathName());
 					}
-				} else {
+				}
+				else {
 					numKept++;
 					keptBackupSize += file.getSize();
 				}
@@ -287,7 +288,7 @@ namespace midikraft {
 			return 0;
 		}
 
-		bool getPatches(PatchFilter filter, std::vector<PatchHolder> &result, int skip, int limit) {
+		bool getPatches(PatchFilter filter, std::vector<PatchHolder> &result, std::vector<std::pair<std::string, PatchHolder>> &needsReindexing, int skip, int limit) {
 			std::string selectStatement = "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiProgramNo ";
 			if (limit != -1) {
 				selectStatement += " LIMIT :LIM ";
@@ -327,6 +328,8 @@ namespace midikraft {
 
 						std::string patchName = query.getColumn("name").getString();
 						holder.setName(patchName);
+						std::string sourceId = query.getColumn("sourceID");
+						holder.setSourceId(sourceId);
 
 						auto favoriteColumn = query.getColumn("favorite");
 						if (favoriteColumn.isInteger()) {
@@ -343,11 +346,16 @@ namespace midikraft {
 						holder.setCategoriesFromBitfield(query.getColumn("categories").getInt64());
 						holder.setUserDecisionsFromBitfield(query.getColumn("categoryUserDecision").getInt64());
 						result.push_back(holder);
+
+						// Check if the MD5 is the correct one (the algorithm might have changed!)
+						std::string md5stored = query.getColumn("md5");
+						if (holder.md5() != md5stored) {
+							needsReindexing.emplace_back(md5stored, holder);
+						}
 					}
 					else {
 						jassert(false);
 					}
-					
 				}
 				else {
 					jassert(false);
@@ -519,15 +527,20 @@ namespace midikraft {
 					}
 				}
 				else {
+					if (newPatch.sourceId().empty()) {
 						putPatch(newPatch, source_id);
-					md5Inserted[newPatch.md5()] = newPatch;
-					sumOfAll++;
 						if (synthsWithUploadedItems.find(newPatch.synth()) == synthsWithUploadedItems.end()) {
 							// First time this synth sees an upload
 							synthsWithUploadedItems[newPatch.synth()] = 0;
 						}
 						synthsWithUploadedItems[newPatch.synth()] += 1;
 					}
+					else {
+						putPatch(newPatch, newPatch.sourceId());
+					}
+					md5Inserted[newPatch.md5()] = newPatch;
+					sumOfAll++;
+				}
 				if (progress) progress->setProgressPercentage(sumOfAll / (double)outNewPatches.size());
 			}
 
@@ -575,6 +588,68 @@ namespace midikraft {
 			transaction.commit();
 
 			return rowsDeleted;
+		}
+
+		int deletePatches(std::string const &synth, std::vector<std::string> const &md5s) {
+			SQLite::Transaction transaction(db_);
+
+			int rowsDeleted = 0;
+			for (auto md5 : md5s) {
+				// Build a delete query
+				std::string deleteStatement = "DELETE FROM patches WHERE md5 = :MD5 AND synth = :SYN";
+				SQLite::Statement query(db_, deleteStatement.c_str());
+				query.bind(":SYN", synth);
+				query.bind(":MD5", md5);
+				// Execute
+				rowsDeleted += query.exec();
+			}
+
+			transaction.commit();
+
+			return rowsDeleted;
+		}
+
+		int reindexPatches(PatchFilter filter) {
+			// Give up if more than one synth is selected
+			if (filter.synths.size() > 1) {
+				SimpleLogger::instance()->postMessage("Aborting reindexing - please select only one synth at a time in the advanced filter dialog!");
+				return -1;
+			}
+
+			// Retrieve the patches to reindex
+			std::vector<PatchHolder> result;
+			std::vector<std::pair<std::string, PatchHolder>> toBeReindexed;
+			if (getPatches(filter, result, toBeReindexed, 0, -1)) {
+				if (!toBeReindexed.empty()) {
+					std::vector<std::string> toBeDeleted;
+					std::vector<PatchHolder> toBeReinserted;
+					for (auto d : toBeReindexed) {
+						toBeDeleted.push_back(d.first);
+						toBeReinserted.push_back(d.second);
+					}
+
+					// We got everything into the RAM - do we dare do delete them from the database now?
+					int deleted = deletePatches(filter.synths.begin()->second.lock()->getName(), toBeDeleted);
+					if (deleted != toBeReindexed.size()) {
+						SimpleLogger::instance()->postMessage("Aborting reindexing - count of deleted patches does not match count of retrieved patches. Program Error.");
+						return -1;
+					}
+
+					// Now insert the retrieved patches back into the database. The merge logic will handle the multiple instance situation
+					std::vector<PatchHolder> remainingPatches;
+					mergePatchesIntoDatabase(toBeReinserted, remainingPatches, nullptr, UPDATE_ALL);
+					return getPatchesCount(filter);
+				}
+				else {
+					SimpleLogger::instance()->postMessage("None of the selected patches needed reindexing skipping!");
+					return getPatchesCount(filter);
+				}
+			}
+			else {
+				SimpleLogger::instance()->postMessage("Aborting reindexing - database error retrieving the filtered patches");
+				return -1;
+			}
+
 		}
 
 		std::string databaseFileName() const
@@ -642,11 +717,20 @@ namespace midikraft {
 		return impl->deletePatches(filter);
 	}
 
+	int PatchDatabase::reindexPatches(PatchFilter filter)
+	{
+		return impl->reindexPatches(filter);
+	}
+
 	std::vector<PatchHolder> PatchDatabase::getPatches(PatchFilter filter, int skip, int limit)
 	{
 		std::vector<PatchHolder> result;
-			bool success = impl->getPatches(filter, result, skip, limit);
+		std::vector<std::pair<std::string, PatchHolder>> faultyIndexedPatches;
+		bool success = impl->getPatches(filter, result, faultyIndexedPatches, skip, limit);
 		if (success) {
+			if (!faultyIndexedPatches.empty()) {
+				SimpleLogger::instance()->postMessage((boost::format("Found %d patches with inconsistent MD5 - please run the Edit... Reindex Patches command for this synth") % faultyIndexedPatches.size()).str());
+			}
 			return result;
 		}
 		else {

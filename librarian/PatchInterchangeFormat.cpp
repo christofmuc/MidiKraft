@@ -108,6 +108,11 @@ namespace midikraft {
 						}
 					}
 
+					std::shared_ptr<midikraft::SourceInfo> importInfo;
+					if (item->HasMember("SourceInfo")) {
+						importInfo = SourceInfo::fromString(renderToJson((*item)["SourceInfo"]));
+					}
+
 					// All mandatory fields found, we can parse the data!
 					MemoryBlock sysexData;
 					MemoryOutputStream writeToBlock(sysexData, false);
@@ -127,6 +132,9 @@ namespace midikraft {
 							}
 							for (const auto &noncat : nonCategories) {
 								holder.setUserDecision(noncat); // A Category mentioned here says it might not be present, but that is a user decision!
+							}
+							if (importInfo) {
+								holder.setSourceInfo(importInfo);
 							}
 							result.push_back(holder);
 						}

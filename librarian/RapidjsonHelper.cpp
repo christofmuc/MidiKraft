@@ -23,6 +23,14 @@ std::string renderToJson(rapidjson::Document &doc) {
 	return sb.GetString();
 }
 
+std::string renderToJson(rapidjson::Value const &value) {
+	rapidjson::StringBuffer sb;
+	rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+	value.Accept(writer);
+	return sb.GetString();
+}
+
+
 void addToJson(std::string const &key, std::string const &data, rapidjson::Value &object, rapidjson::Document &doc) {
 	object.AddMember(value(key, doc), value(data, doc), doc.GetAllocator());
 }

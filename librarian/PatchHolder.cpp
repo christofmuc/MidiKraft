@@ -434,7 +434,14 @@ namespace midikraft {
 				}
 				std::shared_ptr<SourceInfo> individualInfo;
 				if (obj.HasMember(kFileInBulk)) {
-					individualInfo = SourceInfo::fromString(obj.FindMember(kFileInBulk).operator*().value.GetString());
+					auto &subinfoJson = obj.FindMember(kFileInBulk).operator*().value;
+					if (subinfoJson.IsString()) {
+						individualInfo = SourceInfo::fromString(subinfoJson.GetString());
+					}
+					else {
+						std::string subinfo = renderToJson(subinfoJson);
+						individualInfo = SourceInfo::fromString(subinfo);
+					}
 				}
 				return std::make_shared<FromBulkImportSource>(timestamp, individualInfo);
 			}

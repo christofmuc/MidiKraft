@@ -15,6 +15,23 @@
 
 namespace midikraft {
 
+	bool findCategory(const char *categoryName, midikraft::Category &outCategory) {
+		// Hard code migration from the Rev2SequencerTool categoryNames to KnobKraft Orm
+		//TODO - this could become arbitrarily complex with free tags?
+		if (!strcmp(categoryName, "Bells")) categoryName = "Bell";
+		if (!strcmp(categoryName, "FX")) categoryName = "SFX";
+
+		// Check if this is a valid category
+		for (auto acat : AutoCategory::predefinedCategoryVector()) {
+			if (acat.category == categoryName) {
+				// Found, great!
+				outCategory = acat;
+				return true;			
+			}
+		}
+		return false;
+	}
+
 	std::vector<midikraft::PatchHolder> PatchInterchangeFormat::load(std::shared_ptr<Synth> activeSynth, std::string const &filename)
 	{
 		std::vector<midikraft::PatchHolder> result;
@@ -67,18 +84,26 @@ namespace midikraft {
 					if (item->HasMember("Categories")) {
 						auto cats = (*item)["Categories"].GetArray();
 						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
-							auto categoryName = cat->GetString();
-							// Check if this is a valid category
-							bool found = false;
-							for (auto acat : AutoCategory::predefinedCategoryVector()) {
-								if (acat.category == categoryName) {
-									// Found, great!
-									categories.push_back(acat);
-									found = true;
-								}
+							midikraft::Category category("", Colours::aliceblue, 0);
+							if (findCategory(cat->GetString(), category)) {
+								categories.push_back(category);
 							}
-							if (!found) {
-								SimpleLogger::instance()->postMessage((boost::format("Ignoring category %s of patch %s because it is not part of our standard categories!") % categoryName % patchName).str());
+							else {
+								SimpleLogger::instance()->postMessage((boost::format("Ignoring category %s of patch %s because it is not part of our standard categories!") % cat->GetString() % patchName).str());
+							}
+						}
+					}
+
+					std::vector<Category> nonCategories;
+					if (item->HasMember("NonCategories")) {
+						auto cats = (*item)["NonCategories"].GetArray();
+						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
+							midikraft::Category category("", Colours::aliceblue, 0);
+							if (findCategory(cat->GetString(), category)) {
+								nonCategories.push_back(category);
+							}
+							else {
+								SimpleLogger::instance()->postMessage((boost::format("Ignoring non-category %s of patch %s because it is not part of our standard categories!") % cat->GetString() % patchName).str());
 							}
 						}
 					}
@@ -96,7 +121,13 @@ namespace midikraft {
 							PatchHolder holder(activeSynth, fileSource, patches[0], false);
 							holder.setFavorite(fav);
 							holder.setName(patchName);
-							for (auto cat : categories) holder.setCategory(cat, true);
+							for (const auto& cat : categories) {
+								holder.setCategory(cat, true);
+								holder.setUserDecision(cat); // All Categories loaded via PatchInterchangeFormat are considered user decisions
+							}
+							for (const auto &noncat : nonCategories) {
+								holder.setUserDecision(noncat); // A Category mentioned here says it might not be present, but that is a user decision!
+							}
 							result.push_back(holder);
 						}
 					}

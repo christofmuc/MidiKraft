@@ -477,6 +477,27 @@ namespace midikraft {
 			return false;
 		}
 
+		bool insertImportInfo(std::string const &synthname, std::string const &source_id, std::string const &importName) {
+			// Check if this import already exists 
+			SQLite::Statement query(db_, "SELECT count(*) AS numExisting FROM imports WHERE synth = :SYN and id = :SID");
+			query.bind(":SYN", synthname);
+			query.bind(":SID", source_id);
+			if (query.executeStep()) {
+				auto existing = query.getColumn("numExisting");
+				if (existing.getInt() == 1) {
+					return false;
+				}
+			}
+
+			// Record this import in the import table for later filtering! The name of the import might differ for different patches (bulk import), use the first patch to calculate it
+			SQLite::Statement sql(db_, "INSERT INTO imports (synth, name, id, date) VALUES (:SYN, :NAM, :SID, datetime('now'))");
+			sql.bind(":SYN", synthname);
+			sql.bind(":NAM", importName);
+			sql.bind(":SID", source_id);
+			sql.exec();
+			return true;
+		}
+
 		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice, bool useTransaction) {
 			// This works by doing a bulk get operation for the patches from the database...
 			auto knownPatches = bulkGetPatches(patches, progress);
@@ -588,26 +609,7 @@ namespace midikraft {
 
 			for (auto synth : synthsWithUploadedItems) {
 				if (synth.second > 0) {
-					// Check if this import already exists (this should only happen with the EditBufferImport special case)
-					bool alreadyExists = false;
-					SQLite::Statement query(db_, "SELECT count(*) AS numExisting FROM imports WHERE synth = :SYN and id = :SID");
-					query.bind(":SYN", synth.first->getName());
-					query.bind(":SID", source_id);
-					if (query.executeStep()) {
-						auto existing = query.getColumn("numExisting");
-						if (existing.getInt() == 1) {
-							alreadyExists = true;
-						}
-					}
-
-					if (!alreadyExists) {
-						// Record this import in the import table for later filtering! The name of the import might differ for different patches (bulk import), use the first patch to calculate it
-						SQLite::Statement sql(db_, "INSERT INTO imports (synth, name, id, date) VALUES (:SYN, :NAM, :SID, datetime('now'))");
-						sql.bind(":SYN", synth.first->getName());
-						sql.bind(":NAM", importName);
-						sql.bind(":SID", source_id);
-						sql.exec();
-					}
+					insertImportInfo(synth.first->getName(), source_id, importName);
 				}
 			}
 

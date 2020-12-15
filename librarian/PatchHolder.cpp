@@ -429,7 +429,7 @@ namespace midikraft {
 		if (timestamp_.toMilliseconds() != 0) {
 			if (shortVersion) {
 				// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
-				return (boost::format("Bulk import (%s)") % individualInfo_->toDisplayString(synth, true)).str();
+				return (boost::format("Bulk import (%s)") % timestamp_.formatted("%x at %X").toStdString()).str();
 			}
 			else {
 				// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825

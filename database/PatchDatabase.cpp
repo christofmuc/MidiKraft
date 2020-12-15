@@ -552,22 +552,22 @@ namespace midikraft {
 			}
 
 			// Check if all new patches are editBuffer patches (aka have an invalid MidiBank)
-			std::string source_id = "EditBufferImport";
-			std::string importName;
-			for (auto newPatch : outNewPatches) {
-				if (SourceInfo::isEditBufferImport(newPatch.sourceInfo())) {
+			std::map<std::string, std::string> mapMD5_to_idOfImport;
+			std::set<std::tuple<std::string, std::string, std::string>> importsToBeCreated;
+			for (const auto& newPatch : outNewPatches) {
+				if (!newPatch.sourceInfo()) {
+					// Patch with no source info, probably very old or from 3rd party system
+				} else if (SourceInfo::isEditBufferImport(newPatch.sourceInfo())) {
 					// EditBuffer, nothing to do
 					// In case this is an EditBuffer import (no bank known), always use the same "fake UUID" "EditBufferImport"
-					importName = "Edit buffer imports";
+					mapMD5_to_idOfImport[newPatch.md5()] = "EditBufferImport";
+					importsToBeCreated.emplace(newPatch.synth()->getName(), "EditBufferImport", "Edit buffer imports");
 				}
 				else {
-					// Generate a UUID that will be used to bind all patches during this import together. 
-					Uuid source_uuid;
-					source_id = source_uuid.toString().toStdString();
-					if (importName.empty()) {
-						// Use the importName of the first patch. This is not ideal, but currently I have no better idea
-						importName = newPatch.sourceInfo()->toDisplayString(newPatch.synth(), false);
-					}
+					std::string importDisplayString = newPatch.sourceInfo()->toDisplayString(newPatch.synth(), true);;
+					std::string importUID = newPatch.sourceInfo()->md5(newPatch.synth());
+					mapMD5_to_idOfImport[newPatch.md5()] = importUID;
+					importsToBeCreated.emplace(newPatch.synth()->getName(), importUID, importDisplayString);
 				}
 			}
 
@@ -575,10 +575,11 @@ namespace midikraft {
 			std::map<String, PatchHolder> md5Inserted;
 			std::map<Synth *, int> synthsWithUploadedItems;
 			int sumOfAll = 0;
-			for (auto newPatch : outNewPatches) {
+			for (const auto& newPatch : outNewPatches) {
 				if (progress && progress->shouldAbort()) return sumOfAll;
-				if (md5Inserted.find(newPatch.md5()) != md5Inserted.end()) {
-					auto duplicate = md5Inserted[newPatch.md5()];
+				std::string patchMD5 = newPatch.md5();
+				if (md5Inserted.find(patchMD5) != md5Inserted.end()) {
+					auto duplicate = md5Inserted[patchMD5];
 
 					// The new one could have better name?
 					if (hasDefaultName(duplicate.patch().get()) && !hasDefaultName(newPatch.patch().get())) {
@@ -591,7 +592,7 @@ namespace midikraft {
 				}
 				else {
 					if (newPatch.sourceId().empty()) {
-						putPatch(newPatch, source_id);
+						putPatch(newPatch, mapMD5_to_idOfImport[patchMD5]);
 						if (synthsWithUploadedItems.find(newPatch.synth()) == synthsWithUploadedItems.end()) {
 							// First time this synth sees an upload
 							synthsWithUploadedItems[newPatch.synth()] = 0;
@@ -601,16 +602,14 @@ namespace midikraft {
 					else {
 						putPatch(newPatch, newPatch.sourceId());
 					}
-					md5Inserted[newPatch.md5()] = newPatch;
+					md5Inserted[patchMD5] = newPatch;
 					sumOfAll++;
 				}
 				if (progress) progress->setProgressPercentage(sumOfAll / (double)outNewPatches.size());
 			}
 
-			for (auto synth : synthsWithUploadedItems) {
-				if (synth.second > 0) {
-					insertImportInfo(synth.first->getName(), source_id, importName);
-				}
+			for (auto import : importsToBeCreated) {
+				insertImportInfo(std::get<0>(import), std::get<1>(import), std::get<2>(import));
 			}
 
 			if (transaction) transaction->commit();

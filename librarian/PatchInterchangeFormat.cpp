@@ -123,7 +123,7 @@ namespace midikraft {
 						auto patches = activeSynth->loadSysex(messages);
 						//jassert(patches.size() == 1);
 						if (patches.size() == 1) {
-							PatchHolder holder(activeSynth, fileSource, patches[0], false);
+							PatchHolder holder(activeSynth, fileSource, patches[0], true);
 							holder.setFavorite(fav);
 							holder.setName(patchName);
 							for (const auto& cat : categories) {

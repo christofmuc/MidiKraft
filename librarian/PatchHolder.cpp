@@ -328,7 +328,7 @@ namespace midikraft {
 		else {
 			bank = " edit buffer";
 		}
-		if (!shortVersion && timestamp_.toMilliseconds() != 0) {
+		if (timestamp_.toMilliseconds() != 0) {
 			// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
 			return (boost::format("Imported from synth%s on %s") % bank % timestamp_.formatted("%x at %X").toStdString()).str();
 		}

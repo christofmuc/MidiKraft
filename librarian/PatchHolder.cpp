@@ -312,6 +312,12 @@ namespace midikraft {
 	{
 	}
 
+	std::string FromSynthSource::md5(Synth *synth) const
+	{
+		String displayString(toDisplayString(synth, false));
+		return MD5(displayString.toUTF8()).toHexString().toStdString();
+	}
+
 	std::string FromSynthSource::toDisplayString(Synth *synth, bool shortVersion) const
 	{
 		ignoreUnused(shortVersion);
@@ -371,6 +377,12 @@ namespace midikraft {
 
 	}
 
+	std::string FromFileSource::md5(Synth *synth) const
+	{
+		String displayString(toDisplayString(synth, true));
+		return MD5(displayString.toUTF8()).toHexString().toStdString();
+	}
+
 	std::string FromFileSource::toDisplayString(Synth *, bool shortVersion) const
 	{
 		ignoreUnused(shortVersion);
@@ -403,6 +415,13 @@ namespace midikraft {
 		std::string subinfo = individualInfo->toString();
 		doc.AddMember(rapidjson::StringRef(kFileInBulk), rapidjson::Value(subinfo.c_str(), (rapidjson::SizeType) subinfo.size()), doc.GetAllocator());
 		jsonRep_ = renderToJson(doc);
+	}
+
+	std::string FromBulkImportSource::md5(Synth *synth) const
+	{
+		ignoreUnused(synth);
+		String uuid((boost::format("Bulk import %s") % timestamp_.formatted("%x at %X")).str());
+		return MD5(uuid.toUTF8()).toHexString().toStdString();
 	}
 
 	std::string FromBulkImportSource::toDisplayString(Synth *synth, bool shortVersion) const

@@ -418,7 +418,17 @@ namespace midikraft {
 			// Now this is fun - we are adding information of a new Patch to an existing Patch. We will try to respect the user decision,
 			// but as we in the reindexing case do not know whether the new or the existing has "better" information, we will just merge the existing categories and 
 			// user decisions. Adding a category most often is more useful than removing one
-			newPatch.setCategoriesFromBitfield(newPatch.categoriesAsBitfield() | (existingPatch.categoriesAsBitfield() & ~(newPatch.userDecisionAsBitfield())));
+			int64 existingUserDecision = existingPatch.categoriesAsBitfield();
+			int64 newUserDecision = newPatch.categoriesAsBitfield();
+
+			// Turn off existing user decisions where a new user decision exists
+			existingUserDecision = existingUserDecision & ~newUserDecision;
+
+			// The new categories are calculated as all categories from the new patch, unless there is a user decision at the existing patch not marked as overridden by a new user decision
+			// plus all existing patch categories where there is no new user decision
+			newPatch.setCategoriesFromBitfield((newPatch.categoriesAsBitfield() & existingUserDecision)| (existingPatch.categoriesAsBitfield() & ~(newPatch.userDecisionAsBitfield())));
+
+			// User decisions are now a union of both
 			newPatch.setUserDecisionsFromBitfield(newPatch.userDecisionAsBitfield() | existingPatch.userDecisionAsBitfield());
 		}
 

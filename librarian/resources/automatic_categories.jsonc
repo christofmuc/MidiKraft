@@ -1,6 +1,6 @@
 // This document is read by the KnobKraft ORM Sysex Librarian
 // 
-// It contains the naming conventinos to automatically detect the category from a patch name
+// It contains the naming conventions to automatically detect the category from a patch name
 // 
 // The syntax is JSON, extended by C-style comments
 // The content are regular expressions

@@ -275,7 +275,7 @@ namespace midikraft {
 				query.bind(":TYP", filter.typeID);
 			}
 			if (!filter.categories.empty()) {
-				query.bind(":CAT", Category::categorySetAsBitfield(filter.categories));
+				query.bind(":CAT", PatchHolder::categorySetAsBitfield(filter.categories));
 			}
 		}
 

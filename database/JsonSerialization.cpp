@@ -77,6 +77,7 @@ namespace midikraft {
 	}
 
 	bool JsonSerialization::jsonToPatch(std::shared_ptr<Synth> activeSynth, rapidjson::Value &patchDoc, PatchHolder &outPatchHolder) {
+		//TODO - I think this is dead code?
 		// Build the patch via the synth from the sysex data...
 		std::string name;
 		Synth::PatchData data;
@@ -99,7 +100,7 @@ namespace midikraft {
 					withMeta.setCategory(cat, true);
 				}
 			}*/
-			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch, true);
+			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch);
 			simple.setName(name);
 			outPatchHolder = simple;
 			return true;

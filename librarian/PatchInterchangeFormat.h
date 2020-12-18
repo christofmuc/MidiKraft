@@ -9,12 +9,13 @@
 #include "JuceHeader.h"
 
 #include "PatchHolder.h"
+#include "AutomaticCategory.h"
 
 namespace midikraft {
 
 	class PatchInterchangeFormat {
 	public:
-		static std::vector<PatchHolder> load(std::shared_ptr<Synth> activeSynth, std::string const &filename);
+		static std::vector<PatchHolder> load(std::shared_ptr<Synth> activeSynth, std::string const &filename, std::shared_ptr<AutomaticCategory> detector);
 	};
 
 }

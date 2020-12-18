@@ -14,12 +14,9 @@ namespace midikraft {
 
 	class Category {
 	public:
-		Category(std::string const &c, Colour o, int i) : category(c), color(o), bitIndex(i) {}
+		Category(std::string const &c, Colour o) : category(c), color(o) {}
 		std::string category;
-		Colour color;
-		int bitIndex; // For bit-vector storage 
-
-		static int64 categorySetAsBitfield(std::set<Category> const &categories);
+		Colour color;		
 	};
 
 	bool operator <(Category const &left, Category const &right);

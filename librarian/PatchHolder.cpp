@@ -28,14 +28,40 @@ namespace midikraft {
 		*kBankNumber = "banknumber",
 		*kProgramNo = "program";
 
+	std::vector<std::string> kBitIndexNames = { "Lead", "Pad", "Brass", "Organ", "Keys", "Bass", "Arp", "Pluck", "Drone", "Drum", "Bell", "SFX", "Ambient", "Wind",  "Voice" };
 
-	PatchHolder::PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, bool autoDetectCategories /* = false */)
+	int bitIndexForCategory(Category &category) {
+		for (int i = 0; i < kBitIndexNames.size(); i++) {
+			if (category.category == kBitIndexNames[i]) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	juce::int64 PatchHolder::categorySetAsBitfield(std::set<Category> const &categories)
+	{
+		uint64 mask = 0;
+		for (auto cat : categories) {
+			int bitindex = bitIndexForCategory(cat);
+			if (bitindex != -1) {
+				mask |= 1LL << bitindex; 
+				jassert(bitindex >= 0 && bitindex < 63);
+			}
+			else {
+				jassertfalse;
+			}
+		}
+		return mask;
+	}
+
+	PatchHolder::PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
 		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false), synth_(activeSynth)
 	{
 		if (patch) {
 			name_ = patch->name();
-			if (autoDetectCategories) {
-				categories_ = AutoCategory::determineAutomaticCategories(*this);
+			if (detector) {
+				categories_ = detector->determineAutomaticCategories(*this);
 			}
 		}
 	}
@@ -140,15 +166,6 @@ namespace midikraft {
 		}
 	}
 
-	void PatchHolder::setCategory(std::string const &categoryName, bool hasIt)
-	{
-		for (auto cat : AutoCategory::predefinedCategories()) {
-			if (cat.category().category == categoryName) {
-				setCategory(cat.category(), hasIt);
-			}
-		}
-	}
-
 	void PatchHolder::clearCategories()
 	{
 		categories_.clear();
@@ -160,12 +177,12 @@ namespace midikraft {
 	}
 
 	int64 PatchHolder::categoriesAsBitfield() const {
-		return Category::categorySetAsBitfield(categories_);
+		return categorySetAsBitfield(categories_);
 	}
 
 	juce::int64 PatchHolder::userDecisionAsBitfield() const
 	{
-		return Category::categorySetAsBitfield(userDecisions_);
+		return categorySetAsBitfield(userDecisions_);
 	}
 
 	void PatchHolder::setCategoriesFromBitfield(int64 bitfield) {
@@ -180,14 +197,14 @@ namespace midikraft {
 	void PatchHolder::setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield)
 	{
 		cats.clear();
-		for (int i = 0; i < 64; i++) {
+		for (int i = 0; i < 63; i++) {
 			if (bitfield & (1LL << i)) {
 				// This bit is set, find the category that has this bitindex
-				for (auto c : AutoCategory::predefinedCategoryVector()) {
-					if (c.bitIndex == (i + 1)) {
-						cats.insert(c);
-						break;
-					}
+				if (i < kBitIndexNames.size()) {
+					cats.insert(Category(kBitIndexNames[i], AutomaticCategory::colorForIndex(i)));
+				}
+				else {
+					jassertfalse;
 				}
 			}
 		}
@@ -198,10 +215,10 @@ namespace midikraft {
 		return sourceInfo_;
 	}
 
-	bool PatchHolder::autoCategorizeAgain()
+	bool PatchHolder::autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector)
 	{
 		auto previous = categories();
-		auto newCategories = AutoCategory::determineAutomaticCategories(*this);
+		auto newCategories = detector->determineAutomaticCategories(*this);
 		if (previous != newCategories) {
 			for (auto n : newCategories) {
 				if (userDecisions_.find(n) == userDecisions_.end()) {

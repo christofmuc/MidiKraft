@@ -257,7 +257,8 @@ namespace midikraft {
 
 	class LoadManyPatchFiles : public ThreadWithProgressWindow {
 	public:
-		LoadManyPatchFiles(Librarian *librarian, std::shared_ptr<Synth> synth, Array<File> files) : ThreadWithProgressWindow("Loading patch files", true, true), librarian_(librarian), synth_(synth), files_(files)
+		LoadManyPatchFiles(Librarian *librarian, std::shared_ptr<Synth> synth, Array<File> files, std::shared_ptr<AutomaticCategory> automaticCategories) 
+			: ThreadWithProgressWindow("Loading patch files", true, true), librarian_(librarian), synth_(synth), files_(files), automaticCategories_(automaticCategories)
 		{
 		}
 
@@ -270,7 +271,7 @@ namespace midikraft {
 				}
 				setProgress(filesDone / (double)filesDiscovered);
 				auto pathChosen = fileChosen.getFullPathName().toStdString();
-				auto newPatches = librarian_->loadSysexPatchesFromDisk(synth_, pathChosen, fileChosen.getFileName().toStdString());
+				auto newPatches = librarian_->loadSysexPatchesFromDisk(synth_, pathChosen, fileChosen.getFileName().toStdString(), automaticCategories_);
 				std::copy(newPatches.begin(), newPatches.end(), std::back_inserter(result_));
 				filesDone++;
 			}
@@ -284,6 +285,7 @@ namespace midikraft {
 		Librarian *librarian_;
 		std::shared_ptr<Synth> synth_;
 		Array<File> files_;
+		std::shared_ptr<AutomaticCategory> automaticCategories_;
 		std::vector<PatchHolder> result_;
 	};
 
@@ -298,7 +300,7 @@ namespace midikraft {
 		}
 	}
 
-	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth)
+	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::shared_ptr<AutomaticCategory> automaticCategories)
 	{
 		updateLastPath();
 
@@ -318,7 +320,7 @@ namespace midikraft {
 				Settings::instance().set("lastImportPath", lastPath_);
 			}
 
-			LoadManyPatchFiles backgroundTask(this, synth, sysexChooser.getResults());
+			LoadManyPatchFiles backgroundTask(this, synth, sysexChooser.getResults(), automaticCategories);
 			if (backgroundTask.runThread()) {
 				auto result = backgroundTask.result();
 				// If this was more than one file, replace the source info with a bulk info source
@@ -336,7 +338,7 @@ namespace midikraft {
 		return std::vector<PatchHolder>();
 	}
 
-	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::string const &fullpath, std::string const &filename) {
+	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::string const &fullpath, std::string const &filename, std::shared_ptr<AutomaticCategory> automaticCategories) {
 		auto legacyLoader = std::dynamic_pointer_cast<LegacyLoaderCapability>(synth);
 		TPatchVector patches;
 		if (legacyLoader && legacyLoader->supportsExtension(fullpath)) {
@@ -349,7 +351,7 @@ namespace midikraft {
 			}
 		}
 		else if (File(fullpath).getFileExtension() == ".json") {
-			return PatchInterchangeFormat::load(synth, fullpath);
+			return PatchInterchangeFormat::load(synth, fullpath, automaticCategories);
 		}
 		else {
 			auto messagesLoaded = Sysex::loadSysex(fullpath);
@@ -372,7 +374,7 @@ namespace midikraft {
 		std::vector<PatchHolder> result;
 		int i = 0;
 		for (auto patch : patches) {
-			result.push_back(PatchHolder(synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch, true));
+			result.push_back(PatchHolder(synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch, automaticCategories));
 			i++;
 		}
 		return result;
@@ -594,8 +596,10 @@ namespace midikraft {
 	std::vector<PatchHolder> Librarian::tagPatchesWithImportFromSynth(std::shared_ptr<Synth> synth, TPatchVector &patches, MidiBankNumber bankNo) {
 		std::vector<PatchHolder> result;
 		auto now = Time::getCurrentTime();
+		//TODO - this probably should have been handed down from the main program?
+		auto detector = std::make_shared<midikraft::AutomaticCategory>();
 		for (auto patch : patches) {
-			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, true));
+			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, detector));
 		}
 		return result;
 	}

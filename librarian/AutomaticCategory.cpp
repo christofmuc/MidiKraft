@@ -17,30 +17,37 @@
 
 namespace midikraft {
 
-	std::vector<AutoCategory> AutoCategory::predefinedCategories_;
-	std::map<std::string, std::map<std::string, std::string>> AutoCategory::importMappings_;
-
 	// From http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
 	std::vector<std::string> colorPalette = { "ff8dd3c7", "ffffffb3", "ffbebada", "fffb8072", "ff80b1d3", "fffdb462", "ffb3de69", "fffccde5", "ffd9d9d9", "ffbc80bd", "ffccebc5", "ffffed6f" };
 
-	std::vector<AutoCategory> AutoCategory::predefinedCategories() {
-		// Lazy init
-		if (predefinedCategories_.empty()) {
+	AutomaticCategory::AutomaticCategory()
+	{
+		if (autoCategoryFileExists()) {
+			loadFromFile(getAutoCategoryFile().getFullPathName().toStdString());
+		}
+		else {
 			loadFromString(defaultJson());
 		}
+
+		if (autoCategoryMappingFileExists()) {
+			auto fileContent = getAutoCategoryMappingFile().loadFileAsString();
+			loadMappingFromString(fileContent.toStdString());
+		}
+		else {
+			loadMappingFromString(defaultJsonMapping());
+		}
+	}
+
+	std::vector<AutoCategory> AutomaticCategory::predefinedCategories() {
 		return predefinedCategories_;
 	}
 
-	std::map<std::string, std::map<std::string, std::string>> const &AutoCategory::importMappings()
+	std::map<std::string, std::map<std::string, std::string>> const &AutomaticCategory::importMappings()
 	{
-		// Lazy init
-		if (importMappings_.empty()) {
-			loadMappingFromString(defaultJsonMapping());
-		}
 		return importMappings_;
 	}
 
-	std::vector<midikraft::Category> AutoCategory::predefinedCategoryVector()
+	std::vector<midikraft::Category> AutomaticCategory::predefinedCategoryVector()
 	{
 		std::vector<midikraft::Category> result;
 		for (auto a : predefinedCategories()) {
@@ -49,7 +56,7 @@ namespace midikraft {
 		return result;
 	}
 
-	std::set<Category> AutoCategory::determineAutomaticCategories(PatchHolder const &patch)
+	std::set<Category> AutomaticCategory::determineAutomaticCategories(PatchHolder const &patch)
 	{
 		std::set <Category> result;
 
@@ -121,7 +128,7 @@ namespace midikraft {
 		return category_;
 	}
 
-	void AutoCategory::loadFromFile(std::string fullPathToJson)
+	void AutomaticCategory::loadFromFile(std::string fullPathToJson)
 	{
 		// Load the string in the file given
 		File jsonFile(fullPathToJson);
@@ -131,7 +138,7 @@ namespace midikraft {
 		}
 	}
 
-	void AutoCategory::loadFromString(std::string const fileContent) {
+	void AutomaticCategory::loadFromString(std::string const fileContent) {
 		// Parse as JSON
 		rapidjson::Document doc;
 		doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.c_str());
@@ -140,7 +147,7 @@ namespace midikraft {
 			predefinedCategories_.clear();
 
 			auto obj = doc.GetObject();
-			size_t i = 1;
+			size_t i = 0;
 			for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
 				auto categoryName = member->name.GetString();
 				std::vector<std::regex> regexes;
@@ -170,14 +177,14 @@ namespace midikraft {
 						}
 					}
 				}
-				AutoCategory cat(Category(categoryName, colorForIndex(i - 1), (int) i), regexes);
+				AutoCategory cat(Category(categoryName, colorForIndex(i)), regexes);
 				i++;
 				predefinedCategories_.push_back(cat);
 			}
 		}
 	}
 
-	void AutoCategory::loadMappingFromString(std::string const fileContent) {
+	void AutomaticCategory::loadMappingFromString(std::string const fileContent) {
 		// Parse as JSON
 		rapidjson::Document doc;
 		doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.c_str());
@@ -212,19 +219,59 @@ namespace midikraft {
 		}
 	}
 
-	std::string AutoCategory::defaultJson()
+	bool AutomaticCategory::autoCategoryFileExists() const
+	{
+		File autocat = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("KnobKraft").getChildFile("automatic_categories.jsonc");
+		return autocat.exists();
+	}
+
+	File AutomaticCategory::getAutoCategoryFile() {
+		File appData = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("KnobKraft");
+		if (!appData.exists()) {
+			appData.createDirectory();
+		}
+		File jsoncFile = appData.getChildFile("automatic_categories.jsonc");
+		if (!jsoncFile.exists()) {
+			// Create an initial file from the resources!
+			FileOutputStream out(jsoncFile);
+			out.writeText(midikraft::AutomaticCategory::defaultJson(), false, false, "\\n");
+		}
+		return jsoncFile;
+	}
+
+	bool AutomaticCategory::autoCategoryMappingFileExists() const
+	{
+		File automap = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("KnobKraft").getChildFile("mapping_categories.jsonc");
+		return automap.exists();
+	}
+
+	File AutomaticCategory::getAutoCategoryMappingFile() {
+		File appData = File::getSpecialLocation(File::userApplicationDataDirectory).getChildFile("KnobKraft");
+		if (!appData.exists()) {
+			appData.createDirectory();
+		}
+		File jsoncFile = appData.getChildFile("mapping_categories.jsonc");
+		if (!jsoncFile.exists()) {
+			// Create an initial file from the resources!
+			FileOutputStream out(jsoncFile);
+			out.writeText(midikraft::AutomaticCategory::defaultJsonMapping(), false, false, "\\n");
+		}
+		return jsoncFile;
+	}
+
+	std::string AutomaticCategory::defaultJson()
 	{
 		// Read the default Json definition from the binary resources
 		return std::string(automatic_categories_jsonc, automatic_categories_jsonc + automatic_categories_jsonc_size);
 	}
 
-	std::string AutoCategory::defaultJsonMapping()
+	std::string AutomaticCategory::defaultJsonMapping()
 	{
 		// Read the default Json definition from the binary resources
 		return std::string(mapping_categories_jsonc, mapping_categories_jsonc + mapping_categories_jsonc_size);
 	}
 
-	juce::Colour AutoCategory::colorForIndex(size_t i)
+	juce::Colour AutomaticCategory::colorForIndex(size_t i)
 	{
 		if (i < colorPalette.size()) {
 			return Colour::fromString(colorPalette[i]);

@@ -6,16 +6,6 @@
 
 #include "Category.h"
 
-juce::int64 midikraft::Category::categorySetAsBitfield(std::set<Category> const &categories)
-{
-	uint64 mask = 0;
-	for (auto cat : categories) {
-		mask |= 1LL << (cat.bitIndex - 1); // bitIndex is 1-based
-		jassert(cat.bitIndex > 0 && cat.bitIndex < 64);
-	}
-	return mask;
-}
-
 bool midikraft::operator==(Category const &left, Category const &right)
 {
 	// Ignore bitIndex and color

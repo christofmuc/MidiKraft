@@ -15,14 +15,14 @@
 
 namespace midikraft {
 
-	bool findCategory(const char *categoryName, midikraft::Category &outCategory) {
+	bool findCategory(std::shared_ptr<AutomaticCategory> detector, const char *categoryName, midikraft::Category &outCategory) {
 		// Hard code migration from the Rev2SequencerTool categoryNames to KnobKraft Orm
 		//TODO - this could become arbitrarily complex with free tags?
 		if (!strcmp(categoryName, "Bells")) categoryName = "Bell";
 		if (!strcmp(categoryName, "FX")) categoryName = "SFX";
 
 		// Check if this is a valid category
-		for (auto acat : AutoCategory::predefinedCategoryVector()) {
+		for (auto acat : detector->predefinedCategoryVector()) {
 			if (acat.category == categoryName) {
 				// Found, great!
 				outCategory = acat;
@@ -32,7 +32,7 @@ namespace midikraft {
 		return false;
 	}
 
-	std::vector<midikraft::PatchHolder> PatchInterchangeFormat::load(std::shared_ptr<Synth> activeSynth, std::string const &filename)
+	std::vector<midikraft::PatchHolder> PatchInterchangeFormat::load(std::shared_ptr<Synth> activeSynth, std::string const &filename, std::shared_ptr<AutomaticCategory> detector)
 	{
 		std::vector<midikraft::PatchHolder> result;
 
@@ -84,8 +84,8 @@ namespace midikraft {
 					if (item->HasMember("Categories")) {
 						auto cats = (*item)["Categories"].GetArray();
 						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
-							midikraft::Category category("", Colours::aliceblue, 0);
-							if (findCategory(cat->GetString(), category)) {
+							midikraft::Category category("", Colours::aliceblue);
+							if (findCategory(detector, cat->GetString(), category)) {
 								categories.push_back(category);
 							}
 							else {
@@ -98,8 +98,8 @@ namespace midikraft {
 					if (item->HasMember("NonCategories")) {
 						auto cats = (*item)["NonCategories"].GetArray();
 						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
-							midikraft::Category category("", Colours::aliceblue, 0);
-							if (findCategory(cat->GetString(), category)) {
+							midikraft::Category category("", Colours::aliceblue);
+							if (findCategory(detector, cat->GetString(), category)) {
 								nonCategories.push_back(category);
 							}
 							else {
@@ -123,7 +123,7 @@ namespace midikraft {
 						auto patches = activeSynth->loadSysex(messages);
 						//jassert(patches.size() == 1);
 						if (patches.size() == 1) {
-							PatchHolder holder(activeSynth, fileSource, patches[0], true);
+							PatchHolder holder(activeSynth, fileSource, patches[0], detector);
 							holder.setFavorite(fav);
 							holder.setName(patchName);
 							for (const auto& cat : categories) {

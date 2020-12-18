@@ -20,29 +20,46 @@ namespace midikraft {
 
 	class AutoCategory {
 	public:
-		static std::vector<AutoCategory> predefinedCategories();
-		static std::vector<Category> predefinedCategoryVector();
-		static std::set<Category> determineAutomaticCategories(PatchHolder const &patch);
-		static std::map<std::string, std::map<std::string, std::string>> const &importMappings();
-
-		AutoCategory(Category category, std::vector<std::string> const &regexes);		
+		AutoCategory(Category category, std::vector<std::string> const &regexes);
 		AutoCategory(Category category, std::vector<std::regex> const &regexes);
 		Category category() const;
 
-		static void loadFromFile(std::string fullPathToJson);
-		static void loadFromString(std::string const fileContent);
-		static void loadMappingFromString(std::string const fileContent);
-		static std::string defaultJson();
-		static std::string defaultJsonMapping();
-
 	private:
-		static Colour colorForIndex(size_t i);
-
-		static std::vector<AutoCategory> predefinedCategories_;
-		static std::map<std::string, std::map<std::string, std::string>> importMappings_;
+		friend class AutomaticCategory; // Refactoring help
 
 		Category category_;
 		std::vector<std::regex> patchNameMatchers_;
 	};
+
+	class AutomaticCategory {
+	public:
+		AutomaticCategory();
+
+		std::vector<AutoCategory> predefinedCategories();
+		std::vector<Category> predefinedCategoryVector();
+		std::set<Category> determineAutomaticCategories(PatchHolder const &patch);
+		std::map<std::string, std::map<std::string, std::string>> const &importMappings();
+
+		void loadFromFile(std::string fullPathToJson);
+
+		bool autoCategoryFileExists() const;
+		bool autoCategoryMappingFileExists() const;
+
+		File getAutoCategoryFile();
+		File getAutoCategoryMappingFile();
+
+		static Colour colorForIndex(size_t i);
+
+	private:
+		void loadFromString(std::string const fileContent);
+		void loadMappingFromString(std::string const fileContent);
+
+		std::string defaultJson();
+		std::string defaultJsonMapping();
+
+		std::vector<AutoCategory> predefinedCategories_;
+		std::map<std::string, std::map<std::string, std::string>> importMappings_;
+	};
+
 
 }

@@ -82,9 +82,9 @@ namespace midikraft {
 	};
 
 	class PatchHolder {
-	public:
+	public:		
 		PatchHolder();
-		PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,  bool autoDetectCategories = false);
+		PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,  std::shared_ptr<AutomaticCategory> detector = nullptr);
 
 		std::shared_ptr<DataFile> patch() const;
 		Synth *synth() const;
@@ -108,7 +108,6 @@ namespace midikraft {
 
 		bool hasCategory(Category const &category) const;
 		void setCategory(Category const &category, bool hasIt);
-		void setCategory(std::string const &categoryName, bool hasIt);
 		void clearCategories();
 		std::set<Category> categories() const;
 		void setUserDecision(Category const &clicked);
@@ -117,11 +116,14 @@ namespace midikraft {
 		int64 categoriesAsBitfield() const;
 		int64 userDecisionAsBitfield() const;
 		void setCategoriesFromBitfield(int64 bitfield);
+		
 		void setUserDecisionsFromBitfield(int64 bitfield);
+
+		static juce::int64 categorySetAsBitfield(std::set<Category> const &categories);
 		
 		std::shared_ptr<SourceInfo> sourceInfo() const;
 
-		bool autoCategorizeAgain(); // Returns true if categories have changed!
+		bool autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector); // Returns true if categories have changed!
 		
 		std::string md5() const;
 		

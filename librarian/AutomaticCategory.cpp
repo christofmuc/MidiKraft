@@ -8,13 +8,17 @@
 
 #include "Patch.h"
 #include "PatchHolder.h"
+#include "StoredTagCapability.h"
 
 #include "BinaryResources.h"
 #include "RapidjsonHelper.h"
 
+#include <boost/format.hpp>
+
 namespace midikraft {
 
 	std::vector<AutoCategory> AutoCategory::predefinedCategories_;
+	std::map<std::string, std::map<std::string, std::string>> AutoCategory::importMappings_;
 
 	// From http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
 	std::vector<std::string> colorPalette = { "ff8dd3c7", "ffffffb3", "ffbebada", "fffb8072", "ff80b1d3", "fffdb462", "ffb3de69", "fffccde5", "ffd9d9d9", "ffbc80bd", "ffccebc5", "ffffed6f" };
@@ -25,6 +29,15 @@ namespace midikraft {
 			loadFromString(defaultJson());
 		}
 		return predefinedCategories_;
+	}
+
+	std::map<std::string, std::map<std::string, std::string>> const &AutoCategory::importMappings()
+	{
+		// Lazy init
+		if (importMappings_.empty()) {
+			loadMappingFromString(defaultJsonMapping());
+		}
+		return importMappings_;
 	}
 
 	std::vector<midikraft::Category> AutoCategory::predefinedCategoryVector()
@@ -39,11 +52,51 @@ namespace midikraft {
 	std::set<Category> AutoCategory::determineAutomaticCategories(PatchHolder const &patch)
 	{
 		std::set <Category> result;
-		for (auto autoCat : predefinedCategories()) {
-			for (auto matcher : autoCat.patchNameMatchers_) {
-				bool found = std::regex_search(patch.name(), matcher);
-				if (found) {
-					result.insert(autoCat.category_);
+
+		// First step, the synth might support stored categories
+		auto storedTags = std::dynamic_pointer_cast<StoredTagCapability>(patch.patch());
+		if (storedTags) {
+			// Ah, that synth supports storing tags in the patch data itself, nice! Let's see if we can use them
+			auto tags = storedTags->tags();
+			auto mappings = importMappings();
+			std::string synthname = patch.synth()->getName();
+			for (auto tag : tags) {
+				// Let's see if we can map it
+				if (mappings.find(synthname) != mappings.end()) {
+					if (mappings[synthname].find(tag.name()) != mappings[synthname].end()) {
+						std::string categoryName = mappings[synthname][tag.name()];
+						if (categoryName != "None") {
+							bool found = false;
+							for (auto cat : predefinedCategories()) {
+								if (cat.category().category == categoryName) {
+									// That's us!
+									result.insert(cat.category());
+									found = true;
+								}
+							}
+							if (!found) {
+								SimpleLogger::instance()->postMessage((boost::format("Warning: Invalid mapping for Synth %s and stored category %s. Maps to invalid category %s. Use Categories... Edit mappings... to fix.") % synthname % tag.name() % categoryName).str());
+							}
+						}
+					}
+					else {
+						SimpleLogger::instance()->postMessage((boost::format("Warning: Synth %s has no mapping defined for stored category %s. Use Categories... Edit mappings... to fix.") % synthname % tag.name()).str());
+					}
+				}
+				else {
+					SimpleLogger::instance()->postMessage((boost::format("Warning: Synth %s has no mapping defined for stored categories. Use Categories... Edit mappings... to fix.") % synthname).str());
+				}
+			}
+		}
+
+		if (result.empty()) {
+			// Second step, if we have no category yet, try to detect the category from the name using the regex rule set stored in the file automatic_categories.jsonc
+			for (auto autoCat : predefinedCategories()) {
+				for (auto matcher : autoCat.patchNameMatchers_) {
+					bool found = std::regex_search(patch.name(), matcher);
+					if (found) {
+						result.insert(autoCat.category_);
+					}
 				}
 			}
 		}
@@ -124,10 +177,51 @@ namespace midikraft {
 		}
 	}
 
+	void AutoCategory::loadMappingFromString(std::string const fileContent) {
+		// Parse as JSON
+		rapidjson::Document doc;
+		doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.c_str());
+		if (doc.IsObject()) {
+			// Replace the hard-coded values with those read from the JSON file
+			importMappings_.clear();
+
+			auto obj = doc.GetObject();
+			for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
+				std::string synth = member->name.GetString();
+				if (member->value.HasMember("synthToDatabase")) {
+					std::map<std::string, std::string> mapping;
+					auto importMap = member->value.FindMember("synthToDatabase");
+					if (importMap->value.IsObject()) {
+						for (auto s = importMap->value.MemberBegin(); s != importMap->value.MemberEnd(); s++) {
+							if (s->name.IsString() && s->value.IsString()) {
+								std::string input = s->name.GetString();
+								std::string output = s->value.GetString();
+								mapping[input] = output;
+							}
+							else {
+								SimpleLogger::instance()->postMessage("Invalid JSON input - need to map strings to strings only");
+							}
+						}
+						importMappings_[synth] =  mapping;
+					}
+					else {
+						SimpleLogger::instance()->postMessage("Invalid JSON input - need to supply map object");
+					}
+				}
+			}
+		}
+	}
+
 	std::string AutoCategory::defaultJson()
 	{
 		// Read the default Json definition from the binary resources
 		return std::string(automatic_categories_jsonc, automatic_categories_jsonc + automatic_categories_jsonc_size);
+	}
+
+	std::string AutoCategory::defaultJsonMapping()
+	{
+		// Read the default Json definition from the binary resources
+		return std::string(mapping_categories_jsonc, mapping_categories_jsonc + mapping_categories_jsonc_size);
 	}
 
 	juce::Colour AutoCategory::colorForIndex(size_t i)

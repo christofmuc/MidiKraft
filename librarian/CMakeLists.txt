@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.14)
 project(MidiKraft-librarian)
 
 set(RESOURCE_FILES 
-	"resources/automatic_categories.jsonc"
+	"resources/automatic_categories.jsonc" "resources/mapping_categories.jsonc"
 )
 
 add_custom_command(OUTPUT ${CMAKE_CURRENT_LIST_DIR}/BinaryResources.h

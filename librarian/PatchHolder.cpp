@@ -7,6 +7,7 @@
 #include "PatchHolder.h"
 
 #include "AutomaticCategory.h"
+#include "StoredTagCapability.h"
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -36,6 +37,15 @@ namespace midikraft {
 			name_ = patch->name();
 			if (autoDetectCategories) {
 				categories_ = AutoCategory::determineAutomaticCategories(*this);
+			}
+
+			auto storedTags = std::dynamic_pointer_cast<StoredTagCapability>(patch);
+			if (storedTags) {
+				// Ah, that synth supports storing tags in the patch data itself, nice! Let's see if we can use them
+				auto tags = storedTags->tags();
+				for (auto tag : tags) {
+					SimpleLogger::instance()->postMessage((boost::format("Found stored category %s in patch %s") % tag.name() % name()).str());
+				}
 			}
 		}
 	}

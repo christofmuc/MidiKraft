@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Synth.h"
+#include "Tag.h"
 #include "PatchNumber.h"
 
 namespace midikraft {

@@ -18,7 +18,7 @@
 namespace midikraft {
 
 	// From http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
-	std::vector<std::string> colorPalette = { "ff8dd3c7", "ffffffb3", "ffbebada", "fffb8072", "ff80b1d3", "fffdb462", "ffb3de69", "fffccde5", "ffd9d9d9", "ffbc80bd", "ffccebc5", "ffffed6f",
+	std::vector<std::string> colorPalette = { "ff8dd3c7", "ffffffb3", "ff4a75b2", "fffb8072", "ff80b1d3", "fffdb462", "ffb3de69", "fffccde5", "ffd9d9d9", "ffbc80bd", "ffccebc5", "ffffed6f",
 		"ff869cab", "ff317469", "ffa75781" };
 
 	AutomaticCategory::AutomaticCategory()

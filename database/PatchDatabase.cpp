@@ -303,7 +303,7 @@ namespace midikraft {
 			if (newPatch) {
 				auto sourceColumn = query.getColumn("sourceInfo");
 				if (sourceColumn.isText()) {
-					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, false);
+					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch);
 
 					std::string patchName = query.getColumn("name").getString();
 					holder.setName(patchName);

@@ -15,7 +15,7 @@ namespace midikraft {
 	class PatchNumber {
 	public:
 		PatchNumber() : programNumber_(MidiProgramNumber::fromZeroBase(0)) {}
-		PatchNumber(MidiProgramNumber const &programNumber) : programNumber_(programNumber) { };
+		PatchNumber(MidiProgramNumber const &programNumber) : programNumber_(programNumber) { }
 		virtual ~PatchNumber() = default;
 
 		virtual std::string friendlyName() const = 0;

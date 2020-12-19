@@ -36,19 +36,22 @@ namespace midikraft {
 		virtual std::string valueInPatchToText(DataFile const &patch) const = 0;
 	};
 
-	class SynthIntParameterCapability {
+	class SynthIntValueParameterCapability {
 	public:
 		virtual int minValue() const = 0;
 		virtual int maxValue() const = 0;
 		virtual int sysexIndex() const = 0;
+	};
 
+	class SynthIntParameterCapability : public virtual SynthIntValueParameterCapability {
+	public:
 		//! Use this function to retrieve the integer value in the patch
 		virtual bool valueInPatch(DataFile const &patch, int &outValue) const = 0;
 		//! Use this function to set the integer value in the patch
 		virtual void setInPatch(DataFile &patch, int value) const = 0;
 	};
 
-	class SynthVectorParameterCapability : public SynthIntParameterCapability {
+	class SynthVectorParameterCapability : public virtual SynthIntValueParameterCapability {
 	public:
 		virtual int endSysexIndex() const = 0;
 		//! Use this function to retrieve the integer array value in the patch

@@ -11,7 +11,7 @@
 {
     "Lead": ["^ld", "ld$", "lead", "uni", "solo"],
     "Pad": ["pad", "pd ", "pd$", "^pd", "str ", "str$", "strg", "strng", "string", "bow", "^STR:", "^BOW:" ],
-    "Brass": [ "horn", "hrn", "brass", "brs$", "trumpet", "^BRS:" ],
+    "Brass": [ "horn", "hrn", "brass", "brs$", "trumpet", "^BRS:", "sax" ],
     "Organ": [ "b3", "hammond", "org", "farf", "church", "pipe" ],
     "Keys": [ "wurl", "pian", "rhode", "pno", "clav", "klav", " ep", "key", "^KBD:" ],
     "Bass": [ "^bs[^a-z]", "bs$", "bass", "bas$", " ba$", "^BAS:" ],
@@ -22,6 +22,6 @@
     "Bell": [ "bell", "tines", "chime", "^CHR:" ],
     "SFX": [ "fx" ],
     "Ambient": [ "^AMB:"],
-    "Wind": [ "^WND:"],
-    "Voice": [ "^VOC:"]
+    "Wind": [ "^WND:", "flute", "clarinet" ],
+    "Voice": [ "^VOC:", "choir" ]
 }

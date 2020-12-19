@@ -24,6 +24,7 @@ namespace midikraft {
 	AutomaticCategory::AutomaticCategory()
 	{
 		if (autoCategoryFileExists()) {
+			SimpleLogger::instance()->postMessage((boost::format("Overriding built-in automatic category rules with file %s") % getAutoCategoryFile().getFullPathName().toStdString()).str());
 			loadFromFile(getAutoCategoryFile().getFullPathName().toStdString());
 		}
 		else {
@@ -31,6 +32,7 @@ namespace midikraft {
 		}
 
 		if (autoCategoryMappingFileExists()) {
+			SimpleLogger::instance()->postMessage((boost::format("Overriding built-in import category rules with file %s") % getAutoCategoryMappingFile().getFullPathName().toStdString()).str());
 			auto fileContent = getAutoCategoryMappingFile().loadFileAsString();
 			loadMappingFromString(fileContent.toStdString());
 		}

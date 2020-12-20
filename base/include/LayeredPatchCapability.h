@@ -8,7 +8,7 @@
 
 namespace midikraft {
 
-	class LayeredPatch {
+	class LayeredPatchCapability {
 	public:
 		enum LayerMode {
 			SEPARATE,

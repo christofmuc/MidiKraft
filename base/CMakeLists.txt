@@ -15,6 +15,7 @@ set(Sources
 	include/AutoDetection.h src/AutoDetection.cpp
 	include/BankDumpCapability.h
 	include/BidirectionalSyncCapability.h
+	include/Capability.h
 	include/CreateInitPatchDataCapability.h
 	include/DataFileLoadCapability.h
 	include/DataFileSendCapability.h

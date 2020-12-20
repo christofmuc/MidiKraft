@@ -6,6 +6,7 @@
 
 #include "Synth.h"
 
+#include "Capability.h"
 #include "Patch.h"
 #include "MidiController.h"
 #include "MidiHelpers.h"
@@ -41,11 +42,11 @@ namespace midikraft {
 		TPatchVector result;
 		// Now that we have a list of messages, let's see if there are (hopefully) any patches between them
 		int patchNo = 0;
-		auto editBufferSynth = dynamic_cast<EditBufferCapability *>(this);
-		auto programDumpSynth = dynamic_cast<ProgramDumpCabability *>(this);
-		auto bankDumpSynth = dynamic_cast<BankDumpCapability*>(this);
-		auto dataFileLoadSynth = dynamic_cast<DataFileLoadCapability*>(this);
-		auto streamDumpSynth = dynamic_cast<StreamDumpCapability*>(this);
+		auto editBufferSynth = midikraft::Capability::hasCapability<EditBufferCapability>(this);
+		auto programDumpSynth = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
+		auto bankDumpSynth = midikraft::Capability::hasCapability<BankDumpCapability>(this);
+		auto dataFileLoadSynth = midikraft::Capability::hasCapability<DataFileLoadCapability>(this);
+		auto streamDumpSynth = midikraft::Capability::hasCapability<StreamDumpCapability>(this);
 		if (streamDumpSynth) {
 			// The stream dump synth loads all at once
 			result = streamDumpSynth->loadStreamDump(sysexMessages);
@@ -118,8 +119,8 @@ namespace midikraft {
 		if (realPatch && !target) {
 			// Default implementation is to just shoot it to the Midi output and hope for the best, no handshake is done
 			// There must be no target specified, for backwards compatibility the old behavior is implemented here to always target the edit buffer of the device
-			auto editBufferCapability = dynamic_cast<EditBufferCapability *>(this);
-			auto programDumpCapability = dynamic_cast<ProgramDumpCabability *>(this);
+			auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(this);
+			auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
 			if (editBufferCapability) {
 				messages = editBufferCapability->patchToSysex(*realPatch);
 			}
@@ -128,7 +129,7 @@ namespace midikraft {
 			}
 		}
 		if (messages.empty()) {
-			auto dfcl = dynamic_cast<DataFileSendCapability*>(this);
+			auto dfcl = midikraft::Capability::hasCapability<DataFileSendCapability>(this);
 			if (dfcl) {
 				messages = dfcl->dataFileToMessages(dataFile, target);
 			}
@@ -144,7 +145,7 @@ namespace midikraft {
 	{
 		auto messages = patchToSysex(dataFile, target);
 		if (!messages.empty()) {
-			auto midiLocation = dynamic_cast<MidiLocationCapability *>(this);
+			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
 			if (midiLocation && !messages.empty()) {
 				SimpleLogger::instance()->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
 				MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());

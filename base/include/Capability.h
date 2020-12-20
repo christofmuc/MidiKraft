@@ -10,17 +10,42 @@
 
 namespace midikraft {
 
+	// Base class for classes having a varying set of Capabilities
+	template <class D>
+	class RuntimeCapability {
+	public:
+		virtual bool hasCapability(std::shared_ptr<D> &outCapability) = 0;
+		virtual bool hasCapability(D **outCapability) = 0;
+	};
+
+	// Generic accessor for Capabilities - use this instead of std::dynamic_pointer_cast
 	class Capability {
 	public:
 		template <class D, class S>
 		static std::shared_ptr<D> hasCapability(std::shared_ptr<S> const &input);
+
+		template <class D, class S>
+		static D *hasCapability(S *input);
 	};
 
 	template <class D, class S>
-	static std::shared_ptr<D>
-		midikraft::Capability::hasCapability(std::shared_ptr<S> const &input)
+	D * midikraft::Capability::hasCapability(S *input)
 	{
-		return std::dynamic_pointer_cast<D>(input);
+		return dynamic_cast<D *>(input);
+	}
+
+	template <class D, class S>
+	std::shared_ptr<D> midikraft::Capability::hasCapability(std::shared_ptr<S> const &input)
+	{
+		std::shared_ptr<RuntimeCapability<D>> runtimeCapability = std::dynamic_pointer_cast<RuntimeCapability<D>>(input);
+		if (runtimeCapability) {
+			std::shared_ptr<D> out;
+			runtimeCapability->hasCapability(out);
+			return out;
+		}
+		else {
+			return std::dynamic_pointer_cast<D>(input);
+		}
 	}
 
 }

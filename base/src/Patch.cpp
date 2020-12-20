@@ -7,7 +7,7 @@
 #include "Patch.h"
 
 #include "SynthParameterDefinition.h"
-#include "LayeredPatch.h"
+#include "LayeredPatchCapability.h"
 
 #include <boost/format.hpp>
 

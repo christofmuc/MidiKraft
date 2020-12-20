@@ -9,6 +9,7 @@
 #include "JuceHeader.h"
 
 #include "Synth.h"
+#include "Capability.h"
 #include "SoundExpanderCapability.h"
 
 namespace midikraft {
@@ -21,7 +22,7 @@ namespace midikraft {
 
 		std::shared_ptr<Synth> synth() { return std::dynamic_pointer_cast<Synth>(device_); }
 		std::shared_ptr<SimpleDiscoverableDevice> device() { return std::dynamic_pointer_cast<SimpleDiscoverableDevice>(device_); }
-		std::shared_ptr<SoundExpanderCapability> soundExpander() { return std::dynamic_pointer_cast<SoundExpanderCapability>(device_); }
+		std::shared_ptr<SoundExpanderCapability> soundExpander() { return Capability::hasCapability<SoundExpanderCapability>(device_); }
 		Colour color() { return color_; }
 		void setColor(Colour const &newColor);
 

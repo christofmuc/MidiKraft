@@ -6,6 +6,8 @@
 
 #include "PatchHolder.h"
 
+#include "Capability.h"
+
 #include "AutomaticCategory.h"
 
 #include "rapidjson/document.h"
@@ -92,7 +94,7 @@ namespace midikraft {
 
 	void PatchHolder::setName(std::string const &newName)
 	{
-		auto storedInPatch = std::dynamic_pointer_cast<StoredPatchNameCapability>(patch());
+		auto storedInPatch = midikraft::Capability::hasCapability<StoredPatchNameCapability>(patch());
 		if (storedInPatch) {
 			// If the Patch can do it, poke the name into the patch, and then use the result (limited to the characters the synth can do) for the patch holder as well
 			storedInPatch->setName(newName);

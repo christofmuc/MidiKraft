@@ -6,6 +6,7 @@
 
 #include "AutomaticCategory.h"
 
+#include "Capability.h"
 #include "Patch.h"
 #include "PatchHolder.h"
 #include "StoredTagCapability.h"
@@ -64,7 +65,7 @@ namespace midikraft {
 		std::set <Category> result;
 
 		// First step, the synth might support stored categories
-		auto storedTags = std::dynamic_pointer_cast<StoredTagCapability>(patch.patch());
+		auto storedTags = midikraft::Capability::hasCapability<StoredTagCapability>(patch.patch());
 		if (storedTags) {
 			// Ah, that synth supports storing tags in the patch data itself, nice! Let's see if we can use them
 			auto tags = storedTags->tags();

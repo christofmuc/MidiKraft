@@ -69,9 +69,9 @@ namespace midikraft {
 
 		// Determine what we will do with the answer...
 		auto handle = MidiController::makeOneHandle();
-		auto streamLoading = std::dynamic_pointer_cast<StreamLoadCapability>(synth);
-		auto bankCapableSynth = std::dynamic_pointer_cast<BankDumpCapability>(synth);
-		auto handshakeLoadingRequired = std::dynamic_pointer_cast<HandshakeLoadingCapability>(synth);
+		auto streamLoading = midikraft::Capability::hasCapability<StreamLoadCapability>(synth);
+		auto bankCapableSynth = midikraft::Capability::hasCapability<BankDumpCapability>(synth);
+		auto handshakeLoadingRequired = midikraft::Capability::hasCapability<HandshakeLoadingCapability>(synth);
 		if (streamLoading) {
 			// Simple enough, we hope
 			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
@@ -159,10 +159,10 @@ namespace midikraft {
 		downloadNumber_ = 0;
 		currentDownload_.clear();
 		onFinished_ = onFinished;
-		auto editBufferCapability = std::dynamic_pointer_cast<EditBufferCapability>(synth);
-		auto streamLoading = std::dynamic_pointer_cast<StreamLoadCapability>(synth);
-		auto programDumpCapability = std::dynamic_pointer_cast<ProgramDumpCabability>(synth);
-		auto programChangeCapability = std::dynamic_pointer_cast<SendsProgramChangeCapability>(synth);
+		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
+		auto streamLoading = midikraft::Capability::hasCapability<StreamLoadCapability>(synth);
+		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
+		auto programChangeCapability = midikraft::Capability::hasCapability<SendsProgramChangeCapability>(synth);
 		auto handle = MidiController::makeOneHandle();
 		if (streamLoading) {
 			// Simple enough, we hope
@@ -305,7 +305,7 @@ namespace midikraft {
 		updateLastPath();
 
 		std::string standardFileExtensions = "*.syx;*.mid;*.zip;*.txt;*.json";
-		auto legacyLoader = std::dynamic_pointer_cast<LegacyLoaderCapability>(synth);
+		auto legacyLoader = midikraft::Capability::hasCapability<LegacyLoaderCapability>(synth);
 		if (legacyLoader) {
 			standardFileExtensions += ";" + legacyLoader->additionalFileExtensions();
 		}
@@ -339,7 +339,7 @@ namespace midikraft {
 	}
 
 	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::string const &fullpath, std::string const &filename, std::shared_ptr<AutomaticCategory> automaticCategories) {
-		auto legacyLoader = std::dynamic_pointer_cast<LegacyLoaderCapability>(synth);
+		auto legacyLoader = midikraft::Capability::hasCapability<LegacyLoaderCapability>(synth);
 		TPatchVector patches;
 		if (legacyLoader && legacyLoader->supportsExtension(fullpath)) {
 			File legacyFile = File::createFileWithoutCheckingPath(fullpath);
@@ -460,8 +460,8 @@ namespace midikraft {
 	}
 
 	void Librarian::startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth) {
-		auto editBufferCapability = std::dynamic_pointer_cast<EditBufferCapability>(synth);
-		auto programDumpCapability = std::dynamic_pointer_cast<ProgramDumpCabability>(synth);
+		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
+		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
 
 		// Get all commands
 		std::vector<MidiMessage> messages;
@@ -470,7 +470,7 @@ namespace midikraft {
 		}
 		else if (editBufferCapability) {
 			//messages.push_back(MidiMessage::controllerEvent(synth->channel().toOneBasedInt(), 32, bankNo));
-			auto midiLocation = std::dynamic_pointer_cast<MidiLocationCapability>(synth);
+			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(synth);
 			assert(midiLocation);
 			if (midiLocation) {
 				messages.push_back(MidiMessage::programChange(midiLocation->channel().toOneBasedInt(), downloadNumber_));
@@ -504,7 +504,7 @@ namespace midikraft {
 
 	void Librarian::handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &message, StreamLoadCapability::StreamType streamType)
 	{
-		auto streamLoading = std::dynamic_pointer_cast<StreamLoadCapability>(synth);
+		auto streamLoading = midikraft::Capability::hasCapability<StreamLoadCapability>(synth);
 		if (streamLoading) {
 			if (streamLoading->isMessagePartOfStream(message, streamType)) {
 				currentDownload_.push_back(message);
@@ -532,8 +532,8 @@ namespace midikraft {
 	}
 
 	void Librarian::handleNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo) {
-		auto editBufferCapability = std::dynamic_pointer_cast<EditBufferCapability>(synth);
-		auto programDumpCapability = std::dynamic_pointer_cast<ProgramDumpCabability>(synth);
+		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
+		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
 		if ((editBufferCapability  && editBufferCapability->isEditBufferDump(editBuffer)) ||
 			(programDumpCapability && programDumpCapability->isSingleProgramDump(editBuffer))) {
 			// Ok, that worked, save it and continue!
@@ -574,7 +574,7 @@ namespace midikraft {
 	void Librarian::handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo)
 	{
 		ignoreUnused(midiOutput); //TODO why?
-		auto bankDumpCapability = std::dynamic_pointer_cast<BankDumpCapability>(synth);
+		auto bankDumpCapability = midikraft::Capability::hasCapability<BankDumpCapability>(synth);
 		if (bankDumpCapability && bankDumpCapability->isBankDump(bankDump)) {
 			currentDownload_.push_back(bankDump);
 			if (bankDumpCapability->isBankDumpFinished(currentDownload_)) {

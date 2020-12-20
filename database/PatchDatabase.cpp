@@ -586,7 +586,9 @@ namespace midikraft {
 			std::map<Synth *, int> synthsWithUploadedItems;
 			int sumOfAll = 0;
 			for (const auto& newPatch : outNewPatches) {
-				if (progress && progress->shouldAbort()) return sumOfAll;
+				if (progress && progress->shouldAbort()) {
+					return (size_t) sumOfAll;
+				}
 				std::string patchMD5 = newPatch.md5();
 				if (md5Inserted.find(patchMD5) != md5Inserted.end()) {
 					auto duplicate = md5Inserted[patchMD5];
@@ -676,7 +678,7 @@ namespace midikraft {
 
 					// We got everything into the RAM - do we dare do delete them from the database now?
 					int deleted = deletePatches(filter.synths.begin()->second.lock()->getName(), toBeDeleted);
-					if (deleted != toBeReindexed.size()) {
+					if (deleted != (int) toBeReindexed.size()) {
 						SimpleLogger::instance()->postMessage("Aborting reindexing - count of deleted patches does not match count of retrieved patches. Program Error.");
 						return -1;
 					}

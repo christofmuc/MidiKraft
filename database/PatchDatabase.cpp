@@ -6,6 +6,7 @@
 
 #include "PatchDatabase.h"
 
+#include "Capability.h"
 #include "Patch.h"
 #include "Logger.h"
 #include "PatchHolder.h"
@@ -480,7 +481,7 @@ namespace midikraft {
 		}
 
 		bool hasDefaultName(DataFile *patch) {
-			auto storedPatchNameCapa = dynamic_cast<StoredPatchNameCapability *>(patch);
+			auto storedPatchNameCapa = midikraft::Capability::hasCapability<StoredPatchNameCapability>(patch);
 			if (storedPatchNameCapa) {
 				return storedPatchNameCapa->isDefaultName();
 			}

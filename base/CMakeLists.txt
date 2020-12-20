@@ -30,7 +30,7 @@ set(Sources
 	include/HasBanksCapability.h
 	include/HybridWaveCapability.h
 	include/LayerCapability.h
-	include/LayeredPatch.h
+	include/LayeredPatchCapability.h
 	include/LoopDetection.h src/LoopDetection.cpp
 	include/MasterkeyboardCapability.h	
 	include/MidiClockCapability.h

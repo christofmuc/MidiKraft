@@ -18,6 +18,7 @@
 #include "SendsProgramChangeCapability.h"
 #include "PatchInterchangeFormat.h"
 
+#include "RunWithRetry.h"
 #include "MidiHelpers.h"
 #include "FileHelpers.h"
 
@@ -26,6 +27,7 @@
 #include "Settings.h"
 
 namespace midikraft {
+
 
 	void Librarian::startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo,
 		ProgressHandler *progressHandler, TFinishedHandler onFinished) {
@@ -126,13 +128,24 @@ namespace midikraft {
 		else if (bankCapableSynth) {
 			// This is a mixture - you send one message (bank request), and then you get either one message back (like Kawai K3) or a stream of messages with
 			// one message per patch (e.g. Access Virus or Matrix1000)
+			MidiBuffer buffer = MidiHelpers::bufferFromMessages(bankCapableSynth->requestBankDump(bankNo));
+			std::string outname = midiOutput->name();
+			RunWithRetry::start([this, synth, outname, buffer]() {
+					synth->sendBlockOfMessagesToSynth(outname, buffer);
+					}, 
+				[this]() {
+					return currentDownload_.empty();
+				},
+				3,
+				500,
+				"initiating bank dump");
+
 			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
 				this->handleNextBankDump(midiOutput, synth, progressHandler, editBuffer, bankNo);
 			});
 			handles_.push(handle);
 			currentDownload_.clear();
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), MidiHelpers::bufferFromMessages(bankCapableSynth->requestBankDump(bankNo)));
 		}
 		else {
 			// Uh, stone age, need to start a loop

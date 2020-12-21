@@ -381,7 +381,7 @@ namespace midikraft {
 			return true;
 		}
 
-		std::map<std::string, PatchHolder> bulkGetPatches(std::vector<PatchHolder> & patches, ProgressHandler *progress) {
+		std::map<std::string, PatchHolder> bulkGetPatches(std::vector<PatchHolder> const& patches, ProgressHandler *progress) {
 			// Query the database for exactly those patches, we want to know which ones are already there!
 			std::map<std::string, PatchHolder> result;
 
@@ -396,9 +396,10 @@ namespace midikraft {
 					query.bind(":SYN", ph.synth()->getName());
 					query.bind(":MD5", md5);
 					if (query.executeStep()) {
+						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr);
 						std::string name = query.getColumn("name");
-						ph.setName(name);
-						result.emplace(md5, ph);
+						existingPatch.setName(name);
+						result.emplace(md5, existingPatch);
 					}
 				}
 				catch (SQLite::Exception &ex) {

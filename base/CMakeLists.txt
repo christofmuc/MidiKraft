@@ -47,6 +47,7 @@ set(Sources
 	include/SimpleDiscoverableDevice.h src/SimpleDiscoverableDevice.cpp
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h
+	include/StoredPatchNameCapability.h
 	include/StoredTagCapability.h
 	include/StreamDumpCapability.h
 	include/StreamLoadCapability.h

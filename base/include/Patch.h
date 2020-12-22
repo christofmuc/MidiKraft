@@ -14,12 +14,6 @@ namespace midikraft {
 
 	class SynthParameterDefinition;
 
-	class StoredPatchNameCapability {
-	public:
-		virtual void setName(std::string const &name) = 0;
-		virtual bool isDefaultName() const = 0;
-	};
-
 	class DataFile {
 	public:
 		DataFile(int dataTypeID);

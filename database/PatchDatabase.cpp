@@ -187,13 +187,7 @@ namespace midikraft {
 				sql.bind(":SID", sourceID);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
-				auto realPatch = std::dynamic_pointer_cast<Patch>(patch.patch());
-				if (realPatch) {
-					sql.bind(":PRG", realPatch->patchNumber()->midiProgramNumber().toZeroBased());
-				}
-				else {
-					sql.bind(":PRG", 0);
-				}
+				sql.bind(":PRG", patch.patchNumber().toZeroBased());
 				sql.bind(":CAT", patch.categoriesAsBitfield());
 				sql.bind(":CUD", patch.userDecisionAsBitfield());
 
@@ -295,9 +289,10 @@ namespace midikraft {
 
 			// Create the patch itself, from the BLOB stored
 			auto dataColumn = query.getColumn("data");
+			
 			if (dataColumn.isBlob()) {
 				std::vector<uint8> patchData((uint8 *)dataColumn.getBlob(), ((uint8 *)dataColumn.getBlob()) + dataColumn.getBytes());
-
+				//TODO I should not need the midiProgramNumber here
 				int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
 				newPatch = synth->patchFromPatchData(patchData, MidiProgramNumber::fromZeroBase(midiProgramNumber));
 			}
@@ -305,7 +300,8 @@ namespace midikraft {
 			if (newPatch) {
 				auto sourceColumn = query.getColumn("sourceInfo");
 				if (sourceColumn.isText()) {
-					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch);
+					int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
+					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, MidiProgramNumber::fromZeroBase(midiProgramNumber));
 
 					std::string patchName = query.getColumn("name").getString();
 					holder.setName(patchName);
@@ -326,6 +322,7 @@ namespace midikraft {
 					}
 					holder.setCategoriesFromBitfield(query.getColumn("categories").getInt64());
 					holder.setUserDecisionsFromBitfield(query.getColumn("categoryUserDecision").getInt64());
+					
 					result.push_back(holder);
 					return true;
 				}
@@ -393,11 +390,12 @@ namespace midikraft {
 				// Query the database if this exists. Normally, I would bulk, but as the database is local for now I think we're going to be fine
 				try {
 					std::string md5 = ph.md5();
-					SQLite::Statement query(db_, "SELECT md5, name FROM patches WHERE md5 = :MD5 and synth = :SYN");
+					SQLite::Statement query(db_, "SELECT md5, name, midiProgramNo FROM patches WHERE md5 = :MD5 and synth = :SYN");
 					query.bind(":SYN", ph.synth()->getName());
 					query.bind(":MD5", md5);
 					if (query.executeStep()) {
-						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr);
+						int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
+						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, MidiProgramNumber::fromZeroBase(midiProgramNumber));
 						std::string name = query.getColumn("name");
 						existingPatch.setName(name);
 						result.emplace(md5, existingPatch);

@@ -69,7 +69,7 @@ namespace midikraft {
 		addToJson(JsonSchema::kSysex, dataToString(patchholder->patch()->data()), doc, doc);
 		auto realPatch = std::dynamic_pointer_cast<Patch>(patchholder->patch());
 		if (realPatch) {
-			std::string numberAsString = (boost::format("%d") % realPatch->patchNumber()->midiProgramNumber().toZeroBased()).str();
+			std::string numberAsString = (boost::format("%d") % realPatch->patchNumber().toZeroBased()).str();
 			addToJson(JsonSchema::kPlace, numberAsString, doc, doc);
 		}
 		addToJson(JsonSchema::kMD5, patchholder->md5(), doc, doc);
@@ -100,7 +100,7 @@ namespace midikraft {
 					withMeta.setCategory(cat, true);
 				}
 			}*/
-			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch);
+			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch, MidiProgramNumber::fromZeroBase(programNo));
 			simple.setName(name);
 			outPatchHolder = simple;
 			return true;

@@ -606,7 +606,12 @@ namespace midikraft {
 		auto detector = std::make_shared<midikraft::AutomaticCategory>();
 		int i = 0;
 		for (auto patch : patches) {
-			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, MidiProgramNumber::fromZeroBase(i++), detector));
+			MidiProgramNumber place = MidiProgramNumber::fromZeroBase(i++);
+			auto realpatch = std::dynamic_pointer_cast<Patch>(patch);
+			if (realpatch) {
+				place = realpatch->patchNumber();
+			}
+			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, place, detector));
 		}
 		return result;
 	}

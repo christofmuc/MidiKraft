@@ -119,17 +119,20 @@ namespace midikraft {
 	std::vector<juce::MidiMessage> Synth::patchToSysex(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
 		std::vector<MidiMessage> messages;
-		auto realPatch = std::dynamic_pointer_cast<midikraft::Patch>(dataFile);
-		if (realPatch && !target) {
+		if (!target) {
 			// Default implementation is to just shoot it to the Midi output and hope for the best, no handshake is done
 			// There must be no target specified, for backwards compatibility the old behavior is implemented here to always target the edit buffer of the device
 			auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(this);
 			auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
 			if (editBufferCapability) {
-				messages = editBufferCapability->patchToSysex(*realPatch);
+				messages = editBufferCapability->patchToSysex(dataFile);
 			}
 			else if (programDumpCapability) {
-				messages = programDumpCapability->patchToProgramDumpSysex(*realPatch);
+				// There is no edit buffer, we need to ask the device for the default destroyed program number
+				auto defaultPlace = midikraft::Capability::hasCapability<DefaultProgramPlaceInsteadOfEditBufferCapability>(this);
+				if (defaultPlace) {
+					messages = programDumpCapability->patchToProgramDumpSysex(dataFile, defaultPlace->getDefaultProgramPlace());
+				}
 			}
 		}
 		if (messages.empty()) {

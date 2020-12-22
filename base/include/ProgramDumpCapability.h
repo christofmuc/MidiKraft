@@ -17,9 +17,13 @@ namespace midikraft {
 	public:
 		virtual std::vector<MidiMessage> requestPatch(int patchNo) const = 0;
 		virtual bool isSingleProgramDump(const MidiMessage& message) const = 0;
-		virtual std::shared_ptr<Patch> patchFromProgramDumpSysex(const MidiMessage& message) const = 0;
-		virtual std::vector<MidiMessage> patchToProgramDumpSysex(const Patch &patch) const = 0;
 		virtual MidiProgramNumber getProgramNumber(const MidiMessage &message) const = 0;
+		virtual std::shared_ptr<DataFile> patchFromProgramDumpSysex(const MidiMessage& message) const = 0;
+		virtual std::vector<MidiMessage> patchToProgramDumpSysex(std::shared_ptr<DataFile> patch, MidiProgramNumber programNumber) const = 0;
 	};
 
+	class DefaultProgramPlaceInsteadOfEditBufferCapability {
+	public:
+		virtual MidiProgramNumber getDefaultProgramPlace() const = 0;
+	};
 }

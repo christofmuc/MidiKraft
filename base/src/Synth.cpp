@@ -72,7 +72,7 @@ namespace midikraft {
 						result.push_back(patch);
 					}
 					else {
-						Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
+						Logger::writeToLog((boost::format("Error decoding program dump for patch %d, skipping it") % patchNo).str());
 					}
 					patchNo++;
 				}

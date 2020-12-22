@@ -387,7 +387,7 @@ namespace midikraft {
 		std::vector<PatchHolder> result;
 		int i = 0;
 		for (auto patch : patches) {
-			result.push_back(PatchHolder(synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch, automaticCategories));
+			result.push_back(PatchHolder(synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch, MidiProgramNumber::fromZeroBase(i), automaticCategories));
 			i++;
 		}
 		return result;
@@ -611,8 +611,9 @@ namespace midikraft {
 		auto now = Time::getCurrentTime();
 		//TODO - this probably should have been handed down from the main program?
 		auto detector = std::make_shared<midikraft::AutomaticCategory>();
+		int i = 0;
 		for (auto patch : patches) {
-			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, detector));
+			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, MidiProgramNumber::fromZeroBase(i++), detector));
 		}
 		return result;
 	}

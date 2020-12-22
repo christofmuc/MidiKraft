@@ -80,6 +80,18 @@ namespace midikraft {
 							SimpleLogger::instance()->postMessage((boost::format("Ignoring favorite information for patch %s because %s does not convert to an integer") % patchName % favoriteStr).str());
 						}
 					}
+
+					MidiProgramNumber place = MidiProgramNumber::fromZeroBase(0);
+					if (item->HasMember("place")) {
+						std::string placeStr = (*item)["Place"].GetString();
+						try {
+							place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
+						}
+						catch (std::invalid_argument &) {
+							SimpleLogger::instance()->postMessage((boost::format("Ignoring MIDI place information for patch %s because %s does not convert to an integer") % patchName % placeStr).str());
+						}
+					}
+
 					std::vector<Category> categories;
 					if (item->HasMember("Categories")) {
 						auto cats = (*item)["Categories"].GetArray();
@@ -123,7 +135,7 @@ namespace midikraft {
 						auto patches = activeSynth->loadSysex(messages);
 						//jassert(patches.size() == 1);
 						if (patches.size() == 1) {
-							PatchHolder holder(activeSynth, fileSource, patches[0], detector);
+							PatchHolder holder(activeSynth, fileSource, patches[0], place, detector);
 							holder.setFavorite(fav);
 							holder.setName(patchName);
 							for (const auto& cat : categories) {

@@ -58,8 +58,8 @@ namespace midikraft {
 		return mask;
 	}
 
-	PatchHolder::PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
-		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false), synth_(activeSynth)
+	PatchHolder::PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, MidiProgramNumber place, std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
+		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false), synth_(activeSynth), patchNumber_(place)
 	{
 		if (patch) {
 			name_ = patch->name();
@@ -69,7 +69,7 @@ namespace midikraft {
 		}
 	}
 
-	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false)
+	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), patchNumber_(MidiProgramNumber::fromZeroBase(0))
 	{
 	}
 
@@ -120,6 +120,16 @@ namespace midikraft {
 	std::string PatchHolder::sourceId() const
 	{
 		return sourceId_;
+	}
+
+	void PatchHolder::setPatchNumber(MidiProgramNumber number)
+	{
+		patchNumber_ = number;
+	}
+
+	MidiProgramNumber PatchHolder::patchNumber() const
+	{
+		return patchNumber_;
 	}
 
 	bool PatchHolder::isFavorite() const

@@ -84,7 +84,8 @@ namespace midikraft {
 	class PatchHolder {
 	public:		
 		PatchHolder();
-		PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,  std::shared_ptr<AutomaticCategory> detector = nullptr);
+		PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,
+			MidiProgramNumber place, std::shared_ptr<AutomaticCategory> detector = nullptr);
 
 		std::shared_ptr<DataFile> patch() const;
 		Synth *synth() const;
@@ -97,6 +98,9 @@ namespace midikraft {
 
 		void setSourceId(std::string const &source_id);
 		std::string sourceId() const;
+
+		void setPatchNumber(MidiProgramNumber number);
+		MidiProgramNumber patchNumber() const;
 
 		bool isFavorite() const;
 		Favorite howFavorite() const;
@@ -139,6 +143,7 @@ namespace midikraft {
 		bool isHidden_;
 		std::set<Category> categories_;
 		std::set<Category> userDecisions_;
+		MidiProgramNumber patchNumber_;
 		std::shared_ptr<SourceInfo> sourceInfo_;
 	};
 

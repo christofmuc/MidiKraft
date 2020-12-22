@@ -14,8 +14,8 @@ namespace midikraft {
 	template <class D>
 	class RuntimeCapability {
 	public:
-		virtual bool hasCapability(std::shared_ptr<D> &outCapability) = 0;
-		virtual bool hasCapability(D **outCapability) = 0;
+		virtual bool hasCapability(std::shared_ptr<D> &outCapability) const = 0;
+		virtual bool hasCapability(D **outCapability) const = 0;
 	};
 
 	// Generic accessor for Capabilities - use this instead of std::dynamic_pointer_cast
@@ -31,7 +31,19 @@ namespace midikraft {
 	template <class D, class S>
 	D * midikraft::Capability::hasCapability(S *input)
 	{
-		return dynamic_cast<D *>(input);
+		auto runtimeCapability = dynamic_cast<RuntimeCapability<D> const *>(input);
+		if (runtimeCapability) {
+			D *capability;
+			if (runtimeCapability->hasCapability(&capability)) {
+				return capability;
+			}
+			else {
+				return nullptr;
+			}
+		}
+		else {
+			return dynamic_cast<D *>(input);
+		}
 	}
 
 	template <class D, class S>

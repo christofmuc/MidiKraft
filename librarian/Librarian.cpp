@@ -491,7 +491,8 @@ namespace midikraft {
 			}
 		}
 		else {
-			jassert(false);
+			SimpleLogger::instance()->postMessage("Failure: This synth does not implement any valid capability to start downloading a full bank");
+			downloadNumber_ = endDownloadNumber_; 
 		}
 
 		// Send messages

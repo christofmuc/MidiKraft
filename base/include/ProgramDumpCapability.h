@@ -9,6 +9,7 @@
 #include "JuceHeader.h"
 
 #include "Patch.h"
+#include "MidiProgramNumber.h"
 
 namespace midikraft {
 
@@ -18,6 +19,7 @@ namespace midikraft {
 		virtual bool isSingleProgramDump(const MidiMessage& message) const = 0;
 		virtual std::shared_ptr<Patch> patchFromProgramDumpSysex(const MidiMessage& message) const = 0;
 		virtual std::vector<MidiMessage> patchToProgramDumpSysex(const Patch &patch) const = 0;
+		virtual MidiProgramNumber getProgramNumber(const MidiMessage &message) const = 0;
 	};
 
 }

@@ -23,6 +23,12 @@
 
 namespace midikraft {
 
+	std::string Synth::friendlyProgramName(MidiProgramNumber programNo) const
+	{
+		// The default implementation is just that you see something
+		return (boost::format("%02d") % programNo.toZeroBased()).str();
+	}
+
 	Synth::PatchData Synth::filterVoiceRelevantData(std::shared_ptr<DataFile> unfilteredData) const
 	{
 		// The default implementation does nothing, i.e. all bytes are relevant for the sound of the patch
@@ -58,8 +64,6 @@ namespace midikraft {
 					auto patch = editBufferSynth->patchFromSysex(message);
 					if (patch) {
 						result.push_back(patch);
-						// As these are edit buffers, I would not expect the patchNumber to be set by the loading routine
-						patch->setPatchNumber(MidiProgramNumber::fromZeroBase(patchNo));
 					}
 					else {
 						Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());

@@ -8,7 +8,6 @@
 
 #include "Synth.h"
 #include "Tag.h"
-#include "PatchNumber.h"
 
 namespace midikraft {
 
@@ -42,8 +41,7 @@ namespace midikraft {
 	public:
 		using DataFile::DataFile;
 
-		virtual std::shared_ptr<PatchNumber> patchNumber() const = 0;
-		virtual void setPatchNumber(MidiProgramNumber patchNumber) = 0;
+		virtual MidiProgramNumber patchNumber() const = 0;
 
 		// For patch comparison
 		static Synth::PatchData blankOut(std::vector<Range<int>> const &blankoutZones, Synth::PatchData const &inputData);

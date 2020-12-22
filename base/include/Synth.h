@@ -32,6 +32,9 @@ namespace midikraft {
 		virtual std::shared_ptr<DataFile> patchFromPatchData(const Synth::PatchData &data, MidiProgramNumber place) const = 0;
 		virtual bool isOwnSysex(MidiMessage const &message) const = 0;
 
+		// Override this to make a prettier program name
+		virtual std::string friendlyProgramName(MidiProgramNumber programNo) const;
+
 		// Override this in case not all bytes contribute to the sound of the patch
 		virtual PatchData filterVoiceRelevantData(std::shared_ptr<DataFile> unfilteredData) const;
 

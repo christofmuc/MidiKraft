@@ -10,6 +10,7 @@
 #include "Patch.h"
 #include "Logger.h"
 #include "PatchHolder.h"
+#include "StoredPatchNameCapability.h"
 
 #include "JsonSchema.h"
 #include "JsonSerialization.h"

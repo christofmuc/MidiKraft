@@ -62,6 +62,14 @@ namespace midikraft {
 			}
 		}
 
+		void makeDatabaseBackup(File databaseFileToCreate) {
+			if (databaseFileToCreate.existsAsFile()) {
+				// The dialog surely has asked that we allow that
+				databaseFileToCreate.deleteFile();
+			}
+			db_.backup(databaseFileToCreate.getFullPathName().toStdString().c_str(), SQLite::Database::Save);
+		}
+
 		void backupIfNecessary(bool &done) {
 			if (!done) {
 				makeDatabaseBackup("-before-migration");
@@ -823,6 +831,11 @@ namespace midikraft {
 
 	std::string PatchDatabase::makeDatabaseBackup(std::string const &suffix) {
 		return impl->makeDatabaseBackup(suffix);
+	}
+
+	void PatchDatabase::makeDatabaseBackup(File backupFileToCreate)
+	{
+		impl->makeDatabaseBackup(backupFileToCreate);
 	}
 
 	midikraft::PatchDatabase::PatchFilter PatchDatabase::allForSynth(std::shared_ptr<Synth> synth)

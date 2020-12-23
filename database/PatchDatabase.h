@@ -65,6 +65,7 @@ namespace midikraft {
 		int reindexPatches(PatchFilter filter);
 
 		std::string makeDatabaseBackup(std::string const &suffix);
+		void makeDatabaseBackup(File backupFileToCreate);
 
 		// Convenience functions
 		static PatchFilter allForSynth(std::shared_ptr<Synth> synth);

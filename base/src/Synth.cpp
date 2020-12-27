@@ -17,7 +17,7 @@
 #include "BankDumpCapability.h"
 #include "DataFileLoadCapability.h"
 #include "DataFileSendCapability.h"
-#include "StreamDumpCapability.h"
+#include "StreamLoadCapability.h"
 
 #include <boost/format.hpp>
 
@@ -52,10 +52,10 @@ namespace midikraft {
 		auto programDumpSynth = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
 		auto bankDumpSynth = midikraft::Capability::hasCapability<BankDumpCapability>(this);
 		auto dataFileLoadSynth = midikraft::Capability::hasCapability<DataFileLoadCapability>(this);
-		auto streamDumpSynth = midikraft::Capability::hasCapability<StreamDumpCapability>(this);
+		auto streamDumpSynth = midikraft::Capability::hasCapability<StreamLoadCapability>(this);
 		if (streamDumpSynth) {
 			// The stream dump synth loads all at once
-			result = streamDumpSynth->loadStreamDump(sysexMessages);
+			result = streamDumpSynth->loadPatchesFromStream(sysexMessages);
 		}
 		else {
 			// The other Synth types load message by message

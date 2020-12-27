@@ -8,6 +8,8 @@
 
 #include "JuceHeader.h"
 
+#include "Synth.h"
+
 namespace midikraft {
 
 	class StreamLoadCapability {
@@ -22,6 +24,7 @@ namespace midikraft {
 		virtual bool isMessagePartOfStream(MidiMessage const &message, StreamType streamType) const = 0;
 		virtual bool isStreamComplete(std::vector<MidiMessage> const &messages, StreamType streamType) const = 0;
 		virtual bool shouldStreamAdvance(std::vector<MidiMessage> const &messages, StreamType streamType) const = 0;
+		virtual TPatchVector loadPatchesFromStream(std::vector<MidiMessage> const &streamDump) const = 0;
 	};
 
 }

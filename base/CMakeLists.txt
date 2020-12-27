@@ -48,7 +48,6 @@ set(Sources
 	include/StepSequencer.h
 	include/StoredPatchNameCapability.h
 	include/StoredTagCapability.h
-	include/StreamDumpCapability.h
 	include/StreamLoadCapability.h
 	include/Synth.h src/Synth.cpp
 	include/SynthParameterDefinition.h

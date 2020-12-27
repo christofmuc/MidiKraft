@@ -14,9 +14,9 @@ namespace midikraft {
 
 	class StreamDumpCapability {
 	public:
-		virtual MidiMessage requestDump(int number) const = 0;
-		virtual bool isPartOfDump(const MidiMessage& message) const = 0;
-		virtual bool isDumpFinished(std::vector<MidiMessage> const &streamDump) const = 0;
+		virtual std::vector<MidiMessage> requestStreamDump(int number) const = 0;
+		virtual bool isPartOfStreamDump(const MidiMessage& message) const = 0;
+		virtual bool isStreamDumpFinished(std::vector<MidiMessage> const &streamDump) const = 0;
 		virtual TPatchVector loadStreamDump(std::vector<MidiMessage> const &streamDump) const = 0;
 	};
 

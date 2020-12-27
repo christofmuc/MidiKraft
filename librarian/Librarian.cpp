@@ -522,6 +522,10 @@ namespace midikraft {
 		if (streamLoading) {
 			if (streamLoading->isMessagePartOfStream(message, streamType)) {
 				currentDownload_.push_back(message);
+				int progressTotal = streamLoading->numberOfStreamMessagesExpected(streamType);
+				if (progressTotal > 0 && progressHandler) {
+					progressHandler->setProgressPercentage(currentDownload_.size() / (double)progressTotal);
+				}
 				if (streamLoading->isStreamComplete(currentDownload_, streamType)) {
 					clearHandlers();
 					auto result = synth->loadSysex(currentDownload_);
@@ -536,7 +540,7 @@ namespace midikraft {
 					downloadNumber_++;
 					auto messages = streamLoading->requestStreamElement(downloadNumber_, streamType);
 					synth->sendBlockOfMessagesToSynth(midiOutput->name(), MidiHelpers::bufferFromMessages(messages));
-					if (progressHandler) progressHandler->setProgressPercentage(downloadNumber_ / (double)synth->numberOfPatches());
+					if (progressTotal == -1 && progressHandler) progressHandler->setProgressPercentage(downloadNumber_ / (double)synth->numberOfPatches());
 				}
 			}
 		}

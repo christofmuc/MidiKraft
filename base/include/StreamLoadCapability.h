@@ -17,10 +17,11 @@ namespace midikraft {
 			BANK_DUMP,
 		};
 
-		virtual std::vector<MidiMessage> requestStreamElement(int elemNo, StreamType streamType) = 0;
-		virtual bool isMessagePartOfStream(MidiMessage const &message, StreamType streamType) = 0;
-		virtual bool isStreamComplete(std::vector<MidiMessage> const &messages, StreamType streamType) = 0;
-		virtual bool shouldStreamAdvance(std::vector<MidiMessage> const &messages, StreamType streamType) = 0;
+		virtual std::vector<MidiMessage> requestStreamElement(int elemNo, StreamType streamType) const = 0;
+		virtual int numberOfStreamMessagesExpected(StreamType streamType) const = 0;
+		virtual bool isMessagePartOfStream(MidiMessage const &message, StreamType streamType) const = 0;
+		virtual bool isStreamComplete(std::vector<MidiMessage> const &messages, StreamType streamType) const = 0;
+		virtual bool shouldStreamAdvance(std::vector<MidiMessage> const &messages, StreamType streamType) const = 0;
 	};
 
 }

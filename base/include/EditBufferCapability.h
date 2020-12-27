@@ -14,7 +14,7 @@ namespace midikraft {
 
 	class EditBufferCapability {
 	public:
-		virtual MidiMessage requestEditBufferDump() = 0;
+		virtual MidiMessage requestEditBufferDump() const = 0;
 		virtual bool isEditBufferDump(const MidiMessage& message) const = 0;
 
 		virtual std::shared_ptr<DataFile> patchFromSysex(const MidiMessage& message) const = 0;

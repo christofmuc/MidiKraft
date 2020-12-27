@@ -82,7 +82,7 @@ namespace midikraft {
 			});
 			handles_.push(handle);
 			currentDownload_.clear();
-			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::BANK_DUMP);
+			auto messages = streamLoading->requestStreamElement(bankNo.toZeroBased(), StreamLoadCapability::StreamType::BANK_DUMP);
 			synth->sendBlockOfMessagesToSynth(midiOutput->name(), MidiHelpers::bufferFromMessages(messages));
 		}
 		else if (handshakeLoadingRequired) {

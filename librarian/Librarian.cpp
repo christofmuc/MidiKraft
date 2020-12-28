@@ -81,7 +81,7 @@ namespace midikraft {
 				this->handleNextStreamPart(midiOutput, synth, progressHandler, editBuffer, StreamLoadCapability::StreamType::BANK_DUMP);
 			});
 			handles_.push(handle);
-			currentDownload_.clear();
+			currentDownloadBank_ = bankNo;
 			auto messages = streamLoading->requestStreamElement(bankNo.toZeroBased(), StreamLoadCapability::StreamType::BANK_DUMP);
 			synth->sendBlockOfMessagesToSynth(midiOutput->name(), MidiHelpers::bufferFromMessages(messages));
 		}
@@ -529,7 +529,7 @@ namespace midikraft {
 				if (streamLoading->isStreamComplete(currentDownload_, streamType)) {
 					clearHandlers();
 					auto result = synth->loadSysex(currentDownload_);
-					onFinished_(tagPatchesWithImportFromSynth(synth, result, MidiBankNumber::fromZeroBase(0)));
+					onFinished_(tagPatchesWithImportFromSynth(synth, result, currentDownloadBank_));
 					if (progressHandler) progressHandler->onSuccess();
 				}
 				else if (progressHandler && progressHandler->shouldAbort()) {

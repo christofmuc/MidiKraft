@@ -22,6 +22,7 @@ namespace midikraft {
 			*kSession,
 			*kPatch,
 			*kSysex,
+			*kBank,
 			*kPlace,
 			*kFavorite,
 			*kCategory,

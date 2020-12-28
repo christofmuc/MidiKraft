@@ -19,6 +19,7 @@ namespace midikraft {
 		*JsonSchema::kImport = "Import",
 		*JsonSchema::kName = "Name",
 		*JsonSchema::kSysex = "Sysex",
+		*JsonSchema::kBank = "Bank",
 		*JsonSchema::kPlace = "Place",
 		*JsonSchema::kPatch = "Patch",
 		*JsonSchema::kSession = "Session",

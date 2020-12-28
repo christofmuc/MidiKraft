@@ -81,9 +81,11 @@ namespace midikraft {
 		// Build the patch via the synth from the sysex data...
 		std::string name;
 		Synth::PatchData data;
+		int bankNo = 0;
 		int programNo = 0;
 		getStringIfSet(patchDoc, JsonSchema::kName, name);
 		getBufferIfSet(patchDoc, JsonSchema::kSysex, data);
+		getNumberIfSet(patchDoc, JsonSchema::kBank, bankNo);
 		getNumberIfSet(patchDoc, JsonSchema::kPlace, programNo);
 		auto newPatch = activeSynth->patchFromPatchData(data, MidiProgramNumber::fromZeroBase(programNo));
 		if (newPatch != nullptr) {
@@ -100,7 +102,7 @@ namespace midikraft {
 					withMeta.setCategory(cat, true);
 				}
 			}*/
-			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch, MidiProgramNumber::fromZeroBase(programNo));
+			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch, MidiBankNumber::fromZeroBase(bankNo), MidiProgramNumber::fromZeroBase(programNo));
 			simple.setName(name);
 			outPatchHolder = simple;
 			return true;

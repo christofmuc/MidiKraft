@@ -31,12 +31,13 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 4;
+	const int SCHEMA_VERSION = 5;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
 	/* 3 - adding type integer to patch (to differentiate voice, patch, layer, tuning...) */
 	/* 4 - forgot to migrate existing data NULL to 0 */
+	/* 5 - adding bank number column for better sorting of multi-imports */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -131,6 +132,13 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 4");
 				transaction.commit();
 			}
+			if (currentVersion < 5) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				db_.exec("ALTER TABLE patches ADD COLUMN midiBankNo INTEGER");
+				db_.exec("UPDATE schema_version SET number = 5");
+				transaction.commit();
+			}
 		}
 
 		void createSchema() {
@@ -147,7 +155,7 @@ namespace midikraft {
 				SQLite::Transaction transaction(db_);
 
 				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
-					" sourceInfo TEXT, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER)");
+					" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER)");
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
 
@@ -181,8 +189,8 @@ namespace midikraft {
 
 		bool putPatch(PatchHolder const &patch, std::string const &sourceID) {
 			try {
-				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, hidden, sourceID, sourceName, sourceInfo, midiProgramNo, categories, categoryUserDecision)"
-					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :HID, :SID, :SNM, :SRC, :PRG, :CAT, :CUD)");
+				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, hidden, sourceID, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision)"
+					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :HID, :SID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", patch.synth()->getName().c_str());
@@ -195,6 +203,7 @@ namespace midikraft {
 				sql.bind(":SID", sourceID);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
+				sql.bind(":BNK", patch.bankNumber().toZeroBased());
 				sql.bind(":PRG", patch.patchNumber().toZeroBased());
 				sql.bind(":CAT", patch.categoriesAsBitfield());
 				sql.bind(":CUD", patch.userDecisionAsBitfield());
@@ -308,8 +317,9 @@ namespace midikraft {
 			if (newPatch) {
 				auto sourceColumn = query.getColumn("sourceInfo");
 				if (sourceColumn.isText()) {
+					int midiBankNumber = query.getColumn("midiBankNo").getInt();
 					int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, MidiProgramNumber::fromZeroBase(midiProgramNumber));
+					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, MidiBankNumber::fromZeroBase(midiBankNumber), MidiProgramNumber::fromZeroBase(midiProgramNumber));
 
 					std::string patchName = query.getColumn("name").getString();
 					holder.setName(patchName);
@@ -355,7 +365,7 @@ namespace midikraft {
 		}
 
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder> &result, std::vector<std::pair<std::string, PatchHolder>> &needsReindexing, int skip, int limit) {
-			std::string selectStatement = "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiProgramNo ";
+			std::string selectStatement = "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiBankNo, midiProgramNo ";
 			if (limit != -1) {
 				selectStatement += " LIMIT :LIM ";
 				selectStatement += " OFFSET :OFS";
@@ -402,8 +412,9 @@ namespace midikraft {
 					query.bind(":SYN", ph.synth()->getName());
 					query.bind(":MD5", md5);
 					if (query.executeStep()) {
+						int midiBankNumber = query.getColumn("midiBankNo").getInt();
 						int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, MidiProgramNumber::fromZeroBase(midiProgramNumber));
+						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, MidiBankNumber::fromZeroBase(midiBankNumber), MidiProgramNumber::fromZeroBase(midiProgramNumber));
 						std::string name = query.getColumn("name");
 						existingPatch.setName(name);
 						result.emplace(md5, existingPatch);

@@ -408,7 +408,7 @@ namespace midikraft {
 				// Query the database if this exists. Normally, I would bulk, but as the database is local for now I think we're going to be fine
 				try {
 					std::string md5 = ph.md5();
-					SQLite::Statement query(db_, "SELECT md5, name, midiProgramNo FROM patches WHERE md5 = :MD5 and synth = :SYN");
+					SQLite::Statement query(db_, "SELECT md5, name, midiProgramNo, midiBankNo FROM patches WHERE md5 = :MD5 and synth = :SYN");
 					query.bind(":SYN", ph.synth()->getName());
 					query.bind(":MD5", md5);
 					if (query.executeStep()) {

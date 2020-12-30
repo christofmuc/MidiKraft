@@ -211,8 +211,7 @@ namespace midikraft {
 				sql.exec();
 			}
 			catch (SQLite::Exception &ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR: SQL Exception %s") % ex.what()).str());
-				//AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Exception", ex.what());
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in putPatch: SQL Exception %s") % ex.what()).str());
 			}
 			return true;
 		}
@@ -287,16 +286,21 @@ namespace midikraft {
 			if (filter.onlySpecifcType) {
 				query.bind(":TYP", filter.typeID);
 			}
-			if (!filter.categories.empty()) {
+			if (!filter.onlyUntagged && !filter.categories.empty()) {
 				query.bind(":CAT", PatchHolder::categorySetAsBitfield(filter.categories));
 			}
 		}
 
 		int getPatchesCount(PatchFilter filter) {
-			SQLite::Statement query(db_, "SELECT count(*) FROM patches" + buildWhereClause(filter));
-			bindWhereClause(query, filter);
-			if (query.executeStep()) {
-				return query.getColumn(0).getInt();
+			try {
+				SQLite::Statement query(db_, "SELECT count(*) FROM patches" + buildWhereClause(filter));
+				bindWhereClause(query, filter);
+				if (query.executeStep()) {
+					return query.getColumn(0).getInt();
+				}
+			}
+			catch (SQLite::Exception &ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in getPatchesCount: SQL Exception %s") % ex.what()).str());
 			}
 			return 0;
 		}
@@ -355,11 +359,16 @@ namespace midikraft {
 		}
 
 		bool getSinglePatch(std::shared_ptr<Synth> synth, std::string const &md5, std::vector<PatchHolder> &result) {
-			SQLite::Statement query(db_, "SELECT * FROM patches WHERE md5 = :MD5 and synth = :SYN");
-			query.bind(":SYN", synth->getName());
-			query.bind(":MD5", md5);
-			if (query.executeStep()) {
-				return loadPatchFromQueryRow(synth, query, result);
+			try {
+				SQLite::Statement query(db_, "SELECT * FROM patches WHERE md5 = :MD5 and synth = :SYN");
+				query.bind(":SYN", synth->getName());
+				query.bind(":MD5", md5);
+				if (query.executeStep()) {
+					return loadPatchFromQueryRow(synth, query, result);
+				}
+			}
+			catch (SQLite::Exception &ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in getSinglePatch: SQL Exception %s") % ex.what()).str());
 			}
 			return false;
 		}
@@ -370,31 +379,37 @@ namespace midikraft {
 				selectStatement += " LIMIT :LIM ";
 				selectStatement += " OFFSET :OFS";
 			}
-			SQLite::Statement query(db_, selectStatement.c_str());
+			try {
+				SQLite::Statement query(db_, selectStatement.c_str());
 
-			bindWhereClause(query, filter);
-			if (limit != -1) {
-				query.bind(":LIM", limit);
-				query.bind(":OFS", skip);
-			}
-			while (query.executeStep()) {
-				// Find the synth this patch is for
-				auto synthName = query.getColumn("synth");
-				if (filter.synths.find(synthName) == filter.synths.end()) {
-					SimpleLogger::instance()->postMessage((boost::format("Program error, query returned patch for synth %s which was not part of the filter") % synthName).str());
-					continue;
+				bindWhereClause(query, filter);
+				if (limit != -1) {
+					query.bind(":LIM", limit);
+					query.bind(":OFS", skip);
 				}
-				auto thisSynth = filter.synths[synthName].lock();
+				while (query.executeStep()) {
+					// Find the synth this patch is for
+					auto synthName = query.getColumn("synth");
+					if (filter.synths.find(synthName) == filter.synths.end()) {
+						SimpleLogger::instance()->postMessage((boost::format("Program error, query returned patch for synth %s which was not part of the filter") % synthName).str());
+						continue;
+					}
+					auto thisSynth = filter.synths[synthName].lock();
 
-				if (loadPatchFromQueryRow(thisSynth, query, result)) {
-					// Check if the MD5 is the correct one (the algorithm might have changed!)
-					std::string md5stored = query.getColumn("md5");
-					if (result.back().md5() != md5stored) {
-						needsReindexing.emplace_back(md5stored, result.back());
+					if (loadPatchFromQueryRow(thisSynth, query, result)) {
+						// Check if the MD5 is the correct one (the algorithm might have changed!)
+						std::string md5stored = query.getColumn("md5");
+						if (result.back().md5() != md5stored) {
+							needsReindexing.emplace_back(md5stored, result.back());
+						}
 					}
 				}
+				return true;
 			}
-			return true;
+			catch (SQLite::Exception &ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in getPatches: SQL Exception %s") % ex.what()).str());
+			}
+			return false;
 		}
 
 		std::map<std::string, PatchHolder> bulkGetPatches(std::vector<PatchHolder> const& patches, ProgressHandler *progress) {
@@ -421,7 +436,7 @@ namespace midikraft {
 					}
 				}
 				catch (SQLite::Exception &ex) {
-					SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR: SQL Exception %s") % ex.what()).str());
+					SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in bulkGetPatches: SQL Exception %s") % ex.what()).str());
 				}
 				if (progress) progress->setProgressPercentage(checkedForExistance++ / (double)patches.size());
 			}
@@ -472,29 +487,34 @@ namespace midikraft {
 				if (updateChoices & UPDATE_DATA) updateClause = prependWithComma(updateClause, "data = :DAT");
 				if (updateChoices & UPDATE_FAVORITE) updateClause = prependWithComma(updateClause, "favorite = :FAV");
 
-				SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5 and synth = :SYN");
-				if (updateChoices & UPDATE_CATEGORIES) {
-					calculateMergedCategories(newPatch, existingPatch);
-					sql.bind(":CAT", newPatch.categoriesAsBitfield());
-					sql.bind(":CUD", newPatch.userDecisionAsBitfield());
+				try {
+					SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5 and synth = :SYN");
+					if (updateChoices & UPDATE_CATEGORIES) {
+						calculateMergedCategories(newPatch, existingPatch);
+						sql.bind(":CAT", newPatch.categoriesAsBitfield());
+						sql.bind(":CUD", newPatch.userDecisionAsBitfield());
+					}
+					if (updateChoices & UPDATE_NAME) {
+						sql.bind(":NAM", newPatch.name());
+					}
+					if (updateChoices & UPDATE_DATA) {
+						sql.bind(":DAT", newPatch.patch()->data().data(), (int)newPatch.patch()->data().size());
+					}
+					if (updateChoices & UPDATE_HIDDEN) {
+						sql.bind(":HID", newPatch.isHidden());
+					}
+					if (updateChoices & UPDATE_FAVORITE) {
+						sql.bind(":FAV", calculateMergedFavorite(newPatch, existingPatch));
+					}
+					sql.bind(":MD5", newPatch.md5());
+					sql.bind(":SYN", existingPatch.synth()->getName());
+					if (sql.exec() != 1) {
+						jassert(false);
+						throw new std::runtime_error("FATAL, I don't want to ruin your database");
+					}
 				}
-				if (updateChoices & UPDATE_NAME) {
-					sql.bind(":NAM", newPatch.name());
-				}
-				if (updateChoices & UPDATE_DATA) {
-					sql.bind(":DAT", newPatch.patch()->data().data(), (int)newPatch.patch()->data().size());
-				}
-				if (updateChoices & UPDATE_HIDDEN) {
-					sql.bind(":HID", newPatch.isHidden());
-				}
-				if (updateChoices & UPDATE_FAVORITE) {
-					sql.bind(":FAV", calculateMergedFavorite(newPatch, existingPatch));
-				}
-				sql.bind(":MD5", newPatch.md5());
-				sql.bind(":SYN", existingPatch.synth()->getName());
-				if (sql.exec() != 1) {
-					jassert(false);
-					throw new std::runtime_error("FATAL, I don't want to ruin your database");
+				catch (SQLite::Exception &ex) {
+					SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in updatePatch: SQL Exception %s") % ex.what()).str());
 				}
 			}
 		}
@@ -509,23 +529,29 @@ namespace midikraft {
 
 		bool insertImportInfo(std::string const &synthname, std::string const &source_id, std::string const &importName) {
 			// Check if this import already exists 
-			SQLite::Statement query(db_, "SELECT count(*) AS numExisting FROM imports WHERE synth = :SYN and id = :SID");
-			query.bind(":SYN", synthname);
-			query.bind(":SID", source_id);
-			if (query.executeStep()) {
-				auto existing = query.getColumn("numExisting");
-				if (existing.getInt() == 1) {
-					return false;
+			try {
+				SQLite::Statement query(db_, "SELECT count(*) AS numExisting FROM imports WHERE synth = :SYN and id = :SID");
+				query.bind(":SYN", synthname);
+				query.bind(":SID", source_id);
+				if (query.executeStep()) {
+					auto existing = query.getColumn("numExisting");
+					if (existing.getInt() == 1) {
+						return false;
+					}
 				}
-			}
 
-			// Record this import in the import table for later filtering! The name of the import might differ for different patches (bulk import), use the first patch to calculate it
-			SQLite::Statement sql(db_, "INSERT INTO imports (synth, name, id, date) VALUES (:SYN, :NAM, :SID, datetime('now'))");
-			sql.bind(":SYN", synthname);
-			sql.bind(":NAM", importName);
-			sql.bind(":SID", source_id);
-			sql.exec();
-			return true;
+				// Record this import in the import table for later filtering! The name of the import might differ for different patches (bulk import), use the first patch to calculate it
+				SQLite::Statement sql(db_, "INSERT INTO imports (synth, name, id, date) VALUES (:SYN, :NAM, :SID, datetime('now'))");
+				sql.bind(":SYN", synthname);
+				sql.bind(":NAM", importName);
+				sql.bind(":SID", source_id);
+				sql.exec();
+				return true;
+			}
+			catch (SQLite::Exception &ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in insertImportInfo: SQL Exception %s") % ex.what()).str());
+			}
+			return false;
 		}
 
 		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice, bool useTransaction) {
@@ -650,28 +676,40 @@ namespace midikraft {
 		}
 
 		int deletePatches(PatchFilter filter) {
-			// Build a delete query
-			std::string deleteStatement = "DELETE FROM patches " + buildWhereClause(filter);
-			SQLite::Statement query(db_, deleteStatement.c_str());
-			bindWhereClause(query, filter);
+			try {
+				// Build a delete query
+				std::string deleteStatement = "DELETE FROM patches " + buildWhereClause(filter);
+				SQLite::Statement query(db_, deleteStatement.c_str());
+				bindWhereClause(query, filter);
 
-			// Execute
-			int rowsDeleted = query.exec();
-			return rowsDeleted;
+				// Execute
+				int rowsDeleted = query.exec();
+				return rowsDeleted;
+			}
+			catch (SQLite::Exception &ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatches via filter: SQL Exception %s") % ex.what()).str());
+			}
+			return 0;
 		}
 
 		int deletePatches(std::string const &synth, std::vector<std::string> const &md5s) {
-			int rowsDeleted = 0;
-			for (auto md5 : md5s) {
-				// Build a delete query
-				std::string deleteStatement = "DELETE FROM patches WHERE md5 = :MD5 AND synth = :SYN";
-				SQLite::Statement query(db_, deleteStatement.c_str());
-				query.bind(":SYN", synth);
-				query.bind(":MD5", md5);
-				// Execute
-				rowsDeleted += query.exec();
+			try {
+				int rowsDeleted = 0;
+				for (auto md5 : md5s) {
+					// Build a delete query
+					std::string deleteStatement = "DELETE FROM patches WHERE md5 = :MD5 AND synth = :SYN";
+					SQLite::Statement query(db_, deleteStatement.c_str());
+					query.bind(":SYN", synth);
+					query.bind(":MD5", md5);
+					// Execute
+					rowsDeleted += query.exec();
+				}
+				return rowsDeleted;
 			}
-			return rowsDeleted;
+			catch (SQLite::Exception &ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatches via md5s: SQL Exception %s") % ex.what()).str());
+			}
+			return 0;
 		}
 
 		int reindexPatches(PatchFilter filter) {

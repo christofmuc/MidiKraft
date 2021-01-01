@@ -133,6 +133,12 @@ namespace midikraft {
 				if (defaultPlace) {
 					messages = programDumpCapability->patchToProgramDumpSysex(dataFile, defaultPlace->getDefaultProgramPlace());
 				}
+				else {
+					// Well, where should it go? I'd say last patch of first bank is a good compromise
+					auto place = MidiProgramNumber::fromZeroBase(numberOfPatches() - 1);
+					messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);
+					SimpleLogger::instance()->postMessageOncePerRun((boost::format("%s has no edit buffer, using program %s instead") % getName() % friendlyProgramName(place)).str());
+				}
 			}
 		}
 		if (messages.empty()) {
@@ -154,10 +160,10 @@ namespace midikraft {
 		if (!messages.empty()) {
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
 			if (midiLocation && !messages.empty()) {
-				SimpleLogger::instance()->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
-				MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
-				sendBlockOfMessagesToSynth(midiLocation->midiOutput(), MidiHelpers::bufferFromMessages(messages));
-			}
+					SimpleLogger::instance()->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
+					MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
+					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), MidiHelpers::bufferFromMessages(messages));
+				}
 		}
 	}
 

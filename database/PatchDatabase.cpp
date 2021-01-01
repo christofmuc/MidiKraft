@@ -520,9 +520,9 @@ namespace midikraft {
 		}
 
 		bool hasDefaultName(DataFile *patch) {
-			auto storedPatchNameCapa = midikraft::Capability::hasCapability<StoredPatchNameCapability>(patch);
-			if (storedPatchNameCapa) {
-				return storedPatchNameCapa->isDefaultName();
+			auto defaultNameCapa = midikraft::Capability::hasCapability<DefaultNameCapability>(patch);
+			if (defaultNameCapa) {
+				return defaultNameCapa->isDefaultName();
 			}
 			return false;
 		}

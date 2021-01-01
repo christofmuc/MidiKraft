@@ -160,10 +160,15 @@ namespace midikraft {
 		if (!messages.empty()) {
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
 			if (midiLocation && !messages.empty()) {
+				if (midiLocation->channel().isValid()) {
 					SimpleLogger::instance()->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
 					MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
 					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), MidiHelpers::bufferFromMessages(messages));
 				}
+				else {
+					SimpleLogger::instance()->postMessage((boost::format("Synth %s has no valid channel and output defined, don't know where to send!") % getName()).str());
+				}
+			}
 		}
 	}
 

@@ -519,10 +519,10 @@ namespace midikraft {
 			}
 		}
 
-		bool hasDefaultName(DataFile *patch) {
+		bool hasDefaultName(DataFile *patch, std::string const &patchName) {
 			auto defaultNameCapa = midikraft::Capability::hasCapability<DefaultNameCapability>(patch);
 			if (defaultNameCapa) {
-				return defaultNameCapa->isDefaultName();
+				return defaultNameCapa->isDefaultName(patchName);
 			}
 			return false;
 		}
@@ -573,11 +573,12 @@ namespace midikraft {
 				if (knownPatches.find(md5_key) != knownPatches.end()) {
 					// Super special logic - do not set the name if the patch name is a default name to prevent us from losing manually given names or those imported from "better" sysex files
 					unsigned onlyUpdateThis = updateChoice;
-					if (hasDefaultName(patch.patch().get())) {
+					if (hasDefaultName(patch.patch().get(), patch.name())) {
 						onlyUpdateThis = onlyUpdateThis & (~UPDATE_NAME);
 					}
 					if ((onlyUpdateThis & UPDATE_NAME) && (patch.name() != knownPatches[md5_key].name())) {
 						updatedNames++;
+						SimpleLogger::instance()->postMessage((boost::format("Renaming %s with better name %s") % knownPatches[md5_key].name() % patch.name()).str());
 					}
 
 					// Update the database with the new info. If more than the name should be updated, we first need to load the full existing patch (the bulkGetPatches only is a projection with the name loaded only)
@@ -640,7 +641,7 @@ namespace midikraft {
 					auto duplicate = md5Inserted[patchMD5];
 
 					// The new one could have better name?
-					if (hasDefaultName(duplicate.patch().get()) && !hasDefaultName(newPatch.patch().get())) {
+					if (hasDefaultName(duplicate.patch().get(), duplicate.name()) && !hasDefaultName(newPatch.patch().get(), newPatch.name())) {
 						updatePatch(newPatch, duplicate, UPDATE_NAME);
 						SimpleLogger::instance()->postMessage("Updating patch name " + String(duplicate.name()) + " to better one: " + newPatch.name());
 					}

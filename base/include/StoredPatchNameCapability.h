@@ -17,7 +17,7 @@ namespace midikraft {
 
 	class DefaultNameCapability {
 	public:
-		virtual bool isDefaultName() const = 0;
+		virtual bool isDefaultName(std::string const &patchName) const = 0;
 	};
 
 }

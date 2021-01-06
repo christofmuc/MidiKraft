@@ -129,15 +129,20 @@ namespace midikraft {
 			}
 			else if (programDumpCapability) {
 				// There is no edit buffer, we need to ask the device for the default destroyed program number
+				MidiProgramNumber place;
 				auto defaultPlace = midikraft::Capability::hasCapability<DefaultProgramPlaceInsteadOfEditBufferCapability>(this);
 				if (defaultPlace) {
-					messages = programDumpCapability->patchToProgramDumpSysex(dataFile, defaultPlace->getDefaultProgramPlace());
+					place = defaultPlace->getDefaultProgramPlace();
 				}
 				else {
 					// Well, where should it go? I'd say last patch of first bank is a good compromise
-					auto place = MidiProgramNumber::fromZeroBase(numberOfPatches() - 1);
-					messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);
+					place = MidiProgramNumber::fromZeroBase(numberOfPatches() - 1);
 					SimpleLogger::instance()->postMessageOncePerRun((boost::format("%s has no edit buffer, using program %s instead") % getName() % friendlyProgramName(place)).str());
+				}
+				messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);
+				auto location = Capability::hasCapability<MidiLocationCapability>(this);
+				if (location && location->channel().isValid()) {
+					messages.push_back(MidiMessage::programChange(location->channel().toOneBasedInt(), place.toZeroBased())); // Some synths might need a bank change as well, e.g. the Matrix 1000. Which luckily has an edit buffer
 				}
 			}
 		}

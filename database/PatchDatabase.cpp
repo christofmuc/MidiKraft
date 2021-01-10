@@ -203,7 +203,7 @@ namespace midikraft {
 				sql.bind(":SID", sourceID);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
-				sql.bind(":BNK", patch.bankNumber().toZeroBased());
+				sql.bind(":BNK", patch.bankNumber().isValid() ? patch.bankNumber().toZeroBased() : 0);
 				sql.bind(":PRG", patch.patchNumber().toZeroBased());
 				sql.bind(":CAT", patch.categoriesAsBitfield());
 				sql.bind(":CUD", patch.userDecisionAsBitfield());

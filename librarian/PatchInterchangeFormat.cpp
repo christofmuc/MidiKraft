@@ -13,10 +13,20 @@
 
 #include <boost/format.hpp>
 
+const char *kSynth = "Synth";
+const char *kName = "Name";
+const char *kSysex = "Sysex";
+const char *kFarvorite = "Favorite";
+const char *kPlace = "Place";
+const char *kCategories = "Categories";
+const char *kNonCategories = "NonCategories";
+const char *kSourceInfo = "SourceInfo";
+
 namespace midikraft {
 
 	bool findCategory(std::shared_ptr<AutomaticCategory> detector, const char *categoryName, midikraft::Category &outCategory) {
 		// Hard code migration from the Rev2SequencerTool categoryNames to KnobKraft Orm
+		//TODO this can use the mapping defined for the Virus now?
 		//TODO - this could become arbitrarily complex with free tags?
 		if (!strcmp(categoryName, "Bells")) categoryName = "Bell";
 		if (!strcmp(categoryName, "FX")) categoryName = "SFX";
@@ -50,28 +60,28 @@ namespace midikraft {
 			if (jsonDoc.IsArray()) {
 				auto patchArray = jsonDoc.GetArray();
 				for (auto item = jsonDoc.Begin(); item != jsonDoc.End(); item++) {
-					if (!item->HasMember("Synth")) {
+					if (!item->HasMember(kSynth)) {
 						SimpleLogger::instance()->postMessage("Skipping patch which has no 'Synth' field");
 						continue;
 					}
-					if (activeSynth->getName() != (*item)["Synth"].GetString()) {
+					if (activeSynth->getName() != (*item)[kSynth].GetString()) {
 						SimpleLogger::instance()->postMessage((boost::format("Skipping patch which is for synth %s and not for %s") % (*item)["Synth"].GetString() % activeSynth->getName()).str());
 						continue;
 					}
-					if (!item->HasMember("Name")) {
+					if (!item->HasMember(kName)) {
 						SimpleLogger::instance()->postMessage("Skipping patch which has no 'Name' field");
 						continue;
 					}
-					std::string patchName = (*item)["Name"].GetString(); //TODO this is not robust, as it might have a non-string type
-					if (!item->HasMember("Sysex")) {
+					std::string patchName = (*item)[kName].GetString(); //TODO this is not robust, as it might have a non-string type
+					if (!item->HasMember(kSysex)) {
 						SimpleLogger::instance()->postMessage((boost::format("Skipping patch %s which has no 'Sysex' field") % patchName).str());
 						continue;
 					}
 
 					// Optional fields!
 					Favorite fav;
-					if (item->HasMember("Favorite")) {
-						std::string favoriteStr = (*item)["Favorite"].GetString();
+					if (item->HasMember(kFarvorite)) {
+						std::string favoriteStr = (*item)[kFarvorite].GetString();
 						try {
 							bool favorite = std::stoi(favoriteStr) != 0;
 							fav = Favorite(favorite);
@@ -82,8 +92,8 @@ namespace midikraft {
 					}
 
 					MidiProgramNumber place = MidiProgramNumber::fromZeroBase(0);
-					if (item->HasMember("place")) {
-						std::string placeStr = (*item)["Place"].GetString();
+					if (item->HasMember(kPlace)) {
+						std::string placeStr = (*item)[kPlace].GetString();
 						try {
 							place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
 						}
@@ -93,8 +103,8 @@ namespace midikraft {
 					}
 
 					std::vector<Category> categories;
-					if (item->HasMember("Categories")) {
-						auto cats = (*item)["Categories"].GetArray();
+					if (item->HasMember(kCategories)) {
+						auto cats = (*item)[kCategories].GetArray();
 						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
 							midikraft::Category category("", Colours::aliceblue);
 							if (findCategory(detector, cat->GetString(), category)) {
@@ -107,8 +117,8 @@ namespace midikraft {
 					}
 
 					std::vector<Category> nonCategories;
-					if (item->HasMember("NonCategories")) {
-						auto cats = (*item)["NonCategories"].GetArray();
+					if (item->HasMember(kNonCategories)) {
+						auto cats = (*item)[kNonCategories].GetArray();
 						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
 							midikraft::Category category("", Colours::aliceblue);
 							if (findCategory(detector, cat->GetString(), category)) {
@@ -121,14 +131,14 @@ namespace midikraft {
 					}
 
 					std::shared_ptr<midikraft::SourceInfo> importInfo;
-					if (item->HasMember("SourceInfo")) {
-						importInfo = SourceInfo::fromString(renderToJson((*item)["SourceInfo"]));
+					if (item->HasMember(kSourceInfo)) {
+						importInfo = SourceInfo::fromString(renderToJson((*item)[kSourceInfo]));
 					}
 
 					// All mandatory fields found, we can parse the data!
 					MemoryBlock sysexData;
 					MemoryOutputStream writeToBlock(sysexData, false);
-					String base64encoded = (*item)["Sysex"].GetString();
+					String base64encoded = (*item)[kSysex].GetString();
 					if (Base64::convertFromBase64(writeToBlock, base64encoded)) {
 						writeToBlock.flush();
 						auto messages = Sysex::memoryBlockToMessages(sysexData);

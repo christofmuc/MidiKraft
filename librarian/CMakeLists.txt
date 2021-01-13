@@ -24,6 +24,8 @@ set(Sources
 	AutomaticCategory.cpp AutomaticCategory.h
 	BinaryResources.h
 	Category.cpp Category.h
+	JsonSchema.cpp JsonSchema.h
+	JsonSerialization.cpp JsonSerialization.h
 	Librarian.cpp Librarian.h
 	PatchHolder.cpp PatchHolder.h
 	PatchInterchangeFormat.cpp PatchInterchangeFormat.h

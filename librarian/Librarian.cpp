@@ -393,6 +393,23 @@ namespace midikraft {
 		return result;
 	}
 
+	std::vector<PatchHolder> Librarian::loadSysexPatchesManualDump(std::shared_ptr<Synth> synth, std::vector<MidiMessage> const &messages, std::shared_ptr<AutomaticCategory> automaticCategories) {
+		TPatchVector patches;
+		if (synth) {
+			patches = synth->loadSysex(messages);
+		}
+		// Add the meta information
+		std::vector<PatchHolder> result;
+		int i = 0;
+		Time now;
+		for (auto patch : patches) {
+			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, MidiBankNumber::invalid()), patch,
+				MidiBankNumber::fromZeroBase(0), MidiProgramNumber::fromZeroBase(i), automaticCategories));
+			i++;
+		}
+		return result;
+	}
+
 	class ProgressWindow: public ThreadWithProgressWindow {
 	public:
 		ProgressWindow(String title, double *progress) : ThreadWithProgressWindow(title, true, false), progress_(progress) {}

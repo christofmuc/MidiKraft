@@ -40,6 +40,8 @@ namespace midikraft {
 		Synth *sniffSynth(std::vector<MidiMessage> const &messages) const;
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::shared_ptr<AutomaticCategory> automaticCategories);
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::string const &fullpath, std::string const &filename, std::shared_ptr<AutomaticCategory> automaticCategories);
+		std::vector<PatchHolder> loadSysexPatchesManualDump(std::shared_ptr<Synth> synth, std::vector<MidiMessage> const &messages, std::shared_ptr<AutomaticCategory> automaticCategories);
+
 		void saveSysexPatchesToDisk(std::vector<PatchHolder> const &patches);
 
 		void clearHandlers();

@@ -88,25 +88,35 @@ namespace midikraft {
 
 					// Optional fields!
 					Favorite fav;
-					if (item->HasMember(kFarvorite)) {
-						std::string favoriteStr = (*item)[kFarvorite].GetString();
-						try {
-							bool favorite = std::stoi(favoriteStr) != 0;
-							fav = Favorite(favorite);
+					if (item->HasMember(kFavorite)) {
+						if ((*item)[kFavorite].IsInt()) {
+							fav = Favorite((*item)[kFavorite].GetInt() != 0);
 						}
-						catch (std::invalid_argument &) {
-							SimpleLogger::instance()->postMessage((boost::format("Ignoring favorite information for patch %s because %s does not convert to an integer") % patchName % favoriteStr).str());
+						else {
+							std::string favoriteStr = (*item)[kFavorite].GetString();
+							try {
+								bool favorite = std::stoi(favoriteStr) != 0;
+								fav = Favorite(favorite);
+							}
+							catch (std::invalid_argument &) {
+								SimpleLogger::instance()->postMessage((boost::format("Ignoring favorite information for patch %s because %s does not convert to an integer") % patchName % favoriteStr).str());
+							}
 						}
 					}
 
 					MidiProgramNumber place = MidiProgramNumber::fromZeroBase(0);
 					if (item->HasMember(kPlace)) {
-						std::string placeStr = (*item)[kPlace].GetString();
-						try {
-							place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
+						if ((*item)[kPlace].IsInt()) {
+							place = MidiProgramNumber::fromZeroBase((*item)[kPlace].GetInt());
 						}
-						catch (std::invalid_argument &) {
-							SimpleLogger::instance()->postMessage((boost::format("Ignoring MIDI place information for patch %s because %s does not convert to an integer") % patchName % placeStr).str());
+						else {
+							std::string placeStr = (*item)[kPlace].GetString();
+							try {
+								place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
+							}
+							catch (std::invalid_argument &) {
+								SimpleLogger::instance()->postMessage((boost::format("Ignoring MIDI place information for patch %s because %s does not convert to an integer") % patchName % placeStr).str());
+							}
 						}
 					}
 

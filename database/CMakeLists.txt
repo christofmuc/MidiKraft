@@ -10,8 +10,6 @@ project(MidiKraft-database)
 
 # Define the sources for the static library
 set(Sources
-	JsonSchema.cpp JsonSchema.h
-	JsonSerialization.cpp JsonSerialization.h
 	PatchDatabase.cpp PatchDatabase.h
 	README.md
 	LICENSE.md

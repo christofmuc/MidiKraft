@@ -210,15 +210,15 @@ namespace midikraft {
 	}
 
 	void PatchHolder::setCategoriesFromBitfield(int64 bitfield) {
-		setCategoriesFromBitfield(categories_, bitfield);
+		makeSetOfCategoriesFromBitfield(categories_, bitfield);
 	}
 
 	void PatchHolder::setUserDecisionsFromBitfield(int64 bitfield)
 	{
-		setCategoriesFromBitfield(userDecisions_, bitfield);
+		makeSetOfCategoriesFromBitfield(userDecisions_, bitfield);
 	}
 
-	void PatchHolder::setCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield)
+	void PatchHolder::makeSetOfCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield) const
 	{
 		cats.clear();
 		for (int i = 0; i < 63; i++) {

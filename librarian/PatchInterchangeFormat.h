@@ -16,6 +16,7 @@ namespace midikraft {
 	class PatchInterchangeFormat {
 	public:
 		static std::vector<PatchHolder> load(std::shared_ptr<Synth> activeSynth, std::string const &filename, std::shared_ptr<AutomaticCategory> detector);
+		static void save(std::vector<PatchHolder> const &patches, std::string const &toFilename);
 	};
 
 }

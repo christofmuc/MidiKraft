@@ -6,17 +6,25 @@
 
 #include "PatchInterchangeFormat.h"
 
-#include "RapidjsonHelper.h"
-
 #include "Logger.h"
 #include "Sysex.h"
 
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/filewritestream.h"
+
 #include <boost/format.hpp>
+
+#include "RapidjsonHelper.h"
+#include "JsonSerialization.h"
+
+#include <cstdio>
 
 const char *kSynth = "Synth";
 const char *kName = "Name";
 const char *kSysex = "Sysex";
-const char *kFarvorite = "Favorite";
+const char *kFavorite = "Favorite";
 const char *kPlace = "Place";
 const char *kCategories = "Categories";
 const char *kNonCategories = "NonCategories";
@@ -169,6 +177,88 @@ namespace midikraft {
 			}
 		}
 		return result;
+	}
+
+	void PatchInterchangeFormat::save(std::vector<PatchHolder> const &patches, std::string const &toFilename)
+	{
+		File outputFile(toFilename);
+		if (outputFile.existsAsFile()) {
+			outputFile.deleteFile();
+		}
+
+		rapidjson::Document doc;
+		doc.SetArray();
+		for (auto patch : patches) {
+			rapidjson::Value patchJson;
+			patchJson.SetObject();
+			addToJson(kSynth, patch.synth()->getName(), patchJson, doc);
+			addToJson(kName, patch.name(), patchJson, doc);
+			patchJson.AddMember(rapidjson::StringRef(kFavorite), patch.isFavorite() ? 1 : 0, doc.GetAllocator());
+			patchJson.AddMember(rapidjson::StringRef(kPlace), patch.patchNumber().toZeroBased(), doc.GetAllocator());
+			int64 categoriesSet = patch.categoriesAsBitfield();
+			int64 userDecisions = patch.userDecisionAsBitfield();
+			if (categoriesSet & userDecisions) {
+				// Here is a list of categories to write
+				rapidjson::Value categoryList;
+				categoryList.SetArray();
+				std::set<Category> userDefinedCategories;
+				patch.makeSetOfCategoriesFromBitfield(userDefinedCategories, categoriesSet & userDecisions);
+				for (auto cat : userDefinedCategories) {
+					rapidjson::Value catValue;
+					catValue.SetString(cat.category.c_str(), doc.GetAllocator());
+					categoryList.PushBack(catValue, doc.GetAllocator());
+				}
+				patchJson.AddMember(rapidjson::StringRef(kCategories), categoryList, doc.GetAllocator());
+			}
+			if ((~categoriesSet) & userDecisions) {
+				// Here is a list of non-categories to write
+				rapidjson::Value nonCategoryList;
+				nonCategoryList.SetArray();
+				std::set<Category> userDefinedNonCategories;
+				patch.makeSetOfCategoriesFromBitfield(userDefinedNonCategories, (~categoriesSet) & userDecisions);
+				for (auto cat : userDefinedNonCategories) {
+					rapidjson::Value catValue;
+					catValue.SetString(cat.category.c_str(), doc.GetAllocator());
+					nonCategoryList.PushBack(catValue, doc.GetAllocator());
+				}
+				patchJson.AddMember(rapidjson::StringRef(kNonCategories), nonCategoryList, doc.GetAllocator());
+			}
+
+			if (patch.sourceInfo()) {
+				std::string jsonRep = patch.sourceInfo()->toString();
+				rapidjson::Document sourceInfoDoc(&doc.GetAllocator());
+				sourceInfoDoc.Parse(jsonRep.c_str());
+				patchJson.AddMember(rapidjson::StringRef(kSourceInfo), sourceInfoDoc, doc.GetAllocator());
+			}
+
+			// Now the fun part, pack the sysex for transport
+			auto sysexMessages = patch.synth()->patchToSysex(patch.patch(), nullptr);
+			std::vector<uint8> data;
+			// Just concatenate all messages generated into one uint8 array
+			for (auto m : sysexMessages) {
+				std::copy(m.getRawData(), m.getRawData() + m.getRawDataSize(), std::back_inserter(data));
+			}
+			std::string base64encoded = JsonSerialization::dataToString(data);
+			addToJson(kSysex, base64encoded, patchJson, doc);
+
+			doc.PushBack(patchJson, doc.GetAllocator());
+		}
+
+		// According to documentation of Rapid Json, this is the fastest way to write it to a stream
+		// I'll just believe it and use a nice old C file handle.
+#if WIN32
+		FILE* fp;
+		if (fopen_s(&fp, toFilename.c_str(), "wb") != 0) {
+			SimpleLogger::instance()->postMessage((boost::format("Failure to open file %s to write patch interchange format to") % toFilename).str());
+		}
+#else
+		FILE* fp = fopen(toFilename.c_str(), "w");
+#endif
+		char writeBuffer[65536];
+		rapidjson::FileWriteStream os(fp, writeBuffer, sizeof(writeBuffer));
+		rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer(os);
+		doc.Accept(writer);
+		fclose(fp);
 	}
 
 }

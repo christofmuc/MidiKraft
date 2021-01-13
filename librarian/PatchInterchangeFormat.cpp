@@ -29,6 +29,11 @@ const char *kPlace = "Place";
 const char *kCategories = "Categories";
 const char *kNonCategories = "NonCategories";
 const char *kSourceInfo = "SourceInfo";
+const char *kLibrary = "Library";
+const char *kHeader = "Header";
+const char *kFileFormat = "FileFormat";
+const char *kPIF = "PatchInterchangeFormat";
+const char *kVersion = "Version";
 
 namespace midikraft {
 
@@ -44,11 +49,26 @@ namespace midikraft {
 			if (acat.category == categoryName) {
 				// Found, great!
 				outCategory = acat;
-				return true;			
+				return true;
 			}
 		}
 		return false;
 	}
+
+	/*
+	* Load routine for the new PatchInterchangeFormat.
+	*
+	* The idea is to create a human readable (JSON) format that allows to archive and transport sysex patches and their metadata.
+	*
+	* The sysex binary data is in a base64 encoded field, the rest of the metadata is normal JSON, and should be largely self-documenting.
+	*
+	* Example of metadata: Given name to patch, origin (synth or file import etc.), is favorite, categories etc.
+	*
+	* File version history:
+	*
+	*   0  - This file format has no header information and is just an array of Patches. It was exported by the Rev2SequencerTool, the KnobKraft Orm predecessor, to export data stored in the AWS DynamoDB
+	*   1  - First version with header containing name of file format and version number, else it is identical to version 0 containing the patches in the field "Library" (to mark it is not a bank!)
+	*/
 
 	std::vector<midikraft::PatchHolder> PatchInterchangeFormat::load(std::shared_ptr<Synth> activeSynth, std::string const &filename, std::shared_ptr<AutomaticCategory> detector)
 	{
@@ -65,8 +85,43 @@ namespace midikraft {
 			rapidjson::Document jsonDoc;
 			jsonDoc.Parse(content.toStdString().c_str());
 
-			if (jsonDoc.IsArray()) {
-				auto patchArray = jsonDoc.GetArray();
+			int version = 0;
+			if (jsonDoc.IsObject()) {
+				if (!jsonDoc.HasMember(kHeader)) {
+					SimpleLogger::instance()->postMessage("This is not a PatchInterchangeFormat JSON file - no header defined. Aborting.");
+					return {};
+				}
+				if (!jsonDoc.HasMember(kFileFormat) || !jsonDoc[kFileFormat].IsString()) {
+					SimpleLogger::instance()->postMessage("File header block has no string member to define FileFormat. Aborting.");
+					return {};
+				}
+				if (jsonDoc[kFileFormat].GetString() != kPIF) {
+					SimpleLogger::instance()->postMessage("File header defines different FileFormat than PatchInterchangeFormat. Aborting.");
+					return {};
+				}
+				if (!jsonDoc.HasMember(kVersion) || !jsonDoc[kVersion].IsInt()) {
+					SimpleLogger::instance()->postMessage("File header has no integer-values member defining file Version. Aborting.");
+					return {};
+				}
+				// Header all good, let's read the Version of the format
+				version = jsonDoc[kVersion].GetInt();
+			}
+
+			rapidjson::Value patchArray;
+			if (version == 0) {
+				// Original version had no header, whole file was an array of patches
+				if (!jsonDoc.IsArray()) {
+				}
+				patchArray = jsonDoc.GetArray();
+			}
+			else {
+				// From version 1 on, Patches are stored in a Member Field called "Library"
+				if (jsonDoc.HasMember(kLibrary) && jsonDoc[kLibrary].IsArray()) {
+					patchArray = jsonDoc[kLibrary].GetArray();
+				}
+			}
+
+			if (patchArray.IsArray()) {
 				for (auto item = jsonDoc.Begin(); item != jsonDoc.End(); item++) {
 					if (!item->HasMember(kSynth)) {
 						SimpleLogger::instance()->postMessage("Skipping patch which has no 'Synth' field");
@@ -185,6 +240,9 @@ namespace midikraft {
 					}
 				}
 			}
+			else {
+				SimpleLogger::instance()->postMessage("No Library patches defined in PatchInterchangeFormat, no patches loaded");
+			}
 		}
 		return result;
 	}
@@ -197,7 +255,16 @@ namespace midikraft {
 		}
 
 		rapidjson::Document doc;
-		doc.SetArray();
+		doc.SetObject();
+
+		rapidjson::Value header;
+		header.SetObject();
+		header.AddMember(rapidjson::StringRef(kFileFormat), rapidjson::StringRef(kPIF), doc.GetAllocator());
+		header.AddMember(rapidjson::StringRef(kVersion), 1, doc.GetAllocator());
+		doc.AddMember(rapidjson::StringRef(kHeader), header, doc.GetAllocator());
+
+		rapidjson::Value library;
+		library.SetArray();
 		for (auto patch : patches) {
 			rapidjson::Value patchJson;
 			patchJson.SetObject();
@@ -251,8 +318,9 @@ namespace midikraft {
 			std::string base64encoded = JsonSerialization::dataToString(data);
 			addToJson(kSysex, base64encoded, patchJson, doc);
 
-			doc.PushBack(patchJson, doc.GetAllocator());
+			library.PushBack(patchJson, doc.GetAllocator());
 		}
+		doc.AddMember(rapidjson::StringRef(kLibrary), library, doc.GetAllocator());
 
 		// According to documentation of Rapid Json, this is the fastest way to write it to a stream
 		// I'll just believe it and use a nice old C file handle.
@@ -260,7 +328,7 @@ namespace midikraft {
 		FILE* fp;
 		if (fopen_s(&fp, toFilename.c_str(), "wb") != 0) {
 			SimpleLogger::instance()->postMessage((boost::format("Failure to open file %s to write patch interchange format to") % toFilename).str());
-		}
+	}
 #else
 		FILE* fp = fopen(toFilename.c_str(), "w");
 #endif
@@ -269,6 +337,6 @@ namespace midikraft {
 		rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer(os);
 		doc.Accept(writer);
 		fclose(fp);
-	}
+}
 
 }

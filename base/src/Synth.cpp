@@ -43,6 +43,12 @@ namespace midikraft {
 		return md5.toHexString().toStdString();
 	}
 
+	std::string Synth::setupHelpText() const
+	{
+		// Default is nothing special
+		return "No special setup information is provided. I'd say, read the manual!";
+	}
+
 	TPatchVector Synth::loadSysex(std::vector<MidiMessage> const &sysexMessages)
 	{
 		TPatchVector result;

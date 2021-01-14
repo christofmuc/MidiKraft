@@ -41,6 +41,9 @@ namespace midikraft {
 		// Override this if you disagree with the default implementation of calculating the fingerprint with an md5 of the filtered patch data
 		virtual std::string calculateFingerprint(std::shared_ptr<DataFile> patch) const;
 
+		// Override this if you have some words for the user of this synth to properly do the manual setup steps that might be required for vintage gear
+		virtual std::string setupHelpText() const;
+
 		// Generic functions that should function with most Synthesizers, only overload if required
 		virtual TPatchVector loadSysex(std::vector<MidiMessage> const &sysexMessages);
 		virtual void saveSysex(std::string const &filename, std::vector<MidiMessage> messages);

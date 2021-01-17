@@ -227,7 +227,7 @@ namespace midikraft {
 			return result;
 		}
 
-		std::string buildWhereClause(PatchFilter filter) {
+		std::string buildWhereClause(PatchFilter filter, bool needsCollate) {
 			std::string where = " WHERE 1 == 1 ";
 			if (!filter.synths.empty()) {
 				//TODO does Sqlite do "IN" clause?
@@ -244,6 +244,9 @@ namespace midikraft {
 			}
 			if (!filter.name.empty()) {
 				where += " AND name LIKE :NAM";
+				if (needsCollate) {
+					where += " COLLATE NOCASE";
+				}
 			}
 			if (filter.onlyFaves) {
 				where += " AND favorite == 1";
@@ -293,7 +296,7 @@ namespace midikraft {
 
 		int getPatchesCount(PatchFilter filter) {
 			try {
-				SQLite::Statement query(db_, "SELECT count(*) FROM patches" + buildWhereClause(filter));
+				SQLite::Statement query(db_, "SELECT count(*) FROM patches" + buildWhereClause(filter, false));
 				bindWhereClause(query, filter);
 				if (query.executeStep()) {
 					return query.getColumn(0).getInt();
@@ -374,7 +377,7 @@ namespace midikraft {
 		}
 
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder> &result, std::vector<std::pair<std::string, PatchHolder>> &needsReindexing, int skip, int limit) {
-			std::string selectStatement = "SELECT * FROM patches " + buildWhereClause(filter) + " ORDER BY sourceID, midiBankNo, midiProgramNo ";
+			std::string selectStatement = "SELECT * FROM patches " + buildWhereClause(filter, true) + " ORDER BY sourceID, midiBankNo, midiProgramNo ";
 			if (limit != -1) {
 				selectStatement += " LIMIT :LIM ";
 				selectStatement += " OFFSET :OFS";
@@ -679,7 +682,7 @@ namespace midikraft {
 		int deletePatches(PatchFilter filter) {
 			try {
 				// Build a delete query
-				std::string deleteStatement = "DELETE FROM patches " + buildWhereClause(filter);
+				std::string deleteStatement = "DELETE FROM patches " + buildWhereClause(filter, false);
 				SQLite::Statement query(db_, deleteStatement.c_str());
 				bindWhereClause(query, filter);
 

@@ -72,7 +72,7 @@ namespace midikraft {
 						result.push_back(patch);
 					}
 					else {
-						Logger::writeToLog((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
+						SimpleLogger::instance()->postMessage((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
 					}
 					patchNo++;
 				}
@@ -82,13 +82,13 @@ namespace midikraft {
 						result.push_back(patch);
 					}
 					else {
-						Logger::writeToLog((boost::format("Error decoding program dump for patch %d, skipping it") % patchNo).str());
+						SimpleLogger::instance()->postMessage((boost::format("Error decoding program dump for patch %d, skipping it") % patchNo).str());
 					}
 					patchNo++;
 				}
 				else if (bankDumpSynth && bankDumpSynth->isBankDump(message)) {
 					auto morePatches = bankDumpSynth->patchesFromSysexBank(message);
-					Logger::writeToLog((boost::format("Loaded bank dump with %d patches") % morePatches.size()).str());
+					SimpleLogger::instance()->postMessage((boost::format("Loaded bank dump with %d patches") % morePatches.size()).str());
 					std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
 				}
 				else if (dataFileLoadSynth) {

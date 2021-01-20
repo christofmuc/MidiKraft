@@ -91,20 +91,26 @@ namespace midikraft {
 					SimpleLogger::instance()->postMessage("This is not a PatchInterchangeFormat JSON file - no header defined. Aborting.");
 					return {};
 				}
-				if (!jsonDoc.HasMember(kFileFormat) || !jsonDoc[kFileFormat].IsString()) {
+				rapidjson::Value header;
+				if (jsonDoc[kHeader].IsObject()) {
+					// Proper format, use the header object, not the manually hacked header which was needed to get the files back into version 1.11.0
+					// Eventually, the header = jsonDoc special case should be removed again.
+					header = jsonDoc[kHeader].GetObject();
+				}
+				if (!header.HasMember(kFileFormat) || !header[kFileFormat].IsString()) {
 					SimpleLogger::instance()->postMessage("File header block has no string member to define FileFormat. Aborting.");
 					return {};
 				}
-				if (jsonDoc[kFileFormat].GetString() != kPIF) {
+				if (header[kFileFormat] != kPIF) {
 					SimpleLogger::instance()->postMessage("File header defines different FileFormat than PatchInterchangeFormat. Aborting.");
 					return {};
 				}
-				if (!jsonDoc.HasMember(kVersion) || !jsonDoc[kVersion].IsInt()) {
+				if (!header.HasMember(kVersion) || !header[kVersion].IsInt()) {
 					SimpleLogger::instance()->postMessage("File header has no integer-values member defining file Version. Aborting.");
 					return {};
 				}
 				// Header all good, let's read the Version of the format
-				version = jsonDoc[kVersion].GetInt();
+				version = header[kVersion].GetInt();
 			}
 
 			rapidjson::Value patchArray;
@@ -122,7 +128,7 @@ namespace midikraft {
 			}
 
 			if (patchArray.IsArray()) {
-				for (auto item = jsonDoc.Begin(); item != jsonDoc.End(); item++) {
+				for (auto item = patchArray.Begin(); item != patchArray.End(); item++) {
 					if (!item->HasMember(kSynth)) {
 						SimpleLogger::instance()->postMessage("Skipping patch which has no 'Synth' field");
 						continue;

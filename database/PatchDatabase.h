@@ -25,7 +25,7 @@ namespace midikraft {
 	class PatchDatabase {
 	public:
 		struct PatchFilter {
-			Synth *activeSynth;
+			std::map<std::string, std::weak_ptr<Synth>> synths;
 			std::string importID;
 			std::string name;
 			bool onlyFaves;
@@ -33,25 +33,50 @@ namespace midikraft {
 			int typeID;
 			bool showHidden;
 			bool onlyUntagged;
-			std::set<Category> categories;
+			std::set<Category> categories;			
 		};
 
-		PatchDatabase();
+		enum UpdateChoice {
+			UPDATE_NAME = 1,
+			UPDATE_CATEGORIES = 2,
+			UPDATE_HIDDEN = 4,
+			UPDATE_DATA = 8,
+			UPDATE_FAVORITE = 16,
+			UPDATE_ALL = UPDATE_NAME | UPDATE_CATEGORIES | UPDATE_HIDDEN | UPDATE_DATA | UPDATE_FAVORITE
+		};
+
+		PatchDatabase(); // Default location
+		PatchDatabase(std::string const &databaseFile); // Specific file
 		~PatchDatabase();
+
+		std::string getCurrentDatabaseFileName() const;
+		bool switchDatabaseFile(std::string const &newDatabaseFile);
 
 		int getPatchesCount(PatchFilter filter);
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
 		void getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit);
 
-		size_t mergePatchesIntoDatabase(Synth *activeSynth, std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress);
+		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice);
 		std::vector<ImportInfo> getImportsList(Synth *activeSynth) const;
-		bool putPatch(Synth *activeSynth, PatchHolder const &patch);
-		bool putPatches(Synth *activeSynth, std::vector<PatchHolder> const &patches);
+		bool putPatch(PatchHolder const &patch);
+		bool putPatches(std::vector<PatchHolder> const &patches);
+
+		int deletePatches(PatchFilter filter);
+		int reindexPatches(PatchFilter filter);
+
+		std::string makeDatabaseBackup(std::string const &suffix);
+		void makeDatabaseBackup(File backupFileToCreate);
 
 		std::vector<Category> PatchDatabase::getCategories() const;
-		std::shared_ptr<AutomaticCategorizer> getCategorizer();
+		std::shared_ptr<AutomaticCategory> getCategorizer();
 		void setAutocategorizationRules(std::string const &jsonDefinition);
 
+		// Convenience functions
+		static PatchFilter allForSynth(std::shared_ptr<Synth> synth);
+
+		// For backward compatibility
+		static std::string generateDefaultDatabaseLocation();
+	
 	private:
 		class PatchDataBaseImpl;
 		std::unique_ptr<PatchDataBaseImpl> impl;

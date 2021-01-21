@@ -42,9 +42,10 @@ namespace midikraft {
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
-		PatchDataBaseImpl(std::string const &databaseFile) : db_(databaseFile.c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE) {
+		PatchDataBaseImpl(std::string const &databaseFile) : db_(databaseFile.c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE), bitfield({}) {
 			createSchema();
 			manageBackupDiskspace(kDataBaseBackupSuffix);
+			getCategories();
 		}
 
 		~PatchDataBaseImpl() {
@@ -160,7 +161,7 @@ namespace midikraft {
 				db_.exec("INSERT INTO categories VALUES (12, 'Ambient', '', 1)");
 				db_.exec("INSERT INTO categories VALUES (13, 'Wind', '', 1)");
 				db_.exec("INSERT INTO categories VALUES (14, 'Voice', '', 1)");
-				db_.exec("UPDATE schema_version SET number = 5");
+				db_.exec("UPDATE schema_version SET number = 6");
 				transaction.commit();
 			}
 		}
@@ -193,7 +194,14 @@ namespace midikraft {
 			if (schemaQuery.executeStep()) {
 				int version = schemaQuery.getColumn("number").getInt();
 				if (version < SCHEMA_VERSION) {
-					migrateSchema(version);
+					try {
+						migrateSchema(version);
+					}
+					catch (SQLite::Exception &e) {
+						std::string message = (boost::format("Cannot open database file %s - Cannot upgrade to latest version, schema version found is %d. Error: %s") % db_.getFilename() % version % e.what()).str();
+						AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Failure to open database", message);
+						throw e;
+					}
 				}
 				else if (version > SCHEMA_VERSION) {
 					// This is a database from the future, can't open!
@@ -230,8 +238,8 @@ namespace midikraft {
 				sql.bind(":SRC", patch.sourceInfo()->toString());
 				sql.bind(":BNK", patch.bankNumber().isValid() ? patch.bankNumber().toZeroBased() : 0);
 				sql.bind(":PRG", patch.patchNumber().toZeroBased());
-				sql.bind(":CAT", patch.categoriesAsBitfield());
-				sql.bind(":CUD", patch.userDecisionAsBitfield());
+				sql.bind(":CAT", bitfield.categorySetAsBitfield(patch.categories()));
+				sql.bind(":CUD", bitfield.categorySetAsBitfield(patch.userDecisionSet()));
 
 				sql.exec();
 			}
@@ -255,7 +263,7 @@ namespace midikraft {
 		std::string buildWhereClause(PatchFilter filter, bool needsCollate) {
 			std::string where = " WHERE 1 == 1 ";
 			if (!filter.synths.empty()) {
-				//TODO does Sqlite do "IN" clause?
+				//TODO does SQlite do "IN" clause?
 				where += " AND ( ";
 				int s = 0;
 				for (auto synth : filter.synths) {
@@ -315,7 +323,7 @@ namespace midikraft {
 				query.bind(":TYP", filter.typeID);
 			}
 			if (!filter.onlyUntagged && !filter.categories.empty()) {
-				query.bind(":CAT", PatchHolder::categorySetAsBitfield(filter.categories));
+				query.bind(":CAT", bitfield.categorySetAsBitfield(filter.categories));
 			}
 		}
 
@@ -335,14 +343,15 @@ namespace midikraft {
 
 		std::vector<Category> getCategories() {
 			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY bitIndex");
-			std::vector<Category> result;
+			std::vector<CategoryBitfield::BitName> result;
 			while (query.executeStep()) {
 				auto bitIndex = query.getColumn("bitIndex").getInt();
 				auto name = query.getColumn("name").getText();
 				auto colorName = query.getColumn("color").getText();
-				result.emplace_back(name, Colour::fromString(colorName), bitIndex);
+				result.push_back({ std::string(name), bitIndex, Colour::fromString(colorName) });
 			}
-			return result;
+			bitfield = CategoryBitfield(result);
+			return bitfield.categoryVector();
 		}
 
 
@@ -384,8 +393,11 @@ namespace midikraft {
 					if (hiddenColumn.isInteger()) {
 						holder.setHidden(hiddenColumn.getInt() == 1);
 					}
-					holder.setCategoriesFromBitfield(categories, query.getColumn("categories").getInt64());
-					holder.setUserDecisionsFromBitfield(categories, query.getColumn("categoryUserDecision").getInt64());
+					std::set<Category> updateSet;
+					bitfield.makeSetOfCategoriesFromBitfield(updateSet, query.getColumn("categories").getInt64());
+					holder.setCategories(updateSet);
+					bitfield.makeSetOfCategoriesFromBitfield(updateSet, query.getColumn("categoryUserDecision").getInt64());
+					holder.setUserDecisions(updateSet);
 
 					result.push_back(holder);
 					return true;
@@ -497,16 +509,27 @@ namespace midikraft {
 			// user decisions. Adding a category most often is more useful than removing one
 
 			// Turn off existing user decisions where a new user decision exists
-			int64 newPatchUserDecided = newPatch.categoriesAsBitfield() & newPatch.userDecisionAsBitfield();
-			int64 newPatchAutomatic = newPatch.categoriesAsBitfield() & ~newPatch.userDecisionAsBitfield();
-			int64 oldUserDecided = existingPatch.categoriesAsBitfield() & existingPatch.userDecisionAsBitfield();
+			auto newPatchesUserDecided = category_intersection(newPatch.categories(), newPatch.userDecisionSet());
+			auto newPatchesAutomatic = category_difference(newPatch.categories(), newPatch.userDecisionSet());
+			auto oldUserDecided = category_intersection(existingPatch.categories(), existingPatch.userDecisionSet());
+			
 
 			// The new categories are calculated as all categories from the new patch, unless there is a user decision at the existing patch not marked as overridden by a new user decision
 			// plus all existing patch categories where there is no new user decision
-			newPatch.setCategoriesFromBitfield(newPatchUserDecided | (newPatchAutomatic & ~existingPatch.userDecisionAsBitfield()) | (oldUserDecided & ~newPatch.userDecisionAsBitfield()));
+			auto newAutomaticWithoutExistingOverride = category_difference(newPatchesAutomatic, existingPatch.userDecisionSet());
+			auto oldUserDecidedWithoutNewOverride = category_difference(oldUserDecided, newPatch.userDecisionSet());
+			std::set<Category> newCategories = category_union(newPatchesUserDecided, newAutomaticWithoutExistingOverride);
+			std::set<Category> finalResult = category_union(newCategories, oldUserDecidedWithoutNewOverride);
+			newPatch.setCategories(finalResult);
+
+			//int64 newPatchUserDecided = bitfield.categorySetAsBitfield(newPatch.categories()) & bitfield.categorySetAsBitfield(newPatch.userDecisionSet());
+			//int64 newPatchAutomatic = bitfield.categorySetAsBitfield(newPatch.categories()) & ~bitfield.categorySetAsBitfield(newPatch.userDecisionSet());
+			//int64 oldUserDecided = bitfield.categorySetAsBitfield(existingPatch.categories()) & bitfield.categorySetAsBitfield(existingPatch.userDecisionSet());
+			//int64 result = newPatchUserDecided | (newPatchAutomatic & ~bitfield.categorySetAsBitfield(existingPatch.userDecisionSet())) | (oldUserDecided & ~bitfield.categorySetAsBitfield(newPatch.userDecisionSet()));
 
 			// User decisions are now a union of both
-			newPatch.setUserDecisionsFromBitfield(newPatch.userDecisionAsBitfield() | existingPatch.userDecisionAsBitfield());
+			std::set<Category> newUserDecisions = category_union(newPatch.userDecisionSet(), existingPatch.userDecisionSet());
+			newPatch.setUserDecisions(newUserDecisions);
 		}
 
 		int calculateMergedFavorite(PatchHolder const &newPatch, PatchHolder const &existingPatch) {
@@ -533,8 +556,8 @@ namespace midikraft {
 					SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5 and synth = :SYN");
 					if (updateChoices & UPDATE_CATEGORIES) {
 						calculateMergedCategories(newPatch, existingPatch);
-						sql.bind(":CAT", newPatch.categoriesAsBitfield());
-						sql.bind(":CUD", newPatch.userDecisionAsBitfield());
+						sql.bind(":CAT", bitfield.categorySetAsBitfield(newPatch.categories()));
+						sql.bind(":CUD", bitfield.categorySetAsBitfield(newPatch.userDecisionSet()));
 					}
 					if (updateChoices & UPDATE_NAME) {
 						sql.bind(":NAM", newPatch.name());
@@ -815,22 +838,18 @@ namespace midikraft {
 			// This needs to be merged.
 			auto categorizer = std::make_shared<AutomaticCategory>();
 
-			// Load the categories from the database table
-			auto databaseCategories = getCategories();
+			// Force reload of the categories from the database table
+			getCategories();
+			int bitindex = bitfield.maxBitIndex();
 
 			// Load the json Definition			
 			categorizer->loadFromString(autocategoryDefinitions_);
-			auto max = std::max_element(databaseCategories.begin(), databaseCategories.end(), [](Category a, Category b) { return a.bitIndex < b.bitIndex; });
-			int bitindex = 0; // The bitindex 0 is not used
-			if (max != databaseCategories.end()) {
-				bitindex = max->bitIndex;
-			}
 
 			// First pass - check that all categories referenced in the auto category file are stored in the database, else they will have no bit index!
 			SQLite::Transaction transaction(db_);
 			for (auto rule : categorizer->predefinedCategories()) {
 				auto exists = false;
-				for (auto cat : databaseCategories) {
+				for (auto cat : bitfield.categoryVector()) {
 					if (cat.category == rule.category().category) {
 						exists = true;
 						break;
@@ -856,22 +875,22 @@ namespace midikraft {
 			transaction.commit();
 
 			// Refresh from database
-			databaseCategories = getCategories();
+			getCategories();
 
 			// Now we need to merge the database persisted categories with the ones defined in the automatic categories from the json string
 			bool exists = false;
-			for (auto cat : databaseCategories) {
+			for (auto cat : bitfield.categoryVector()) {
 				for (auto rule : categorizer->predefinedCategories()) {
 					if (cat.category == rule.category().category) {
 						// Copy the rules
 						exists = true;
-						categorizer->addAutoCategory(AutoCategory(cat, rule.patchNameMatchers()));
+						categorizer->addAutoCategory(AutoCategoryRule(rule.category(), rule.patchNameMatchers()));
 						break;
 					}
 				}
 				if (!exists) {
 					// That just means there are no rules, but it needs to be added to the list of available categories anyway
-					categorizer->addAutoCategory(AutoCategory(cat, std::vector<std::string>()));
+					categorizer->addAutoCategory(AutoCategoryRule(Category(cat.category, Colours::darkgrey), std::vector<std::string>()));
 				}
 			}
 
@@ -886,6 +905,7 @@ namespace midikraft {
 	private:
 		SQLite::Database db_;
 		std::string autocategoryDefinitions_;
+		CategoryBitfield bitfield;
 	};
 
 	PatchDatabase::PatchDatabase() {
@@ -1030,3 +1050,4 @@ namespace midikraft {
 		return filter;
 	}
 
+}

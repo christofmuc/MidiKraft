@@ -13,12 +13,13 @@
 
 #include "ProgressHandler.h"
 #include "PatchHolder.h"
+#include "CategoryBitfield.h"
 
 namespace midikraft {
 
 	struct ImportInfo {
 		std::string name; // The name of the import - TODO this can be matched to the name stored in the patch, except for edit buffer imports
-		std::string description; // The nice display name of the import, this can contain e.g. the number of patches in this import in parantheses
+		std::string description; // The nice display name of the import, this can contain e.g. the number of patches in this import in parentheses
 		std::string id; // The database ID, as a unique identifier
 	};
 
@@ -33,7 +34,7 @@ namespace midikraft {
 			int typeID;
 			bool showHidden;
 			bool onlyUntagged;
-			std::set<Category> categories;			
+			std::set<Category> categories;
 		};
 
 		enum UpdateChoice {
@@ -76,7 +77,7 @@ namespace midikraft {
 
 		// For backward compatibility
 		static std::string generateDefaultDatabaseLocation();
-	
+
 	private:
 		class PatchDataBaseImpl;
 		std::unique_ptr<PatchDataBaseImpl> impl;

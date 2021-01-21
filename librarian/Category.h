@@ -19,7 +19,12 @@ namespace midikraft {
 		Colour color;		
 	};
 
+	std::set<Category> category_union(std::set<Category> const &a, std::set<Category> const &b);
+	std::set<Category> category_intersection(std::set<Category> const &, std::set<Category> const &);
+	std::set<Category> category_difference(std::set<Category> const &, std::set<Category> const &);
+
 	bool operator <(Category const &left, Category const &right);
 	bool operator ==(Category const &left, Category const &right);
+	
 
 }

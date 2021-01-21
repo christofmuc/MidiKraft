@@ -278,14 +278,13 @@ namespace midikraft {
 			addToJson(kName, patch.name(), patchJson, doc);
 			patchJson.AddMember(rapidjson::StringRef(kFavorite), patch.isFavorite() ? 1 : 0, doc.GetAllocator());
 			patchJson.AddMember(rapidjson::StringRef(kPlace), patch.patchNumber().toZeroBased(), doc.GetAllocator());
-			int64 categoriesSet = patch.categoriesAsBitfield();
-			int64 userDecisions = patch.userDecisionAsBitfield();
-			if (categoriesSet & userDecisions) {
+ 			auto categoriesSet = patch.categories();
+			auto userDecisions = patch.userDecisionSet();
+			auto userDefinedCategories = category_intersection(categoriesSet, userDecisions);
+			if (!userDefinedCategories.empty()) {
 				// Here is a list of categories to write
 				rapidjson::Value categoryList;
 				categoryList.SetArray();
-				std::set<Category> userDefinedCategories;
-				patch.makeSetOfCategoriesFromBitfield(userDefinedCategories, categoriesSet & userDecisions);
 				for (auto cat : userDefinedCategories) {
 					rapidjson::Value catValue;
 					catValue.SetString(cat.category.c_str(), doc.GetAllocator());
@@ -293,12 +292,11 @@ namespace midikraft {
 				}
 				patchJson.AddMember(rapidjson::StringRef(kCategories), categoryList, doc.GetAllocator());
 			}
-			if ((~categoriesSet) & userDecisions) {
+			auto userDefinedNonCategories = category_difference(userDecisions, categoriesSet);
+			if (!userDefinedNonCategories.empty()) {
 				// Here is a list of non-categories to write
 				rapidjson::Value nonCategoryList;
 				nonCategoryList.SetArray();
-				std::set<Category> userDefinedNonCategories;
-				patch.makeSetOfCategoriesFromBitfield(userDefinedNonCategories, (~categoriesSet) & userDecisions);
 				for (auto cat : userDefinedNonCategories) {
 					rapidjson::Value catValue;
 					catValue.SetString(cat.category.c_str(), doc.GetAllocator());

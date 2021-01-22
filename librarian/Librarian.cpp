@@ -434,7 +434,25 @@ namespace midikraft {
 			int count = 0;
 			for (const auto& patch : patches) {
 				if (patch.patch()) {
-					auto sysexMessages = patch.synth()->patchToSysex(patch.patch(), nullptr);
+					std::vector<MidiMessage> sysexMessages;
+					switch (params.formatOption) {
+					case Librarian::PROGRAM_DUMPS:
+					{
+						// Let's see if we have program dump capability for the synth!
+						auto pdc = Capability::hasCapability<ProgramDumpCabability>(patch.synth());
+						if (pdc) {
+							sysexMessages = pdc->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
+							break;
+						}
+						// fall through do default then
+					}
+					default:
+					case Librarian::EDIT_BUFFER_DUMPS:
+						// Every synth is forced to have an implementation for this
+						sysexMessages = patch.synth()->patchToSysex(patch.patch(), nullptr);
+						break;
+					}
+
 					String fileName = patch.name();
 					switch (params.fileOption) {
 					case Librarian::MANY_FILES:

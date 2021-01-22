@@ -144,6 +144,10 @@ namespace midikraft {
 			if (currentVersion < 6) {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
+				// From http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
+				//std::vector<std::string> colorPalette = { "ff8dd3c7", "ffffffb3", "ff4a75b2", "fffb8072", "ff80b1d3", "fffdb462", "ffb3de69", "fffccde5", "ffd9d9d9", "ffbc80bd", "ffccebc5", "ffffed6f",
+				//	"ff869cab", "ff317469", "ffa75781" };
+
 				db_.exec("CREATE TABLE categories (bitIndex INTEGER, name TEXT, color TEXT, active INTEGER)");
 				// Colors from http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
 				db_.exec("INSERT INTO categories VALUES (0, 'Lead', 'ff8dd3c7', 1)");
@@ -847,7 +851,7 @@ namespace midikraft {
 
 			// First pass - check that all categories referenced in the auto category file are stored in the database, else they will have no bit index!
 			SQLite::Transaction transaction(db_);
-			for (auto rule : categorizer->predefinedCategories()) {
+			for (auto rule : categorizer->loadedRules()) {
 				auto exists = false;
 				for (auto cat : bitfield.categoryVector()) {
 					if (cat.category == rule.category().category) {
@@ -880,7 +884,7 @@ namespace midikraft {
 			// Now we need to merge the database persisted categories with the ones defined in the automatic categories from the json string
 			bool exists = false;
 			for (auto cat : bitfield.categoryVector()) {
-				for (auto rule : categorizer->predefinedCategories()) {
+				for (auto rule : categorizer->loadedRules()) {
 					if (cat.category == rule.category().category) {
 						// Copy the rules
 						exists = true;

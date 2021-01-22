@@ -10,7 +10,7 @@
 
 namespace midikraft {
 
-	std::vector<std::string> kLegacyBitIndexNames = { "Lead", "Pad", "Brass", "Organ", "Keys", "Bass", "Arp", "Pluck", "Drone", "Drum", "Bell", "SFX", "Ambient", "Wind",  "Voice" };
+	//std::vector<std::string> kLegacyBitIndexNames = { "Lead", "Pad", "Brass", "Organ", "Keys", "Bass", "Arp", "Pluck", "Drone", "Drum", "Bell", "SFX", "Ambient", "Wind",  "Voice" };
 
 	CategoryBitfield::CategoryBitfield(std::vector<BitName> const &bitNames) : bitNames_(bitNames)
 	{
@@ -32,7 +32,7 @@ namespace midikraft {
 			if (bitfield & (1LL << i)) {
 				// This bit is set, find the category that has this bitindex
 				if (i < bitNames_.size()) {
-					cats.insert(Category(bitNames_[i].name, AutomaticCategory::colorForIndex(i)));
+					cats.insert(Category(bitNames_[i].name, bitNames_[i].color));
 				}
 				else {
 					jassertfalse;

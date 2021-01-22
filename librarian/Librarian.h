@@ -42,7 +42,22 @@ namespace midikraft {
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::string const &fullpath, std::string const &filename, std::shared_ptr<AutomaticCategory> automaticCategories);
 		std::vector<PatchHolder> loadSysexPatchesManualDump(std::shared_ptr<Synth> synth, std::vector<MidiMessage> const &messages, std::shared_ptr<AutomaticCategory> automaticCategories);
 
-		void saveSysexPatchesToDisk(std::vector<PatchHolder> const &patches);
+		enum ExportFormatOption {
+			PROGRAM_DUMPS = 0,
+			EDIT_BUFFER_DUMPS = 1
+		};
+		enum ExportFileOption {
+			MANY_FILES = 0,
+			ZIPPED_FILES = 1,
+			ONE_FILE = 2,
+			MID_FILE = 3
+		};
+
+		struct ExportParameters {
+			int formatOption;
+			int fileOption;
+		};
+		void saveSysexPatchesToDisk(ExportParameters params, std::vector<PatchHolder> const &patches);
 
 		void clearHandlers();
 
@@ -56,7 +71,7 @@ namespace midikraft {
 		std::vector<PatchHolder> tagPatchesWithImportFromSynth(std::shared_ptr<Synth> synth, TPatchVector &patches, MidiBankNumber bankNo);
 		void tagPatchesWithMultiBulkImport(std::vector<PatchHolder> &patches);
 
-		void updateLastPath();
+		void updateLastPath(std::string &lastPathVariable, std::string const &settingsKey);
 
 		std::vector<SynthHolder> synths_;
 		std::vector<MidiMessage> currentDownload_;
@@ -74,7 +89,10 @@ namespace midikraft {
 		int downloadBankNumber_;
 		int endDownloadBankNumber_;
 
-		std::string lastPath_;
+		std::string lastPath_; // Last import path
+		std::string lastExportDirectory_; 
+		std::string lastExportZipFilename_;
+		std::string lastExportSyxFilename_;
 	};
 
 }

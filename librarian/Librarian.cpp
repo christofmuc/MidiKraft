@@ -301,20 +301,18 @@ namespace midikraft {
 		std::vector<PatchHolder> result_;
 	};
 
-	void Librarian::updateLastPath() {
-		if (lastPath_.empty()) {
-			// Read from settings
-			lastPath_ = Settings::instance().get("lastImportPath", "");
-			if (lastPath_.empty()) {
-				// Default directory
-				lastPath_ = File::getSpecialLocation(File::userDocumentsDirectory).getFullPathName().toStdString();
-			}
+	void Librarian::updateLastPath(std::string &lastPathVariable, std::string const &settingsKey) {
+		// Read from settings
+		lastPathVariable = Settings::instance().get(settingsKey, "");
+		if (lastPathVariable.empty()) {
+			// Default directory
+			lastPathVariable = File::getSpecialLocation(File::userDocumentsDirectory).getFullPathName().toStdString();
 		}
 	}
 
 	std::vector<PatchHolder> Librarian::loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::shared_ptr<AutomaticCategory> automaticCategories)
 	{
-		updateLastPath();
+		updateLastPath(lastPath_, "lastImportPath");
 
 		std::string standardFileExtensions = "*.syx;*.mid;*.zip;*.txt;*.json";
 		auto legacyLoader = midikraft::Capability::hasCapability<LegacyLoaderCapability>(synth);
@@ -410,39 +408,19 @@ namespace midikraft {
 		return result;
 	}
 
-	class ProgressWindow: public ThreadWithProgressWindow {
+	class ExportSysexFilesInBackground: public ThreadWithProgressWindow {
 	public:
-		ProgressWindow(String title, double *progress) : ThreadWithProgressWindow(title, true, false), progress_(progress) {}
+		ExportSysexFilesInBackground(String title, File dest, Librarian::ExportParameters params, std::vector<PatchHolder> const &patches) : ThreadWithProgressWindow(title, true, false),
+			destination(dest), params(params), patches(patches)
+		{}
 
 		virtual void run() override
 		{
-			while (!threadShouldExit() && *progress_ < 1.0) {
-				setProgress(*progress_);
-				Thread::sleep(50);
+			if (destination.existsAsFile()) {
+				destination.deleteFile();
 			}
-		}	
-
-	private:
-		double *progress_;
-	};
-
-	void Librarian::saveSysexPatchesToDisk(std::vector<PatchHolder> const &patches)
-	{
-		updateLastPath();
-		FileChooser sysexChooser("Please enter the name of the zip file to create...", File(lastPath_), ".zip");
-		if (sysexChooser.browseForFileToSave(true)) {
-			double progress = 0.0;
-			ProgressWindow progressWindow("Compressing ZIP File", &progress);
-			progressWindow.launchThread();
-
-			File zipFile = sysexChooser.getResult();
-			lastPath_ = zipFile.getFullPathName().toStdString();
-			Settings::instance().set("lastImportPath", lastPath_);
-			if (zipFile.existsAsFile()) {
-				zipFile.deleteFile();
-			}
-			else if (zipFile.exists()) {
-				// This is a directory
+			else if (destination.exists() && params.fileOption != Librarian::MANY_FILES) {
+				// This is a directory, but we didn't want one
 				SimpleLogger::instance()->postMessage("Can't overwrite a directory, please choose a different name!");
 				return;
 			}
@@ -450,32 +428,133 @@ namespace midikraft {
 			// Create a temporary directory to build the result
 			TemporaryDirectory tempDir;
 
-			// Now, iterate over the list of patches and pack them one by one into the zip file!
+			// Now, iterate over the list of patches and pack them one by one into the zip file!		
 			ZipFile::Builder builder;
-			for (auto patch : patches) {
+			std::vector<MidiMessage> allMessages;
+			int count = 0;
+			for (const auto& patch : patches) {
 				if (patch.patch()) {
 					auto sysexMessages = patch.synth()->patchToSysex(patch.patch(), nullptr);
 					String fileName = patch.name();
-					std::string result = Sysex::saveSysexIntoNewFile(tempDir.name(), File::createLegalFileName(fileName.trim()).toStdString(), sysexMessages);
-					//TODO what a peculiar return type
-					if (result != "Failure") {
-						builder.addFile(File(result), 6);
+					switch (params.fileOption) {
+					case Librarian::MANY_FILES:
+					{
+						std::string result = Sysex::saveSysexIntoNewFile(destination.getFullPathName().toStdString(), File::createLegalFileName(fileName.trim()).toStdString(), sysexMessages);
+						break;
 					}
-					else {
-						jassertfalse;
+					case Librarian::ZIPPED_FILES:
+					{
+						std::string result = Sysex::saveSysexIntoNewFile(tempDir.name(), File::createLegalFileName(fileName.trim()).toStdString(), sysexMessages);
+						builder.addFile(File(result), 6);
+						break;
+					}
+					case Librarian::ONE_FILE:
+					{
+						std::copy(sysexMessages.begin(), sysexMessages.end(), std::back_inserter(allMessages));
+						break;
+					}
 					}
 				}
-				else {
-					jassertfalse;
+				setProgress(count++ / (double)patches.size());
+				if (threadShouldExit()) {
+					break;
 				}
 			}
+			switch (params.fileOption)
+			{
+			case Librarian::ZIPPED_FILES:
+			{
+				FileOutputStream targetStream(destination);
+				builder.writeToStream(targetStream, nullptr);
+				break;
+			}
+			case Librarian::ONE_FILE:
+			{
+				Sysex::saveSysex(destination.getFullPathName().toStdString(), allMessages);
+				break;
+			}
+			default:
+				// Nothing to do
+				break;
+			}
+		}
 
-			FileOutputStream targetStream(zipFile);			
-			builder.writeToStream(targetStream, &progress);
-			progressWindow.stopThread(200);
-			AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
-				(boost::format("All %d patches selected have been exported into the following: ZIP file:\n\n%s\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
-					"the patches can be sent into the edit buffer of the synth with a sysex tool") % patches.size() % zipFile.getFullPathName().toStdString()).str());
+	private:
+		File destination;
+		Librarian::ExportParameters params;
+		std::vector<PatchHolder> const &patches;
+	};
+
+	void Librarian::saveSysexPatchesToDisk(ExportParameters params, std::vector<PatchHolder> const &patches)
+	{
+		File destination;
+		switch (params.fileOption) {
+		case MANY_FILES:
+		{ 
+			updateLastPath(lastExportDirectory_, "lastExportDirectory");
+			FileChooser sysexChooser("Please choose a directory for the files that will be created", File(lastExportDirectory_));
+			if (!sysexChooser.browseForDirectory()) {
+				return;
+			}
+			destination = sysexChooser.getResult();
+			Settings::instance().set("lastExportDirectory", destination.getFullPathName().toStdString());
+			break;
+		}
+		case ZIPPED_FILES:
+		{
+			updateLastPath(lastExportZipFilename_, "lastExportZipFilename");
+			FileChooser sysexChooser("Please enter the name of the zip file to create...", File(lastExportZipFilename_), "*.zip");
+			if (!sysexChooser.browseForFileToSave(true)) {
+				return;
+			}
+			destination = sysexChooser.getResult();
+			Settings::instance().set("lastExportZipFilename", destination.getFullPathName().toStdString());
+			break;
+		}
+		case ONE_FILE:
+		{
+			updateLastPath(lastExportSyxFilename_, "lastExportSyxFilename");
+			FileChooser sysexChooser("Please enter the name of the syx file to create...", File(lastExportSyxFilename_), "*.syx");
+			if (!sysexChooser.browseForFileToSave(true)) {
+				return;
+			}
+			destination = sysexChooser.getResult();
+			Settings::instance().set("lastExportSyxFilename", destination.getFullPathName().toStdString());
+			break;
+		}
+		case MID_FILE:
+		{
+			AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Sorry", "This export method is not implemented yet");
+			return;
+		}
+		}
+
+		// This is actually synchronous, we just launch it in a thread so the progress UI will still update.
+		ExportSysexFilesInBackground progressWindow("Exporting...", destination, params, patches);
+
+		if (progressWindow.runThread()) {
+			// Done, now just wrap up
+			switch (params.fileOption) {
+			case MANY_FILES:
+				// Nothing todo, just display success
+				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
+					(boost::format("All %d patches selected have been exported into the following directory:\n\n%s\n\nThese files can be re-imported into another KnobKraft Orm instance or else\n"
+						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
+				break;
+			case ZIPPED_FILES: {
+				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
+					(boost::format("All %d patches selected have been exported into the following: ZIP file:\n\n%s\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
+						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
+				break;
+			}
+			case ONE_FILE:
+			{
+				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
+					(boost::format("All %d patches selected have been exported into the following file:\n\n%s\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
+						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
+				break;
+			}
+			}
 		}
 	}
 

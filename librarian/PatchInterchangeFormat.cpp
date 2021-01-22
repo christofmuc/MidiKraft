@@ -45,10 +45,10 @@ namespace midikraft {
 		if (!strcmp(categoryName, "FX")) categoryName = "SFX";
 
 		// Check if this is a valid category
-		for (auto acat : detector->predefinedCategoryVector()) {
-			if (acat.category == categoryName) {
+		for (auto acat : detector->loadedRules()) {
+			if (acat.category().category == categoryName) {
 				// Found, great!
-				outCategory = acat;
+				outCategory = acat.category();
 				return true;
 			}
 		}

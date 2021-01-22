@@ -18,10 +18,6 @@
 
 namespace midikraft {
 
-	// From http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
-	std::vector<std::string> colorPalette = { "ff8dd3c7", "ffffffb3", "ff4a75b2", "fffb8072", "ff80b1d3", "fffdb462", "ffb3de69", "fffccde5", "ffd9d9d9", "ffbc80bd", "ffccebc5", "ffffed6f",
-		"ff869cab", "ff317469", "ffa75781" };
-
 	AutomaticCategory::AutomaticCategory()
 	{
 		if (autoCategoryFileExists()) {
@@ -42,22 +38,9 @@ namespace midikraft {
 		}
 	}
 
-	std::vector<AutoCategoryRule> AutomaticCategory::predefinedCategories() {
-		return predefinedCategories_;
-	}
-
 	std::map<std::string, std::map<std::string, std::string>> const &AutomaticCategory::importMappings()
 	{
 		return importMappings_;
-	}
-
-	std::vector<midikraft::Category> AutomaticCategory::predefinedCategoryVector()
-	{
-		std::vector<midikraft::Category> result;
-		for (auto a : predefinedCategories()) {
-			result.push_back(a.category());
-		}
-		return result;
 	}
 
 	std::set<Category> AutomaticCategory::determineAutomaticCategories(PatchHolder const &patch)
@@ -78,7 +61,7 @@ namespace midikraft {
 						std::string categoryName = mappings[synthname][tag.name()];
 						if (categoryName != "None") {
 							bool found = false;
-							for (auto cat : predefinedCategories()) {
+							for (auto cat : predefinedCategories_) {
 								if (cat.category().category == categoryName) {
 									// That's us!
 									result.insert(cat.category());
@@ -102,7 +85,7 @@ namespace midikraft {
 
 		if (result.empty()) {
 			// Second step, if we have no category yet, try to detect the category from the name using the regex rule set stored in the file automatic_categories.jsonc
-			for (auto autoCat : predefinedCategories()) {
+			for (auto autoCat : predefinedCategories_) {
 				for (auto matcher : autoCat.patchNameMatchers_) {
 					bool found = std::regex_search(patch.name(), matcher);
 					if (found) {
@@ -186,11 +169,16 @@ namespace midikraft {
 						}
 					}
 				}
-				AutoCategoryRule cat(Category(categoryName, colorForIndex(i)), regexes);
+				AutoCategoryRule cat(Category(categoryName, Colours::darkgoldenrod), regexes);
 				i++;
 				predefinedCategories_.push_back(cat);
 			}
 		}
+	}
+
+	std::vector<midikraft::AutoCategoryRule> AutomaticCategory::loadedRules() const
+	{
+		return predefinedCategories_;
 	}
 
 	void AutomaticCategory::loadMappingFromString(std::string const fileContent) {
@@ -283,16 +271,6 @@ namespace midikraft {
 	{
 		// Read the default Json definition from the binary resources
 		return std::string(mapping_categories_jsonc, mapping_categories_jsonc + mapping_categories_jsonc_size);
-	}
-
-	juce::Colour AutomaticCategory::colorForIndex(size_t i)
-	{
-		if (i < colorPalette.size()) {
-			return Colour::fromString(colorPalette[i]);
-		}
-		else {
-			return Colours::darkgrey;
-		}
 	}
 
 	bool operator<(Category const &left, Category const &right)

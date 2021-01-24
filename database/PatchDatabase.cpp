@@ -363,6 +363,39 @@ namespace midikraft {
 			return definition;
 		}
 
+		void updateCategories(std::vector<CategoryDefinition> const &newdefs) {
+			try {
+				SQLite::Transaction transaction(db_);
+
+				for (auto c : newdefs) {
+					// Check if insert or update
+					SQLite::Statement query(db_, "SELECT * FROM categories WHERE bitIndex = :BIT");
+					query.bind(":BIT", c.id);
+					if (query.executeStep()) {
+						// Bit index already exists, this is an update
+						SQLite::Statement sql(db_, "UPDATE categories SET name = :NAM, color = :COL, active = :ACT WHERE bitindex = :BIT");
+						sql.bind(":BIT", c.id);
+						sql.bind(":NAM", c.name);
+						sql.bind(":COL", c.color.toString().toStdString());
+						sql.bind(":ACT", c.isActive);
+						sql.exec();
+					}
+					else {
+						// Doesn't exist, insert!
+						SQLite::Statement sql(db_, "INSERT INTO categories (bitIndex, name, color, active) VALUES(:BIT, :NAM, :COL, :ACT)");
+						sql.bind(":BIT", c.id);
+						sql.bind(":NAM", c.name);
+						sql.bind(":COL", c.color.toString().toStdString());
+						sql.bind(":ACT", c.isActive);
+						sql.exec();
+					}
+				}
+				transaction.commit();
+			}
+			catch (SQLite::Exception &ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in updateCategories: SQL Exception %s") % ex.what()).str());
+			}
+		}
 
 		bool loadPatchFromQueryRow(std::shared_ptr<Synth> synth, SQLite::Statement &query, std::vector<PatchHolder> &result) {
 			std::shared_ptr<DataFile> newPatch;
@@ -970,6 +1003,11 @@ namespace midikraft {
 	std::shared_ptr<AutomaticCategory> PatchDatabase::getCategorizer()
 	{
 		return impl->getCategorizer();
+	}
+
+	void PatchDatabase::updateCategories(std::vector<CategoryDefinition> const &newdefs)
+	{
+		impl->updateCategories(newdefs);
 	}
 
 	void PatchDatabase::setAutocategorizationRules(std::string const &jsonDefinition)

@@ -77,6 +77,7 @@ namespace midikraft {
 
 		std::vector<CategoryDefinition> getCategories() const;
 		std::shared_ptr<AutomaticCategory> getCategorizer();
+		void updateCategories(std::vector<CategoryDefinition> const &newdefs);
 		void setAutocategorizationRules(std::string const &jsonDefinition);
 
 		// Convenience functions

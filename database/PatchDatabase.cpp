@@ -345,17 +345,22 @@ namespace midikraft {
 			return 0;
 		}
 
-		std::vector<Category> getCategories() {
+		std::vector<PatchDatabase::CategoryDefinition> getCategories() {
 			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY bitIndex");
 			std::vector<CategoryBitfield::BitName> result;
+			std::vector<PatchDatabase::CategoryDefinition> definition;
 			while (query.executeStep()) {
 				auto bitIndex = query.getColumn("bitIndex").getInt();
 				auto name = query.getColumn("name").getText();
 				auto colorName = query.getColumn("color").getText();
-				result.push_back({ std::string(name), bitIndex, Colour::fromString(colorName) });
+				bool isActive = query.getColumn("active").getInt() != 0;
+				if (isActive) {
+					result.push_back({ std::string(name), bitIndex, Colour::fromString(colorName) });
+				}
+				definition.push_back({ bitIndex, isActive, name, Colour::fromString(colorName) });
 			}
 			bitfield = CategoryBitfield(result);
-			return bitfield.categoryVector();
+			return definition;
 		}
 
 
@@ -1039,7 +1044,7 @@ namespace midikraft {
 		impl->makeDatabaseBackup(backupFileToCreate);
 	}
 
-	std::vector<Category> PatchDatabase::getCategories() const {
+	std::vector<PatchDatabase::CategoryDefinition> PatchDatabase::getCategories() const {
 		return impl->getCategories();
 	}
 

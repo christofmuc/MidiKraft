@@ -37,6 +37,13 @@ namespace midikraft {
 			std::set<Category> categories;
 		};
 
+		struct CategoryDefinition {
+			int id;
+			bool isActive;
+			std::string name;
+			Colour color;
+		};
+
 		enum UpdateChoice {
 			UPDATE_NAME = 1,
 			UPDATE_CATEGORIES = 2,
@@ -68,7 +75,7 @@ namespace midikraft {
 		std::string makeDatabaseBackup(std::string const &suffix);
 		void makeDatabaseBackup(File backupFileToCreate);
 
-		std::vector<Category> PatchDatabase::getCategories() const;
+		std::vector<CategoryDefinition> getCategories() const;
 		std::shared_ptr<AutomaticCategory> getCategorizer();
 		void setAutocategorizationRules(std::string const &jsonDefinition);
 

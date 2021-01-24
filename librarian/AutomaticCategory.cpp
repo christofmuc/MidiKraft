@@ -42,7 +42,7 @@ namespace midikraft {
 		}
 	}
 
-	std::vector<AutoCategory> AutomaticCategory::predefinedCategories() {
+	std::vector<AutoCategoryRule> AutomaticCategory::predefinedCategories() {
 		return predefinedCategories_;
 	}
 
@@ -114,7 +114,7 @@ namespace midikraft {
 		return result;
 	}
 
-	AutoCategory::AutoCategory(Category category, std::vector<std::string> const &regexes) :
+	AutoCategoryRule::AutoCategoryRule(Category category, std::vector<std::string> const &regexes) :
 		category_(category)
 	{
 		for (auto regex : regexes) {
@@ -122,14 +122,19 @@ namespace midikraft {
 		}
 	}
 
-	AutoCategory::AutoCategory(Category category, std::vector<std::regex> const &regexes) :
+	AutoCategoryRule::AutoCategoryRule(Category category, std::vector<std::regex> const &regexes) :
 		category_(category), patchNameMatchers_(regexes)
 	{
 	}
 
-	Category AutoCategory::category() const
+	Category AutoCategoryRule::category() const
 	{
 		return category_;
+	}
+
+	std::vector<std::regex> AutoCategoryRule::patchNameMatchers() const
+	{
+		return patchNameMatchers_;
 	}
 
 	void AutomaticCategory::loadFromFile(std::string fullPathToJson)
@@ -181,7 +186,7 @@ namespace midikraft {
 						}
 					}
 				}
-				AutoCategory cat(Category(categoryName, colorForIndex(i)), regexes);
+				AutoCategoryRule cat(Category(categoryName, colorForIndex(i)), regexes);
 				i++;
 				predefinedCategories_.push_back(cat);
 			}
@@ -261,6 +266,11 @@ namespace midikraft {
 			out.writeText(midikraft::AutomaticCategory::defaultJsonMapping(), false, false, "\\n");
 		}
 		return jsoncFile;
+	}
+
+	void AutomaticCategory::addAutoCategory(AutoCategoryRule const &autoCat)
+	{
+		predefinedCategories_.push_back(autoCat);
 	}
 
 	std::string AutomaticCategory::defaultJson()

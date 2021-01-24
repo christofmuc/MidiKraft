@@ -18,11 +18,13 @@ namespace midikraft {
 
 	class PatchHolder;
 
-	class AutoCategory {
+	class AutoCategoryRule {
 	public:
-		AutoCategory(Category category, std::vector<std::string> const &regexes);
-		AutoCategory(Category category, std::vector<std::regex> const &regexes);
+		AutoCategoryRule(Category category, std::vector<std::string> const &regexes);
+		AutoCategoryRule(Category category, std::vector<std::regex> const &regexes);
 		Category category() const;
+
+		std::vector<std::regex> patchNameMatchers() const;
 
 	private:
 		friend class AutomaticCategory; // Refactoring help
@@ -35,12 +37,13 @@ namespace midikraft {
 	public:
 		AutomaticCategory();
 
-		std::vector<AutoCategory> predefinedCategories();
+		std::vector<AutoCategoryRule> predefinedCategories();
 		std::vector<Category> predefinedCategoryVector();
 		std::set<Category> determineAutomaticCategories(PatchHolder const &patch);
 		std::map<std::string, std::map<std::string, std::string>> const &importMappings();
 
 		void loadFromFile(std::string fullPathToJson);
+		void loadFromString(std::string const fileContent);
 
 		bool autoCategoryFileExists() const;
 		bool autoCategoryMappingFileExists() const;
@@ -48,18 +51,18 @@ namespace midikraft {
 		File getAutoCategoryFile();
 		File getAutoCategoryMappingFile();
 
+		void addAutoCategory(AutoCategoryRule const &autoCat);
+
 		static Colour colorForIndex(size_t i);
 
 	private:
-		void loadFromString(std::string const fileContent);
 		void loadMappingFromString(std::string const fileContent);
 
 		std::string defaultJson();
 		std::string defaultJsonMapping();
 
-		std::vector<AutoCategory> predefinedCategories_;
+		std::vector<AutoCategoryRule> predefinedCategories_;
 		std::map<std::string, std::map<std::string, std::string>> importMappings_;
 	};
-
 
 }

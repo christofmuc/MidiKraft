@@ -144,30 +144,30 @@ namespace midikraft {
 			if (currentVersion < 6) {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
-				// From http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
-				//std::vector<std::string> colorPalette = { "ff8dd3c7", "ffffffb3", "ff4a75b2", "fffb8072", "ff80b1d3", "fffdb462", "ffb3de69", "fffccde5", "ffd9d9d9", "ffbc80bd", "ffccebc5", "ffffed6f",
-				//	"ff869cab", "ff317469", "ffa75781" };
 
-				db_.exec("CREATE TABLE categories (bitIndex INTEGER, name TEXT, color TEXT, active INTEGER)");
-				// Colors from http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
-				db_.exec("INSERT INTO categories VALUES (0, 'Lead', 'ff8dd3c7', 1)");
-				db_.exec("INSERT INTO categories VALUES (1, 'Pad', 'ffffffb3', 1)");
-				db_.exec("INSERT INTO categories VALUES (2, 'Brass', 'ffbebada', 1)");
-				db_.exec("INSERT INTO categories VALUES (3, 'Organ', 'fffb8072', 1)");
-				db_.exec("INSERT INTO categories VALUES (4, 'Keys', 'ff80b1d3', 1)");
-				db_.exec("INSERT INTO categories VALUES (5, 'Bass', 'fffdb462', 1)");
-				db_.exec("INSERT INTO categories VALUES (6, 'Arp', 'ffb3de69', 1)");
-				db_.exec("INSERT INTO categories VALUES (7, 'Pluck', 'fffccde5', 1)");
-				db_.exec("INSERT INTO categories VALUES (8, 'Drone', 'ffd9d9d9', 1)");
-				db_.exec("INSERT INTO categories VALUES (9, 'Drum', 'ffbc80bd', 1)");
-				db_.exec("INSERT INTO categories VALUES (10, 'Bell', 'ffccebc5', 1)");
-				db_.exec("INSERT INTO categories VALUES (11, 'SFX', 'ffffed6f', 1)");
-				db_.exec("INSERT INTO categories VALUES (12, 'Ambient', '', 1)");
-				db_.exec("INSERT INTO categories VALUES (13, 'Wind', '', 1)");
-				db_.exec("INSERT INTO categories VALUES (14, 'Voice', '', 1)");
+				db_.exec("CREATE TABLE categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER)");
+				insertDefaultCategories();
 				db_.exec("UPDATE schema_version SET number = 6");
 				transaction.commit();
 			}
+		}
+
+		void insertDefaultCategories() {
+			db_.exec("INSERT INTO categories VALUES (0, 'Lead', 'ff8dd3c7', 1)");
+			db_.exec("INSERT INTO categories VALUES (1, 'Pad', 'ffffffb3', 1)");
+			db_.exec("INSERT INTO categories VALUES (2, 'Brass', 'ff4a75b2', 1)");
+			db_.exec("INSERT INTO categories VALUES (3, 'Organ', 'fffb8072', 1)");
+			db_.exec("INSERT INTO categories VALUES (4, 'Keys', 'ff80b1d3', 1)");
+			db_.exec("INSERT INTO categories VALUES (5, 'Bass', 'fffdb462', 1)");
+			db_.exec("INSERT INTO categories VALUES (6, 'Arp', 'ffb3de69', 1)");
+			db_.exec("INSERT INTO categories VALUES (7, 'Pluck', 'fffccde5', 1)");
+			db_.exec("INSERT INTO categories VALUES (8, 'Drone', 'ffd9d9d9', 1)");
+			db_.exec("INSERT INTO categories VALUES (9, 'Drum', 'ffbc80bd', 1)");
+			db_.exec("INSERT INTO categories VALUES (10, 'Bell', 'ffccebc5', 1)");
+			db_.exec("INSERT INTO categories VALUES (11, 'SFX', 'ffffed6f', 1)");
+			db_.exec("INSERT INTO categories VALUES (12, 'Ambient', 'ff869cab', 1)");
+			db_.exec("INSERT INTO categories VALUES (13, 'Wind', 'ff317469', 1)");
+			db_.exec("INSERT INTO categories VALUES (14, 'Voice', 'ffa75781', 1)");
 		}
 
 		void createSchema() {
@@ -180,18 +180,25 @@ namespace midikraft {
 				transaction.commit();
 			}
 
-			if (!db_.tableExists("patches") || !db_.tableExists("imports")) {
-				SQLite::Transaction transaction(db_);
-
+			SQLite::Transaction transaction(db_);
+			if (!db_.tableExists("patches")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
 					" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER)");
-				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
-				db_.exec("CREATE TABLE IF NOT EXISTS categories (bitIndex INTEGER, name TEXT, color TEXT, active INTEGER)");
-				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
-
-				// Commit transaction
-				transaction.commit();
 			}
+			if (!db_.tableExists("imports")) {
+				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
+			}
+			if (!db_.tableExists("categories")) {
+				db_.exec("CREATE TABLE IF NOT EXISTS categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER)");
+				insertDefaultCategories();
+
+			}
+			if (!db_.tableExists("schema_version")) {
+				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
+			}
+
+			// Commit transaction
+			transaction.commit();
 
 			// Check if schema needs to be migrated
 			SQLite::Statement schemaQuery(db_, "SELECT number FROM schema_version");
@@ -363,6 +370,23 @@ namespace midikraft {
 			return definition;
 		}
 
+		int getNextBitindex() {
+			SQLite::Statement query(db_, "SELECT MAX(bitIndex) + 1 as maxbitindex FROM categories");
+			if (query.executeStep()) {
+				int maxbitindex = query.getColumn("maxbitindex").getInt();
+				if (maxbitindex < 63) {
+					// That'll work!
+					return maxbitindex;
+				}
+				else {
+					SimpleLogger::instance()->postMessage("You have exhausted the 63 possible categories, it is no longer possible to create new ones in this database. Consider splitting the database via PatchInterchangeFormat files");
+					return -1;
+				}
+			}
+			SimpleLogger::instance()->postMessage("Unexpected program error determining the next bit index!");
+			return -1;
+		}
+
 		void updateCategories(std::vector<CategoryDefinition> const &newdefs) {
 			try {
 				SQLite::Transaction transaction(db_);
@@ -391,6 +415,8 @@ namespace midikraft {
 					}
 				}
 				transaction.commit();
+				// Refresh our internal data 
+				getCategories();
 			}
 			catch (SQLite::Exception &ex) {
 				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in updateCategories: SQL Exception %s") % ex.what()).str());
@@ -554,7 +580,7 @@ namespace midikraft {
 			auto newPatchesUserDecided = category_intersection(newPatch.categories(), newPatch.userDecisionSet());
 			auto newPatchesAutomatic = category_difference(newPatch.categories(), newPatch.userDecisionSet());
 			auto oldUserDecided = category_intersection(existingPatch.categories(), existingPatch.userDecisionSet());
-			
+
 
 			// The new categories are calculated as all categories from the new patch, unless there is a user decision at the existing patch not marked as overridden by a new user decision
 			// plus all existing patch categories where there is no new user decision
@@ -1003,6 +1029,10 @@ namespace midikraft {
 	std::shared_ptr<AutomaticCategory> PatchDatabase::getCategorizer()
 	{
 		return impl->getCategorizer();
+	}
+
+	int PatchDatabase::getNextBitindex() {
+		return impl->getNextBitindex();
 	}
 
 	void PatchDatabase::updateCategories(std::vector<CategoryDefinition> const &newdefs)

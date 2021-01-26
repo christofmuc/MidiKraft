@@ -12,15 +12,8 @@ namespace midikraft {
 
 	class CategoryBitfield {
 	public:
-		struct BitName {
-			std::string name;
-			int bitIndex;
-			Colour color;
-		};
+		CategoryBitfield(std::vector<std::shared_ptr<CategoryDefinition>> const &bitNames);
 
-		CategoryBitfield(std::vector<BitName> const &bitNames);
-
-		std::vector<Category> categoryVector() const;
 		void makeSetOfCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield) const;
 		juce::int64 categorySetAsBitfield(std::set<Category> const &categories) const;
 
@@ -29,7 +22,7 @@ namespace midikraft {
 	private:
 		int bitIndexForCategory(Category &category) const;
 
-		std::vector<BitName> bitNames_;
+		std::vector<std::shared_ptr<CategoryDefinition>> bitNames_;
 	};
 
 }

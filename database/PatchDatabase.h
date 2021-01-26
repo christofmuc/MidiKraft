@@ -14,6 +14,7 @@
 #include "ProgressHandler.h"
 #include "PatchHolder.h"
 #include "CategoryBitfield.h"
+#include "Category.h"
 
 namespace midikraft {
 
@@ -35,13 +36,6 @@ namespace midikraft {
 			bool showHidden;
 			bool onlyUntagged;
 			std::set<Category> categories;
-		};
-
-		struct CategoryDefinition {
-			int id;
-			bool isActive;
-			std::string name;
-			Colour color;
 		};
 
 		enum UpdateChoice {
@@ -75,11 +69,10 @@ namespace midikraft {
 		std::string makeDatabaseBackup(std::string const &suffix);
 		void makeDatabaseBackup(File backupFileToCreate);
 
-		std::vector<CategoryDefinition> getCategories() const;
+		std::vector<Category> getCategories() const;
 		std::shared_ptr<AutomaticCategory> getCategorizer();
 		int getNextBitindex();
 		void updateCategories(std::vector<CategoryDefinition> const &newdefs);
-		void setAutocategorizationRules(std::string const &jsonDefinition);
 
 		// Convenience functions
 		static PatchFilter allForSynth(std::shared_ptr<Synth> synth);

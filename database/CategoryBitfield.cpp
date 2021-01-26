@@ -12,17 +12,8 @@ namespace midikraft {
 
 	//std::vector<std::string> kLegacyBitIndexNames = { "Lead", "Pad", "Brass", "Organ", "Keys", "Bass", "Arp", "Pluck", "Drone", "Drum", "Bell", "SFX", "Ambient", "Wind",  "Voice" };
 
-	CategoryBitfield::CategoryBitfield(std::vector<BitName> const &bitNames) : bitNames_(bitNames)
+	CategoryBitfield::CategoryBitfield(std::vector<std::shared_ptr<CategoryDefinition>> const &bitNames) : bitNames_(bitNames)
 	{
-	}
-
-	std::vector<midikraft::Category> CategoryBitfield::categoryVector() const
-	{
-		std::vector<midikraft::Category> result;
-		for (auto c : bitNames_) {
-			result.push_back({ c.name, c.color});
-		}
-		return result;
 	}
 
 	void midikraft::CategoryBitfield::makeSetOfCategoriesFromBitfield(std::set<Category> &cats, int64 bitfield) const
@@ -32,7 +23,7 @@ namespace midikraft {
 			if (bitfield & (1LL << i)) {
 				// This bit is set, find the category that has this bitindex
 				if (i < bitNames_.size()) {
-					cats.insert(Category(bitNames_[i].name, bitNames_[i].color));
+					cats.insert(Category(bitNames_[i]));
 				}
 				else {
 					jassertfalse;
@@ -59,17 +50,17 @@ namespace midikraft {
 
 	int CategoryBitfield::maxBitIndex() const
 	{
-		auto max = std::max_element(bitNames_.begin(), bitNames_.end(), [](BitName a, BitName b) { return a.bitIndex < b.bitIndex; });
+		auto max = std::max_element(bitNames_.begin(), bitNames_.end(), [](std::shared_ptr<CategoryDefinition> a, std::shared_ptr<CategoryDefinition>b) { return a->id < b->id; });
 		if (max != bitNames_.end()) {
-			return max->bitIndex;
+			return (*max)->id;
 		} 
 		return 0;
 	}
 
 	int CategoryBitfield::bitIndexForCategory(Category &category) const {
 		for (int i = 0; i < bitNames_.size(); i++) {
-			if (category.category == bitNames_[i].name) {
-				return bitNames_[i].bitIndex;
+			if (category.category() == bitNames_[i]->name) {
+				return bitNames_[i]->id;
 			}
 		}
 		return -1;

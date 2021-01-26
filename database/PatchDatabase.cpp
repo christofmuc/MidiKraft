@@ -45,7 +45,7 @@ namespace midikraft {
 		PatchDataBaseImpl(std::string const &databaseFile) : db_(databaseFile.c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE), bitfield({}) {
 			createSchema();
 			manageBackupDiskspace(kDataBaseBackupSuffix);
-			getCategories();
+			categoryDefinitions_ = getCategories();
 		}
 
 		~PatchDataBaseImpl() {
@@ -352,22 +352,23 @@ namespace midikraft {
 			return 0;
 		}
 
-		std::vector<PatchDatabase::CategoryDefinition> getCategories() {
+		std::vector<Category> getCategories() {
 			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY bitIndex");
-			std::vector<CategoryBitfield::BitName> result;
-			std::vector<PatchDatabase::CategoryDefinition> definition;
+			std::vector<std::shared_ptr<CategoryDefinition>> activeDefinitions;
+			std::vector<Category> allCategories;
 			while (query.executeStep()) {
 				auto bitIndex = query.getColumn("bitIndex").getInt();
 				auto name = query.getColumn("name").getText();
 				auto colorName = query.getColumn("color").getText();
 				bool isActive = query.getColumn("active").getInt() != 0;
+				auto def = std::make_shared<CategoryDefinition>(CategoryDefinition({ bitIndex, isActive, name, Colour::fromString(colorName) }));
+				allCategories.push_back(Category(def));
 				if (isActive) {
-					result.push_back({ std::string(name), bitIndex, Colour::fromString(colorName) });
+					activeDefinitions.emplace_back(def);
 				}
-				definition.push_back({ bitIndex, isActive, name, Colour::fromString(colorName) });
 			}
-			bitfield = CategoryBitfield(result);
-			return definition;
+			bitfield = CategoryBitfield(activeDefinitions); //TODO smell, side effect
+			return allCategories;
 		}
 
 		int getNextBitindex() {
@@ -416,7 +417,7 @@ namespace midikraft {
 				}
 				transaction.commit();
 				// Refresh our internal data 
-				getCategories();
+				categoryDefinitions_ = getCategories();
 			}
 			catch (SQLite::Exception &ex) {
 				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in updateCategories: SQL Exception %s") % ex.what()).str());
@@ -436,7 +437,7 @@ namespace midikraft {
 				newPatch = synth->patchFromPatchData(patchData, MidiProgramNumber::fromZeroBase(midiProgramNumber));
 			}
 			// We need the current categories
-			auto categories = getCategories();
+			categoryDefinitions_ = getCategories();
 			if (newPatch) {
 				auto sourceColumn = query.getColumn("sourceInfo");
 				if (sourceColumn.isText()) {
@@ -901,24 +902,21 @@ namespace midikraft {
 		}
 
 		std::shared_ptr<AutomaticCategory> getCategorizer() {
+			// Force reload of the categories from the database table
+			categoryDefinitions_ = getCategories();
+			int bitindex = bitfield.maxBitIndex();
+
 			// The Categorizer currently is constructed from two sources - the list of categories in the database including the bit index
 			// The auto-detection rules are stored in the jsonc file.
 			// This needs to be merged.
-			auto categorizer = std::make_shared<AutomaticCategory>();
-
-			// Force reload of the categories from the database table
-			getCategories();
-			int bitindex = bitfield.maxBitIndex();
-
-			// Load the json Definition			
-			categorizer->loadFromString(autocategoryDefinitions_);
+			auto categorizer = std::make_shared<AutomaticCategory>(categoryDefinitions_);
 
 			// First pass - check that all categories referenced in the auto category file are stored in the database, else they will have no bit index!
 			SQLite::Transaction transaction(db_);
 			for (auto rule : categorizer->loadedRules()) {
 				auto exists = false;
-				for (auto cat : bitfield.categoryVector()) {
-					if (cat.category == rule.category().category) {
+				for (auto cat : categoryDefinitions_) {
+					if (cat.category() == rule.category().category()) {
 						exists = true;
 						break;
 					}
@@ -929,8 +927,8 @@ namespace midikraft {
 						bitindex++;
 						SQLite::Statement sql(db_, "INSERT INTO categories VALUES (:BIT, :NAM, :COL, 1)");
 						sql.bind(":BIT", bitindex);
-						sql.bind(":NAM", rule.category().category);
-						sql.bind(":COL", rule.category().color.toDisplayString(true).toStdString());
+						sql.bind(":NAM", rule.category().category());
+						sql.bind(":COL", rule.category().color().toDisplayString(true).toStdString());
 						sql.exec();
 					}
 					else {
@@ -943,13 +941,13 @@ namespace midikraft {
 			transaction.commit();
 
 			// Refresh from database
-			getCategories();
+			categoryDefinitions_ = getCategories();
 
 			// Now we need to merge the database persisted categories with the ones defined in the automatic categories from the json string
 			bool exists = false;
-			for (auto cat : bitfield.categoryVector()) {
+			for (auto cat : categoryDefinitions_) {
 				for (auto rule : categorizer->loadedRules()) {
-					if (cat.category == rule.category().category) {
+					if (cat.category() == rule.category().category()) {
 						// Copy the rules
 						exists = true;
 						categorizer->addAutoCategory(AutoCategoryRule(rule.category(), rule.patchNameMatchers()));
@@ -958,22 +956,17 @@ namespace midikraft {
 				}
 				if (!exists) {
 					// That just means there are no rules, but it needs to be added to the list of available categories anyway
-					categorizer->addAutoCategory(AutoCategoryRule(Category(cat.category, Colours::darkgrey), std::vector<std::string>()));
+					categorizer->addAutoCategory(AutoCategoryRule(Category(cat), std::vector<std::string>()));
 				}
 			}
 
 			return categorizer;
 		}
 
-		void setAutocategorizationRules(std::string const &jsonDefinition) {
-			//TODO - this needs to be persisted in the database as well
-			autocategoryDefinitions_ = jsonDefinition;
-		}
-
 	private:
 		SQLite::Database db_;
-		std::string autocategoryDefinitions_;
 		CategoryBitfield bitfield;
+		std::vector<Category> categoryDefinitions_;
 	};
 
 	PatchDatabase::PatchDatabase() {
@@ -1038,11 +1031,6 @@ namespace midikraft {
 	void PatchDatabase::updateCategories(std::vector<CategoryDefinition> const &newdefs)
 	{
 		impl->updateCategories(newdefs);
-	}
-
-	void PatchDatabase::setAutocategorizationRules(std::string const &jsonDefinition)
-	{
-		impl->setAutocategorizationRules(jsonDefinition);
 	}
 
 	int PatchDatabase::deletePatches(PatchFilter filter)
@@ -1112,7 +1100,7 @@ namespace midikraft {
 		impl->makeDatabaseBackup(backupFileToCreate);
 	}
 
-	std::vector<PatchDatabase::CategoryDefinition> PatchDatabase::getCategories() const {
+	std::vector<Category> PatchDatabase::getCategories() const {
 		return impl->getCategories();
 	}
 

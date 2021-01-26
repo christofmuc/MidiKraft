@@ -361,10 +361,28 @@ namespace midikraft {
 				auto name = query.getColumn("name").getText();
 				auto colorName = query.getColumn("color").getText();
 				bool isActive = query.getColumn("active").getInt() != 0;
-				auto def = std::make_shared<CategoryDefinition>(CategoryDefinition({ bitIndex, isActive, name, Colour::fromString(colorName) }));
-				allCategories.push_back(Category(def));
-				if (isActive) {
-					activeDefinitions.emplace_back(def);
+				
+				// Check if this already exists!
+				bool found = false;
+				for (auto exists : categoryDefinitions_) {
+					if (exists.def()->id == bitIndex) {
+						found = true;
+						exists.def()->color = Colour::fromString(colorName);
+						exists.def()->name = name;
+						exists.def()->isActive = isActive;
+						allCategories.push_back(exists);
+						if (isActive) {
+							activeDefinitions.emplace_back(exists.def());
+						}
+						break;
+					}
+				}
+				if (!found) {
+					auto def = std::make_shared<CategoryDefinition>(CategoryDefinition({ bitIndex, isActive, name, Colour::fromString(colorName) }));
+					allCategories.push_back(Category(def));
+					if (isActive) {
+						activeDefinitions.emplace_back(def);
+					}
 				}
 			}
 			bitfield = CategoryBitfield(activeDefinitions); //TODO smell, side effect

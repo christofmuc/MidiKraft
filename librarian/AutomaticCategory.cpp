@@ -18,14 +18,14 @@
 
 namespace midikraft {
 
-	AutomaticCategory::AutomaticCategory()
+	AutomaticCategory::AutomaticCategory(std::vector<Category> existingCats)
 	{
 		if (autoCategoryFileExists()) {
 			SimpleLogger::instance()->postMessageOncePerRun((boost::format("Overriding built-in automatic category rules with file %s") % getAutoCategoryFile().getFullPathName().toStdString()).str());
-			loadFromFile(getAutoCategoryFile().getFullPathName().toStdString());
+			loadFromFile(existingCats, getAutoCategoryFile().getFullPathName().toStdString());
 		}
 		else {
-			loadFromString(defaultJson());
+			loadFromString(existingCats, defaultJson());
 		}
 
 		if (autoCategoryMappingFileExists()) {
@@ -62,7 +62,7 @@ namespace midikraft {
 						if (categoryName != "None") {
 							bool found = false;
 							for (auto cat : predefinedCategories_) {
-								if (cat.category().category == categoryName) {
+								if (cat.category().category() == categoryName) {
 									// That's us!
 									result.insert(cat.category());
 									found = true;
@@ -120,17 +120,17 @@ namespace midikraft {
 		return patchNameMatchers_;
 	}
 
-	void AutomaticCategory::loadFromFile(std::string fullPathToJson)
+	void AutomaticCategory::loadFromFile(std::vector<Category> existingCats, std::string fullPathToJson)
 	{
 		// Load the string in the file given
 		File jsonFile(fullPathToJson);
 		if (jsonFile.exists()) {
 			auto fileContent = jsonFile.loadFileAsString();
-			loadFromString(fileContent.toStdString());
+			loadFromString(existingCats, fileContent.toStdString());
 		}
 	}
 
-	void AutomaticCategory::loadFromString(std::string const fileContent) {
+	void AutomaticCategory::loadFromString(std::vector<Category> existingCats, std::string const fileContent) {
 		// Parse as JSON
 		rapidjson::Document doc;
 		doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.c_str());
@@ -139,7 +139,6 @@ namespace midikraft {
 			predefinedCategories_.clear();
 
 			auto obj = doc.GetObject();
-			size_t i = 0;
 			for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
 				auto categoryName = member->name.GetString();
 				std::vector<std::regex> regexes;
@@ -169,9 +168,19 @@ namespace midikraft {
 						}
 					}
 				}
-				AutoCategoryRule cat(Category(categoryName, Colours::darkgoldenrod), regexes);
-				i++;
-				predefinedCategories_.push_back(cat);
+				// Find it in the existing Categories
+				bool found = false;
+				for (auto existing : existingCats) {
+					if (existing.category() == categoryName) {
+						AutoCategoryRule cat(existing, regexes);
+						predefinedCategories_.push_back(cat);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					SimpleLogger::instance()->postMessage((boost::format("Ignoring rules for category %s, because that name is not found in the database") % categoryName).str());
+				}
 			}
 		}
 	}
@@ -271,11 +280,6 @@ namespace midikraft {
 	{
 		// Read the default Json definition from the binary resources
 		return std::string(mapping_categories_jsonc, mapping_categories_jsonc + mapping_categories_jsonc_size);
-	}
-
-	bool operator<(Category const &left, Category const &right)
-	{
-		return left.category < right.category;
 	}
 
 }

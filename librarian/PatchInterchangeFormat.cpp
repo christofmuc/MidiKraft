@@ -46,7 +46,7 @@ namespace midikraft {
 
 		// Check if this is a valid category
 		for (auto acat : detector->loadedRules()) {
-			if (acat.category().category == categoryName) {
+			if (acat.category().category() == categoryName) {
 				// Found, great!
 				outCategory = acat.category();
 				return true;
@@ -185,7 +185,7 @@ namespace midikraft {
 					if (item->HasMember(kCategories)) {
 						auto cats = (*item)[kCategories].GetArray();
 						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
-							midikraft::Category category("", Colours::aliceblue);
+							midikraft::Category category(nullptr);
 							if (findCategory(detector, cat->GetString(), category)) {
 								categories.push_back(category);
 							}
@@ -199,7 +199,7 @@ namespace midikraft {
 					if (item->HasMember(kNonCategories)) {
 						auto cats = (*item)[kNonCategories].GetArray();
 						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
-							midikraft::Category category("", Colours::aliceblue);
+							midikraft::Category category(nullptr);
 							if (findCategory(detector, cat->GetString(), category)) {
 								nonCategories.push_back(category);
 							}
@@ -287,7 +287,7 @@ namespace midikraft {
 				categoryList.SetArray();
 				for (auto cat : userDefinedCategories) {
 					rapidjson::Value catValue;
-					catValue.SetString(cat.category.c_str(), doc.GetAllocator());
+					catValue.SetString(cat.category().c_str(), doc.GetAllocator());
 					categoryList.PushBack(catValue, doc.GetAllocator());
 				}
 				patchJson.AddMember(rapidjson::StringRef(kCategories), categoryList, doc.GetAllocator());
@@ -299,7 +299,7 @@ namespace midikraft {
 				nonCategoryList.SetArray();
 				for (auto cat : userDefinedNonCategories) {
 					rapidjson::Value catValue;
-					catValue.SetString(cat.category.c_str(), doc.GetAllocator());
+					catValue.SetString(cat.category().c_str(), doc.GetAllocator());
 					nonCategoryList.PushBack(catValue, doc.GetAllocator());
 				}
 				patchJson.AddMember(rapidjson::StringRef(kNonCategories), nonCategoryList, doc.GetAllocator());

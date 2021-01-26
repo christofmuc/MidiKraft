@@ -35,13 +35,13 @@ namespace midikraft {
 
 	class AutomaticCategory {
 	public:
-		AutomaticCategory();
+		AutomaticCategory(std::vector<Category> existingCats);
 
 		std::set<Category> determineAutomaticCategories(PatchHolder const &patch);
 		std::map<std::string, std::map<std::string, std::string>> const &importMappings();
 
-		void loadFromFile(std::string fullPathToJson);
-		void loadFromString(std::string const fileContent);
+		void loadFromFile(std::vector<Category> existingCats, std::string fullPathToJson);
+		void loadFromString(std::vector<Category> existingCats, std::string const fileContent);
 		std::vector<AutoCategoryRule> loadedRules() const;
 
 		bool autoCategoryFileExists() const;

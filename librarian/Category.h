@@ -12,11 +12,25 @@
 
 namespace midikraft {
 
+	struct CategoryDefinition {
+		int id;
+		bool isActive;
+		std::string name;
+		Colour color;
+	};
+
 	class Category {
 	public:
-		Category(std::string const &c, Colour o) : category(c), color(o) {}
-		std::string category;
-		Colour color;		
+		Category(std::shared_ptr<CategoryDefinition> def) : def_(def) {}
+		std::string category() const;
+		Colour color() const;
+		std::shared_ptr<CategoryDefinition> def() const;
+
+	private:
+		friend bool operator ==(Category const &left, Category const &right);
+		friend bool operator <(Category const &left, Category const &right);
+
+		std::shared_ptr<CategoryDefinition> def_;
 	};
 
 	std::set<Category> category_union(std::set<Category> const &a, std::set<Category> const &b);

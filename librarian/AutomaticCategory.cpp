@@ -18,18 +18,14 @@
 
 namespace midikraft {
 
-	// From http://colorbrewer2.org/#type=qualitative&scheme=Set3&n=12
-	std::vector<std::string> colorPalette = { "ff8dd3c7", "ffffffb3", "ff4a75b2", "fffb8072", "ff80b1d3", "fffdb462", "ffb3de69", "fffccde5", "ffd9d9d9", "ffbc80bd", "ffccebc5", "ffffed6f",
-		"ff869cab", "ff317469", "ffa75781" };
-
-	AutomaticCategory::AutomaticCategory()
+	AutomaticCategory::AutomaticCategory(std::vector<Category> existingCats)
 	{
 		if (autoCategoryFileExists()) {
 			SimpleLogger::instance()->postMessageOncePerRun((boost::format("Overriding built-in automatic category rules with file %s") % getAutoCategoryFile().getFullPathName().toStdString()).str());
-			loadFromFile(getAutoCategoryFile().getFullPathName().toStdString());
+			loadFromFile(existingCats, getAutoCategoryFile().getFullPathName().toStdString());
 		}
 		else {
-			loadFromString(defaultJson());
+			loadFromString(existingCats, defaultJson());
 		}
 
 		if (autoCategoryMappingFileExists()) {
@@ -42,22 +38,9 @@ namespace midikraft {
 		}
 	}
 
-	std::vector<AutoCategory> AutomaticCategory::predefinedCategories() {
-		return predefinedCategories_;
-	}
-
 	std::map<std::string, std::map<std::string, std::string>> const &AutomaticCategory::importMappings()
 	{
 		return importMappings_;
-	}
-
-	std::vector<midikraft::Category> AutomaticCategory::predefinedCategoryVector()
-	{
-		std::vector<midikraft::Category> result;
-		for (auto a : predefinedCategories()) {
-			result.push_back(a.category());
-		}
-		return result;
 	}
 
 	std::set<Category> AutomaticCategory::determineAutomaticCategories(PatchHolder const &patch)
@@ -78,8 +61,8 @@ namespace midikraft {
 						std::string categoryName = mappings[synthname][tag.name()];
 						if (categoryName != "None") {
 							bool found = false;
-							for (auto cat : predefinedCategories()) {
-								if (cat.category().category == categoryName) {
+							for (auto cat : predefinedCategories_) {
+								if (cat.category().category() == categoryName) {
 									// That's us!
 									result.insert(cat.category());
 									found = true;
@@ -102,7 +85,7 @@ namespace midikraft {
 
 		if (result.empty()) {
 			// Second step, if we have no category yet, try to detect the category from the name using the regex rule set stored in the file automatic_categories.jsonc
-			for (auto autoCat : predefinedCategories()) {
+			for (auto autoCat : predefinedCategories_) {
 				for (auto matcher : autoCat.patchNameMatchers_) {
 					bool found = std::regex_search(patch.name(), matcher);
 					if (found) {
@@ -114,7 +97,7 @@ namespace midikraft {
 		return result;
 	}
 
-	AutoCategory::AutoCategory(Category category, std::vector<std::string> const &regexes) :
+	AutoCategoryRule::AutoCategoryRule(Category category, std::vector<std::string> const &regexes) :
 		category_(category)
 	{
 		for (auto regex : regexes) {
@@ -122,27 +105,32 @@ namespace midikraft {
 		}
 	}
 
-	AutoCategory::AutoCategory(Category category, std::vector<std::regex> const &regexes) :
+	AutoCategoryRule::AutoCategoryRule(Category category, std::vector<std::regex> const &regexes) :
 		category_(category), patchNameMatchers_(regexes)
 	{
 	}
 
-	Category AutoCategory::category() const
+	Category AutoCategoryRule::category() const
 	{
 		return category_;
 	}
 
-	void AutomaticCategory::loadFromFile(std::string fullPathToJson)
+	std::vector<std::regex> AutoCategoryRule::patchNameMatchers() const
+	{
+		return patchNameMatchers_;
+	}
+
+	void AutomaticCategory::loadFromFile(std::vector<Category> existingCats, std::string fullPathToJson)
 	{
 		// Load the string in the file given
 		File jsonFile(fullPathToJson);
 		if (jsonFile.exists()) {
 			auto fileContent = jsonFile.loadFileAsString();
-			loadFromString(fileContent.toStdString());
+			loadFromString(existingCats, fileContent.toStdString());
 		}
 	}
 
-	void AutomaticCategory::loadFromString(std::string const fileContent) {
+	void AutomaticCategory::loadFromString(std::vector<Category> existingCats, std::string const fileContent) {
 		// Parse as JSON
 		rapidjson::Document doc;
 		doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.c_str());
@@ -151,7 +139,6 @@ namespace midikraft {
 			predefinedCategories_.clear();
 
 			auto obj = doc.GetObject();
-			size_t i = 0;
 			for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
 				auto categoryName = member->name.GetString();
 				std::vector<std::regex> regexes;
@@ -181,11 +168,26 @@ namespace midikraft {
 						}
 					}
 				}
-				AutoCategory cat(Category(categoryName, colorForIndex(i)), regexes);
-				i++;
-				predefinedCategories_.push_back(cat);
+				// Find it in the existing Categories
+				bool found = false;
+				for (auto existing : existingCats) {
+					if (existing.category() == categoryName) {
+						AutoCategoryRule cat(existing, regexes);
+						predefinedCategories_.push_back(cat);
+						found = true;
+						break;
+					}
+				}
+				if (!found) {
+					SimpleLogger::instance()->postMessage((boost::format("Ignoring rules for category %s, because that name is not found in the database") % categoryName).str());
+				}
 			}
 		}
+	}
+
+	std::vector<midikraft::AutoCategoryRule> AutomaticCategory::loadedRules() const
+	{
+		return predefinedCategories_;
 	}
 
 	void AutomaticCategory::loadMappingFromString(std::string const fileContent) {
@@ -263,6 +265,11 @@ namespace midikraft {
 		return jsoncFile;
 	}
 
+	void AutomaticCategory::addAutoCategory(AutoCategoryRule const &autoCat)
+	{
+		predefinedCategories_.push_back(autoCat);
+	}
+
 	std::string AutomaticCategory::defaultJson()
 	{
 		// Read the default Json definition from the binary resources
@@ -273,21 +280,6 @@ namespace midikraft {
 	{
 		// Read the default Json definition from the binary resources
 		return std::string(mapping_categories_jsonc, mapping_categories_jsonc + mapping_categories_jsonc_size);
-	}
-
-	juce::Colour AutomaticCategory::colorForIndex(size_t i)
-	{
-		if (i < colorPalette.size()) {
-			return Colour::fromString(colorPalette[i]);
-		}
-		else {
-			return Colours::darkgrey;
-		}
-	}
-
-	bool operator<(Category const &left, Category const &right)
-	{
-		return left.category < right.category;
 	}
 
 }

@@ -720,8 +720,6 @@ namespace midikraft {
 	std::vector<PatchHolder> Librarian::tagPatchesWithImportFromSynth(std::shared_ptr<Synth> synth, TPatchVector &patches, MidiBankNumber bankNo) {
 		std::vector<PatchHolder> result;
 		auto now = Time::getCurrentTime();
-		//TODO - this probably should have been handed down from the main program?
-		auto detector = std::make_shared<midikraft::AutomaticCategory>();
 		int i = 0;
 		for (auto patch : patches) {
 			MidiProgramNumber place = MidiProgramNumber::fromZeroBase(i++);
@@ -729,7 +727,7 @@ namespace midikraft {
 			if (realpatch) {
 				place = realpatch->patchNumber();
 			}
-			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, bankNo, place, detector));
+			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, bankNo, place));
 		}
 		return result;
 	}

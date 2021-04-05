@@ -45,10 +45,10 @@ namespace midikraft {
 		if (!strcmp(categoryName, "FX")) categoryName = "SFX";
 
 		// Check if this is a valid category
-		for (auto acat : detector->predefinedCategoryVector()) {
-			if (acat.category == categoryName) {
+		for (auto acat : detector->loadedRules()) {
+			if (acat.category().category() == categoryName) {
 				// Found, great!
-				outCategory = acat;
+				outCategory = acat.category();
 				return true;
 			}
 		}
@@ -185,7 +185,7 @@ namespace midikraft {
 					if (item->HasMember(kCategories)) {
 						auto cats = (*item)[kCategories].GetArray();
 						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
-							midikraft::Category category("", Colours::aliceblue);
+							midikraft::Category category(nullptr);
 							if (findCategory(detector, cat->GetString(), category)) {
 								categories.push_back(category);
 							}
@@ -199,7 +199,7 @@ namespace midikraft {
 					if (item->HasMember(kNonCategories)) {
 						auto cats = (*item)[kNonCategories].GetArray();
 						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
-							midikraft::Category category("", Colours::aliceblue);
+							midikraft::Category category(nullptr);
 							if (findCategory(detector, cat->GetString(), category)) {
 								nonCategories.push_back(category);
 							}
@@ -278,30 +278,28 @@ namespace midikraft {
 			addToJson(kName, patch.name(), patchJson, doc);
 			patchJson.AddMember(rapidjson::StringRef(kFavorite), patch.isFavorite() ? 1 : 0, doc.GetAllocator());
 			patchJson.AddMember(rapidjson::StringRef(kPlace), patch.patchNumber().toZeroBased(), doc.GetAllocator());
-			int64 categoriesSet = patch.categoriesAsBitfield();
-			int64 userDecisions = patch.userDecisionAsBitfield();
-			if (categoriesSet & userDecisions) {
+ 			auto categoriesSet = patch.categories();
+			auto userDecisions = patch.userDecisionSet();
+			auto userDefinedCategories = category_intersection(categoriesSet, userDecisions);
+			if (!userDefinedCategories.empty()) {
 				// Here is a list of categories to write
 				rapidjson::Value categoryList;
 				categoryList.SetArray();
-				std::set<Category> userDefinedCategories;
-				patch.makeSetOfCategoriesFromBitfield(userDefinedCategories, categoriesSet & userDecisions);
 				for (auto cat : userDefinedCategories) {
 					rapidjson::Value catValue;
-					catValue.SetString(cat.category.c_str(), doc.GetAllocator());
+					catValue.SetString(cat.category().c_str(), doc.GetAllocator());
 					categoryList.PushBack(catValue, doc.GetAllocator());
 				}
 				patchJson.AddMember(rapidjson::StringRef(kCategories), categoryList, doc.GetAllocator());
 			}
-			if ((~categoriesSet) & userDecisions) {
+			auto userDefinedNonCategories = category_difference(userDecisions, categoriesSet);
+			if (!userDefinedNonCategories.empty()) {
 				// Here is a list of non-categories to write
 				rapidjson::Value nonCategoryList;
 				nonCategoryList.SetArray();
-				std::set<Category> userDefinedNonCategories;
-				patch.makeSetOfCategoriesFromBitfield(userDefinedNonCategories, (~categoriesSet) & userDecisions);
 				for (auto cat : userDefinedNonCategories) {
 					rapidjson::Value catValue;
-					catValue.SetString(cat.category.c_str(), doc.GetAllocator());
+					catValue.SetString(cat.category().c_str(), doc.GetAllocator());
 					nonCategoryList.PushBack(catValue, doc.GetAllocator());
 				}
 				patchJson.AddMember(rapidjson::StringRef(kNonCategories), nonCategoryList, doc.GetAllocator());

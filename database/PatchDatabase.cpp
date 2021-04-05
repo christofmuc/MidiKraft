@@ -153,21 +153,21 @@ namespace midikraft {
 		}
 
 		void insertDefaultCategories() {
-			db_.exec("INSERT INTO categories VALUES (0, 'Lead', 'ff8dd3c7', 1)");
-			db_.exec("INSERT INTO categories VALUES (1, 'Pad', 'ffffffb3', 1)");
-			db_.exec("INSERT INTO categories VALUES (2, 'Brass', 'ff4a75b2', 1)");
-			db_.exec("INSERT INTO categories VALUES (3, 'Organ', 'fffb8072', 1)");
-			db_.exec("INSERT INTO categories VALUES (4, 'Keys', 'ff80b1d3', 1)");
-			db_.exec("INSERT INTO categories VALUES (5, 'Bass', 'fffdb462', 1)");
-			db_.exec("INSERT INTO categories VALUES (6, 'Arp', 'ffb3de69', 1)");
-			db_.exec("INSERT INTO categories VALUES (7, 'Pluck', 'fffccde5', 1)");
-			db_.exec("INSERT INTO categories VALUES (8, 'Drone', 'ffd9d9d9', 1)");
-			db_.exec("INSERT INTO categories VALUES (9, 'Drum', 'ffbc80bd', 1)");
-			db_.exec("INSERT INTO categories VALUES (10, 'Bell', 'ffccebc5', 1)");
-			db_.exec("INSERT INTO categories VALUES (11, 'SFX', 'ffffed6f', 1)");
-			db_.exec("INSERT INTO categories VALUES (12, 'Ambient', 'ff869cab', 1)");
-			db_.exec("INSERT INTO categories VALUES (13, 'Wind', 'ff317469', 1)");
-			db_.exec("INSERT INTO categories VALUES (14, 'Voice', 'ffa75781', 1)");
+			db_.exec(String("INSERT INTO categories VALUES (0, 'Lead', '" + Colour::fromString("ff8dd3c7").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (1, 'Pad', '" + Colour::fromString("ffffffb3").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (2, 'Brass', '" + Colour::fromString("ff4a75b2").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (3, 'Organ', '" + Colour::fromString("fffb8072").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (4, 'Keys', '" + Colour::fromString("ff80b1d3").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (5, 'Bass', '" + Colour::fromString("fffdb462").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (6, 'Arp', '" + Colour::fromString("ffb3de69").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (7, 'Pluck', '" + Colour::fromString("fffccde5").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (8, 'Drone', '" + Colour::fromString("ffd9d9d9").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (9, 'Drum', '" + Colour::fromString("ffbc80bd").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (10, 'Bell', '" + Colour::fromString("ffccebc5").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (11, 'SFX', '" + Colour::fromString("ffffed6f").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (12, 'Ambient', '" + Colour::fromString("ff869cab").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (13, 'Wind', '" + Colour::fromString("ff317469").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (14, 'Voice', '" + Colour::fromString("ffa75781").darker().toString() + "', 1)").toStdString().c_str());
 		}
 
 		void createSchema() {

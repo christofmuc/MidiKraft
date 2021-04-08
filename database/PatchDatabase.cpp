@@ -144,9 +144,11 @@ namespace midikraft {
 			if (currentVersion < 6) {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
-
-				db_.exec("CREATE TABLE categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER)");
-				insertDefaultCategories();
+				if (!db_.tableExists("categories")) {
+					//TODO This code should actually never be executed, because the createSchema() already has created the table. Create Table statements don't belong into the migrteSchema method
+					db_.exec("CREATE TABLE categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER)");
+					insertDefaultCategories();
+				}
 				db_.exec("UPDATE schema_version SET number = 6");
 				transaction.commit();
 			}

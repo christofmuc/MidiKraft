@@ -466,6 +466,7 @@ namespace midikraft {
 						builder.addFile(File(result), 6);
 						break;
 					}
+					case Librarian::MID_FILE:
 					case Librarian::ONE_FILE:
 					{
 						std::copy(sysexMessages.begin(), sysexMessages.end(), std::back_inserter(allMessages));
@@ -490,6 +491,29 @@ namespace midikraft {
 			{
 				Sysex::saveSysex(destination.getFullPathName().toStdString(), allMessages);
 				break;
+			}
+			case Librarian::MID_FILE:
+			{
+				MidiFile midiFile;
+				MidiMessageSequence mmSeq;
+				for (const auto& msg : allMessages) {
+					mmSeq.addEvent(msg, 0.0);
+				}
+
+				// Add to track 1 of MIDI file
+				midiFile.addTrack(mmSeq);
+				midiFile.setTicksPerQuarterNote(96);
+
+				// Done, write to file
+				File file(destination);
+				if (file.existsAsFile()) {
+					file.deleteFile();
+				}
+				FileOutputStream stream(file);
+				if (!midiFile.writeTo(stream, 1)) {
+					SimpleLogger::instance()->postMessage("ERROR: Failed to write SMF file to " + destination.getFullPathName());
+				}
+				stream.flush();
 			}
 			default:
 				// Nothing to do
@@ -542,8 +566,13 @@ namespace midikraft {
 		}
 		case MID_FILE:
 		{
-			AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Sorry", "This export method is not implemented yet");
-			return;
+			updateLastPath(lastExportMidFilename_, "lastExportMidFilename");
+			FileChooser sysexChooser("Please enter the name of the MIDI file to create...", File(lastExportSyxFilename_), "*.mid");
+			if (!sysexChooser.browseForFileToSave(true)) {
+				return;
+			}
+			destination = sysexChooser.getResult();
+			Settings::instance().set("lastExportMidFilename", destination.getFullPathName().toStdString());
 		}
 		}
 
@@ -565,6 +594,7 @@ namespace midikraft {
 						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
 				break;
 			}
+			case MID_FILE:
 			case ONE_FILE:
 			{
 				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",

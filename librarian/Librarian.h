@@ -93,6 +93,7 @@ namespace midikraft {
 		std::string lastExportDirectory_; 
 		std::string lastExportZipFilename_;
 		std::string lastExportSyxFilename_;
+		std::string lastExportMidFilename_;
 	};
 
 }

@@ -49,15 +49,25 @@ namespace midikraft {
 		}
 	}
 
-	void SafeMidiOutput::sendBlockOfMessagesThrottled(const MidiBuffer& buffer, int millisecondsWait) {
+	void SafeMidiOutput::sendBlockOfMessagesFullSpeed(const std::vector<MidiMessage>& buffer)
+	{
+		if (midiOut_) {
+			for (const auto& message : buffer) {
+				if (MidiHelpers::isEmptySysex(message)) continue;
+				midiOut_->sendMessageNow(message);
+				controller_->logMidiMessage(message, midiOut_->getName(), true);
+			}
+		}
+	}
+
+	void SafeMidiOutput::sendBlockOfMessagesThrottled(const std::vector<MidiMessage>& buffer, int millisecondsWait) {
 		//TODO - this blocks the UI thread, but I don't want any logic to continue right now here.
 		if (midiOut_) {
-			MidiBuffer filtered = MidiHelpers::removeEmptySysexMessages(buffer);
-			for (auto message : filtered) {
-				auto m = message.getMessage();
+			for (const auto& message : buffer) {
+				if (MidiHelpers::isEmptySysex(message)) continue;
 				Thread::sleep(millisecondsWait);
-				midiOut_->sendMessageNow(m);
-				controller_->logMidiMessage(m, midiOut_->getName(), true);
+				midiOut_->sendMessageNow(message);
+				controller_->logMidiMessage(message, midiOut_->getName(), true);
 			}
 		}
 	}

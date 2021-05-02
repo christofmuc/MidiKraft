@@ -49,7 +49,7 @@ namespace midikraft {
 		virtual void saveSysex(std::string const &filename, std::vector<MidiMessage> messages);
 		virtual std::vector<MidiMessage> patchToSysex(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
 		virtual void sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
-		virtual void sendBlockOfMessagesToSynth(std::string const &midiOutput, MidiBuffer const& buffer);
+		virtual void sendBlockOfMessagesToSynth(std::string const &midiOutput, std::vector<MidiMessage> const& buffer);
 	};
 
 }

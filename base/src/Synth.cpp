@@ -174,7 +174,7 @@ namespace midikraft {
 				if (midiLocation->channel().isValid()) {
 					SimpleLogger::instance()->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
 					MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
-					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), MidiHelpers::bufferFromMessages(messages));
+					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
 				}
 				else {
 					SimpleLogger::instance()->postMessage((boost::format("Synth %s has no valid channel and output defined, don't know where to send!") % getName()).str());
@@ -183,7 +183,7 @@ namespace midikraft {
 		}
 	}
 
-	void Synth::sendBlockOfMessagesToSynth(std::string const& midiOutput, MidiBuffer const& buffer)
+	void Synth::sendBlockOfMessagesToSynth(std::string const& midiOutput, std::vector<MidiMessage> const& buffer)
 	{
 		MidiController::instance()->getMidiOutput(midiOutput)->sendBlockOfMessagesFullSpeed(buffer);
 	}

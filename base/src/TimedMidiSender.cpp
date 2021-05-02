@@ -30,6 +30,7 @@ namespace midikraft {
 		if (midiBuffer_.find(midiOutput) == midiBuffer_.end()) {
 			midiBuffer_[midiOutput] = MidiBuffer();
 		}
+		jassert(message.getRawDataSize() <= 65535);
 		midiBuffer_[midiOutput].addEvent(message, sampleNumber);
 	}
 

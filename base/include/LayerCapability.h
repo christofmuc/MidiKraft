@@ -15,7 +15,7 @@ namespace midikraft {
 	class LayerCapability {
 	public:
 		virtual void switchToLayer(int layerNo) = 0;
-		virtual MidiBuffer layerToSysex(std::shared_ptr<DataFile> const patch, int sourceLayer, int targetLayer) const = 0;
+		virtual std::vector<MidiMessage> layerToSysex(std::shared_ptr<DataFile> const patch, int sourceLayer, int targetLayer) const = 0;
 	};
 
 }

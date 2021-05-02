@@ -355,6 +355,7 @@ namespace midikraft {
 		}
 
 		std::vector<Category> getCategories() {
+			ScopedLock lock(categoryLock_);
 			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY bitIndex");
 			std::vector<std::shared_ptr<CategoryDefinition>> activeDefinitions;
 			std::vector<Category> allCategories;
@@ -445,6 +446,8 @@ namespace midikraft {
 		}
 
 		bool loadPatchFromQueryRow(std::shared_ptr<Synth> synth, SQLite::Statement &query, std::vector<PatchHolder> &result) {
+			ScopedLock lock(categoryLock_);
+
 			std::shared_ptr<DataFile> newPatch;
 
 			// Create the patch itself, from the BLOB stored
@@ -922,6 +925,7 @@ namespace midikraft {
 		}
 
 		std::shared_ptr<AutomaticCategory> getCategorizer() {
+			ScopedLock lock(categoryLock_);
 			// Force reload of the categories from the database table
 			categoryDefinitions_ = getCategories();
 			int bitindex = bitfield.maxBitIndex();
@@ -987,6 +991,7 @@ namespace midikraft {
 		SQLite::Database db_;
 		CategoryBitfield bitfield;
 		std::vector<Category> categoryDefinitions_;
+		CriticalSection categoryLock_;
 	};
 
 	PatchDatabase::PatchDatabase() {

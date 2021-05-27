@@ -56,7 +56,7 @@ namespace midikraft {
 
 		int getPatchesCount(PatchFilter filter);
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
-		void getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit);
+		void getPatchesAsync(PatchFilter filter, std::function<void(PatchFilter const filteredBy, std::vector<PatchHolder> const &)> finished, int skip, int limit);
 
 		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice);
 		std::vector<ImportInfo> getImportsList(Synth *activeSynth) const;
@@ -85,5 +85,8 @@ namespace midikraft {
 		std::unique_ptr<PatchDataBaseImpl> impl;
 		ThreadPool pool_;
 	};
+
+	// Inequality operator for patch filters - this can be used to e.g. match if a database query result is for a specific filter setup
+	bool operator !=(PatchDatabase::PatchFilter const& a, PatchDatabase::PatchFilter const& b);
 
 }

@@ -1084,12 +1084,12 @@ namespace midikraft {
 		}
 	}
 
-	void PatchDatabase::getPatchesAsync(PatchFilter filter, std::function<void(std::vector<PatchHolder> const &)> finished, int skip, int limit)
+	void PatchDatabase::getPatchesAsync(PatchFilter filter, std::function<void(PatchFilter const filteredBy, std::vector<PatchHolder> const &)> finished, int skip, int limit)
 	{
 		pool_.addJob([this, filter, finished, skip, limit]() {
 			auto result = getPatches(filter, skip, limit);
-			MessageManager::callAsync([finished, result]() {
-				finished(result);
+			MessageManager::callAsync([filter, finished, result]() {
+				finished(filter, result);
 			});
 		});
 	}
@@ -1138,6 +1138,33 @@ namespace midikraft {
 		filter.showHidden = true;
 		filter.synths.emplace(synth->getName(), synth);
 		return filter;
+	}
+
+	bool operator!=(PatchDatabase::PatchFilter const& a, PatchDatabase::PatchFilter const& b)
+	{
+		// Check complex fields 
+		for (auto const &asynth : a.synths) {
+			if (b.synths.find(asynth.first) == b.synths.end()) {
+				return true;
+			}
+		}
+		for (auto const &bsynth : b.synths) {
+			if (a.synths.find(bsynth.first) == a.synths.end()) {
+				return true;
+			}
+		}
+
+		if (a.categories != b.categories)
+			return true;
+
+		// Then check simple fields
+		return a.importID != b.importID
+			|| a.name != b.name 
+			|| a.onlyFaves != b.onlyFaves
+			|| a.onlySpecifcType != b.onlySpecifcType
+			|| a.typeID != b.typeID
+			|| a.showHidden != b.showHidden
+			|| a.onlyUntagged != b.onlyUntagged;
 	}
 
 }

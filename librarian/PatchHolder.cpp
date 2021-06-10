@@ -424,7 +424,7 @@ namespace midikraft {
 	std::string FromBulkImportSource::toDisplayString(Synth *synth, bool shortVersion) const
 	{
 		if (timestamp_.toMilliseconds() != 0) {
-			if (shortVersion) {
+			if (shortVersion || !individualInfo_) {
 				// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
 				return (boost::format("Bulk import (%s)") % timestamp_.formatted("%x at %X").toStdString()).str();
 			}

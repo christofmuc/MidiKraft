@@ -70,7 +70,7 @@ namespace midikraft {
 	*   1  - First version with header containing name of file format and version number, else it is identical to version 0 containing the patches in the field "Library" (to mark it is not a bank!)
 	*/
 
-	std::vector<midikraft::PatchHolder> PatchInterchangeFormat::load(std::shared_ptr<Synth> activeSynth, std::string const &filename, std::shared_ptr<AutomaticCategory> detector)
+	std::vector<midikraft::PatchHolder> PatchInterchangeFormat::load(std::map<std::string, std::shared_ptr<Synth>> activeSynths, std::string const &filename, std::shared_ptr<AutomaticCategory> detector)
 	{
 		std::vector<midikraft::PatchHolder> result;
 
@@ -133,10 +133,12 @@ namespace midikraft {
 						SimpleLogger::instance()->postMessage("Skipping patch which has no 'Synth' field");
 						continue;
 					}
-					if (activeSynth->getName() != (*item)[kSynth].GetString()) {
-						SimpleLogger::instance()->postMessage((boost::format("Skipping patch which is for synth %s and not for %s") % (*item)["Synth"].GetString() % activeSynth->getName()).str());
+					const char* synthname = (*item)[kSynth].GetString();
+					if (activeSynths.find(synthname) == activeSynths.end()) {
+						SimpleLogger::instance()->postMessage((boost::format("Skipping patch which is for synth %s and not for any present in the list given") % synthname).str());
 						continue;
 					}
+					auto activeSynth = activeSynths[synthname];
 					if (!item->HasMember(kName)) {
 						SimpleLogger::instance()->postMessage("Skipping patch which has no 'Name' field");
 						continue;

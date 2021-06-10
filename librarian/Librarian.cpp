@@ -360,7 +360,9 @@ namespace midikraft {
 			}
 		}
 		else if (File(fullpath).getFileExtension() == ".json") {
-			return PatchInterchangeFormat::load(synth, fullpath, automaticCategories);
+			std::map<std::string, std::shared_ptr<Synth>> synths;
+			synths[synth->getName()] = synth;
+			return PatchInterchangeFormat::load(synths, fullpath, automaticCategories);
 		}
 		else {
 			auto messagesLoaded = Sysex::loadSysex(fullpath);

@@ -26,6 +26,8 @@
 #include "SQLiteCpp/Statement.h"
 #include "SQLiteCpp/Transaction.h"
 
+#include "SQLiteCpp/../../sqlite3/sqlite3.h" //TODO How to use the underlying site3 correctly?
+
 namespace midikraft {
 
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
@@ -42,14 +44,20 @@ namespace midikraft {
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
-		PatchDataBaseImpl(std::string const &databaseFile) : db_(databaseFile.c_str(), SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE), bitfield({}) {
+		PatchDataBaseImpl(std::string const &databaseFile, OpenMode mode) 
+			: db_(databaseFile.c_str(), mode == OpenMode::READ_ONLY ? SQLite::OPEN_READONLY : (SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE)), bitfield({}),
+			mode_(mode)
+		{
 			createSchema();
 			manageBackupDiskspace(kDataBaseBackupSuffix);
 			categoryDefinitions_ = getCategories();
 		}
 
 		~PatchDataBaseImpl() {
-			PatchDataBaseImpl::makeDatabaseBackup(kDataBaseBackupSuffix);
+			// Only make the automatic database backup when we are not in read only mode, else there is nothing to backup
+			if (mode_ == OpenMode::READ_WRITE) {
+				PatchDataBaseImpl::makeDatabaseBackup(kDataBaseBackupSuffix);
+			}
 		}
 
 		std::string makeDatabaseBackup(String const &suffix) {
@@ -73,8 +81,13 @@ namespace midikraft {
 			db_.backup(databaseFileToCreate.getFullPathName().toStdString().c_str(), SQLite::Database::Save);
 		}
 
+		static void makeDatabaseBackup(File database, File backupFile) {
+			SQLite::Database db(database.getFullPathName().toStdString().c_str(), SQLite::OPEN_READONLY);
+			db.backup(backupFile.getFullPathName().toStdString().c_str(), SQLite::Database::Save);
+		}
+
 		void backupIfNecessary(bool &done) {
-			if (!done) {
+			if (!done && mode_ == PatchDatabase::OpenMode::READ_WRITE) {
 				makeDatabaseBackup("-before-migration");
 				done = true;
 			}
@@ -211,15 +224,24 @@ namespace midikraft {
 						migrateSchema(version);
 					}
 					catch (SQLite::Exception &e) {
-						std::string message = (boost::format("Cannot open database file %s - Cannot upgrade to latest version, schema version found is %d. Error: %s") % db_.getFilename() % version % e.what()).str();
-						AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Failure to open database", message);
-						throw e;
+						if (mode_ == OpenMode::READ_WRITE) {
+							std::string message = (boost::format("Cannot open database file %s - Cannot upgrade to latest version, schema version found is %d. Error: %s") % db_.getFilename() % version % e.what()).str();
+							AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Failure to open database", message);
+						}
+						if (e.getErrorCode() == SQLITE_READONLY) {
+							throw PatchDatabaseReadonlyException(e.what());
+						}
+						else {
+							throw e;
+						}
 					}
 				}
 				else if (version > SCHEMA_VERSION) {
 					// This is a database from the future, can't open!
 					std::string message = (boost::format("Cannot open database file %s - this was produced with a newer version of KnobKraft Orm, schema version is %d.") % db_.getFilename() % version).str();
-					AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Database Error", message);
+					if (mode_ == OpenMode::READ_WRITE) {					
+						AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Database Error", message);
+					}
 					throw new SQLite::Exception(message);
 				}
 			}
@@ -228,7 +250,9 @@ namespace midikraft {
 				int rows = db_.exec("INSERT INTO schema_version VALUES (" + String(SCHEMA_VERSION).toStdString() + ")");
 				if (rows != 1) {
 					jassert(false);
-					AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Error", "For whatever reason couldn't insert the schema version number. Something is terribly wrong.");
+					if (mode_ == OpenMode::READ_WRITE) {
+						AlertWindow::showMessageBox(AlertWindow::WarningIcon, "SQL Error", "For whatever reason couldn't insert the schema version number. Something is terribly wrong.");
+					}
 				}
 			}
 		}
@@ -989,17 +1013,28 @@ namespace midikraft {
 
 	private:
 		SQLite::Database db_;
+		OpenMode mode_;
 		CategoryBitfield bitfield;
 		std::vector<Category> categoryDefinitions_;
 		CriticalSection categoryLock_;
 	};
 
 	PatchDatabase::PatchDatabase() {
-		impl.reset(new PatchDataBaseImpl(generateDefaultDatabaseLocation()));
+		try {
+			impl.reset(new PatchDataBaseImpl(generateDefaultDatabaseLocation(), OpenMode::READ_WRITE));
+		} 
+		catch (SQLite::Exception& e) {
+			throw PatchDatabaseException(e.what());
+		}
 	}
 
-	PatchDatabase::PatchDatabase(std::string const &databaseFile) {
-		impl.reset(new PatchDataBaseImpl(databaseFile));
+	PatchDatabase::PatchDatabase(std::string const &databaseFile, OpenMode mode) {
+		try {
+		impl.reset(new PatchDataBaseImpl(databaseFile, mode));
+		}
+		catch (SQLite::Exception& e) {
+			throw PatchDatabaseException(e.what());
+		}
 	}
 
 	PatchDatabase::~PatchDatabase() {
@@ -1010,10 +1045,10 @@ namespace midikraft {
 		return impl->databaseFileName();
 	}
 
-	bool PatchDatabase::switchDatabaseFile(std::string const &newDatabaseFile)
+	bool PatchDatabase::switchDatabaseFile(std::string const &newDatabaseFile, OpenMode mode)
 	{
 		try {
-			auto newDatabase = new PatchDataBaseImpl(newDatabaseFile);
+			auto newDatabase = new PatchDataBaseImpl(newDatabaseFile, mode);
 			// If no exception was thrown, this worked
 			impl.reset(newDatabase);
 			return true;
@@ -1125,6 +1160,11 @@ namespace midikraft {
 		impl->makeDatabaseBackup(backupFileToCreate);
 	}
 
+	void PatchDatabase::makeDatabaseBackup(File databaseFile, File backupFileToCreate)
+	{
+		PatchDataBaseImpl::makeDatabaseBackup(databaseFile, backupFileToCreate);
+	}
+
 	std::vector<Category> PatchDatabase::getCategories() const {
 		return impl->getCategories();
 	}
@@ -1137,6 +1177,19 @@ namespace midikraft {
 		filter.onlyUntagged = false;
 		filter.showHidden = true;
 		filter.synths.emplace(synth->getName(), synth);
+		return filter;
+	}
+
+	midikraft::PatchDatabase::PatchFilter PatchDatabase::allPatchesFilter(std::vector<std::shared_ptr<Synth>> synths)
+	{
+		PatchFilter filter;
+		filter.onlyFaves = false;
+		filter.onlySpecifcType = false;
+		filter.onlyUntagged = false;
+		filter.showHidden = true;
+		for (auto const& synth : synths) {
+			filter.synths.emplace(synth->getName(), synth);
+		}
 		return filter;
 	}
 

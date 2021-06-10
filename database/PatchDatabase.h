@@ -24,6 +24,14 @@ namespace midikraft {
 		std::string id; // The database ID, as a unique identifier
 	};
 
+	class PatchDatabaseException : public std::runtime_error {
+		using std::runtime_error::runtime_error;
+	};
+
+	class PatchDatabaseReadonlyException : public PatchDatabaseException {
+		using PatchDatabaseException::PatchDatabaseException;
+	};
+
 	class PatchDatabase {
 	public:
 		struct PatchFilter {
@@ -38,6 +46,12 @@ namespace midikraft {
 			std::set<Category> categories;
 		};
 
+		enum class OpenMode {
+			READ_ONLY,
+			READ_WRITE,
+			READ_WRITE_NO_BACKUPS
+		};
+
 		enum UpdateChoice {
 			UPDATE_NAME = 1,
 			UPDATE_CATEGORIES = 2,
@@ -48,11 +62,11 @@ namespace midikraft {
 		};
 
 		PatchDatabase(); // Default location
-		PatchDatabase(std::string const &databaseFile); // Specific file
+		PatchDatabase(std::string const &databaseFile, OpenMode mode); // Specific file
 		~PatchDatabase();
 
 		std::string getCurrentDatabaseFileName() const;
-		bool switchDatabaseFile(std::string const &newDatabaseFile);
+		bool switchDatabaseFile(std::string const &newDatabaseFile, OpenMode mode);
 
 		int getPatchesCount(PatchFilter filter);
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
@@ -68,6 +82,7 @@ namespace midikraft {
 
 		std::string makeDatabaseBackup(std::string const &suffix);
 		void makeDatabaseBackup(File backupFileToCreate);
+		static void makeDatabaseBackup(File databaseFile, File backupFileToCreate);
 
 		std::vector<Category> getCategories() const;
 		std::shared_ptr<AutomaticCategory> getCategorizer();
@@ -76,6 +91,7 @@ namespace midikraft {
 
 		// Convenience functions
 		static PatchFilter allForSynth(std::shared_ptr<Synth> synth);
+		static PatchFilter allPatchesFilter(std::vector<std::shared_ptr<Synth>> synths);
 
 		// For backward compatibility
 		static std::string generateDefaultDatabaseLocation();

@@ -407,8 +407,10 @@ namespace midikraft {
 		std::string timestring = timestamp.toISO8601(true).toStdString();
 		doc.AddMember(rapidjson::StringRef(kBulkSource), true, doc.GetAllocator());
 		doc.AddMember(rapidjson::StringRef(kTimeStamp), rapidjson::Value(timestring.c_str(), (rapidjson::SizeType) timestring.size()), doc.GetAllocator());
-		std::string subinfo = individualInfo->toString();
-		doc.AddMember(rapidjson::StringRef(kFileInBulk), rapidjson::Value(subinfo.c_str(), (rapidjson::SizeType) subinfo.size()), doc.GetAllocator());
+		if (individualInfo) {
+			std::string subinfo = individualInfo->toString();
+			doc.AddMember(rapidjson::StringRef(kFileInBulk), rapidjson::Value(subinfo.c_str(), (rapidjson::SizeType)subinfo.size()), doc.GetAllocator());
+		} 
 		jsonRep_ = renderToJson(doc);
 	}
 

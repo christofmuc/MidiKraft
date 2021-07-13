@@ -1033,7 +1033,12 @@ namespace midikraft {
 		impl.reset(new PatchDataBaseImpl(databaseFile, mode));
 		}
 		catch (SQLite::Exception& e) {
-			throw PatchDatabaseException(e.what());
+			if (e.getErrorCode() == SQLITE_READONLY) {
+				throw PatchDatabaseReadonlyException(e.what());
+			}
+			else {
+				throw PatchDatabaseException(e.what());
+			}
 		}
 	}
 

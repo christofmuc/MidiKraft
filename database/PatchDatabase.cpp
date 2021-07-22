@@ -41,6 +41,7 @@ namespace midikraft {
 	/* 4 - forgot to migrate existing data NULL to 0 */
 	/* 5 - adding bank number column for better sorting of multi-imports */
 	/* 6 - adding the table categories to track which bit index is used for which tag */
+	/* 7 - adding the table lists to allow storing lists of patches */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -210,6 +211,10 @@ namespace midikraft {
 			}
 			if (!db_.tableExists("schema_version")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
+			}
+			if (!db_.tableExists("lists")) {
+				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT UNIQUE NOT NULL, name TEXT)");
+				db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT, synth TEXT, md5 TEXT, order_num INTEGER NOT NULL, FOREIGN KEY(id) REFERENCES lists(id))");
 			}
 
 			// Commit transaction
@@ -1011,6 +1016,40 @@ namespace midikraft {
 			return categorizer;
 		}
 
+		std::vector<ListInfo> allPatchLists()
+		{
+			SQLite::Statement query(db_, "SELECT * from lists");
+			std::vector<ListInfo> result;
+			while (query.executeStep()) {
+				result.push_back({ query.getColumn("id").getText(), query.getColumn("name").getText() });
+			}
+			return result;
+		}
+
+		midikraft::PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
+		{
+			PatchList list(info.id, info.name);
+			SQLite::Statement query(db_, "SELECT * from patch_in_list where id=:ID order by order_num");
+			query.bind(":ID", info.id.c_str());
+			std::vector<std::pair<std::string, std::string>> md5s;
+			while (query.executeStep()) {
+				md5s.push_back({ query.getColumn("synth").getText(), query.getColumn("md5").getText() });
+			}
+			std::vector<PatchHolder> result;
+			for (auto const& md5 : md5s) {
+				if (synths.find(md5.first) != synths.end()) {
+					getSinglePatch(synths[md5.first].lock(), md5.second, result);
+				}
+			}
+			list.setPatches(result);
+			return list;
+		}
+
+		void putPatchList(PatchList patchList)
+		{
+		}
+
+
 	private:
 		SQLite::Database db_;
 		OpenMode mode_;
@@ -1096,6 +1135,21 @@ namespace midikraft {
 	void PatchDatabase::updateCategories(std::vector<CategoryDefinition> const &newdefs)
 	{
 		impl->updateCategories(newdefs);
+	}
+
+	std::vector<ListInfo> PatchDatabase::allPatchLists()
+	{
+		return impl->allPatchLists();
+	}
+
+	midikraft::PatchList PatchDatabase::getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
+	{
+		return impl->getPatchList(info, synths);
+	}
+
+	void PatchDatabase::putPatchList(PatchList patchList)
+	{
+		impl->putPatchList(patchList);
 	}
 
 	int PatchDatabase::deletePatches(PatchFilter filter)

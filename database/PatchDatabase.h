@@ -13,6 +13,7 @@
 
 #include "ProgressHandler.h"
 #include "PatchHolder.h"
+#include "PatchList.h"
 #include "CategoryBitfield.h"
 #include "Category.h"
 
@@ -22,6 +23,11 @@ namespace midikraft {
 		std::string name; // The name of the import - TODO this can be matched to the name stored in the patch, except for edit buffer imports
 		std::string description; // The nice display name of the import, this can contain e.g. the number of patches in this import in parentheses
 		std::string id; // The database ID, as a unique identifier
+	};
+
+	struct ListInfo {
+		std::string id; // The database ID
+		std::string name; // The given name of the list
 	};
 
 	class PatchDatabaseException : public std::runtime_error {
@@ -88,6 +94,10 @@ namespace midikraft {
 		std::shared_ptr<AutomaticCategory> getCategorizer();
 		int getNextBitindex();
 		void updateCategories(std::vector<CategoryDefinition> const &newdefs);
+
+		std::vector<ListInfo> allPatchLists();
+		PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths);
+		void putPatchList(PatchList patchList);
 
 		// Convenience functions
 		static PatchFilter allForSynth(std::shared_ptr<Synth> synth);

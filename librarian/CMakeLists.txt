@@ -29,6 +29,7 @@ set(Sources
 	Librarian.cpp Librarian.h
 	PatchHolder.cpp PatchHolder.h
 	PatchInterchangeFormat.cpp PatchInterchangeFormat.h
+	PatchList.cpp PatchList.h
 	RapidjsonHelper.cpp RapidjsonHelper.h
 	Session.h
 	SynthHolder.cpp SynthHolder.h

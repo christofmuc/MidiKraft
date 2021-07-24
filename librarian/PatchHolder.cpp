@@ -219,7 +219,27 @@ namespace midikraft {
 		return synth_->calculateFingerprint(patch_);
 	}
 
-	void PatchHolder::setUserDecision(Category const &clicked)
+	std::string PatchHolder::createDragInfoString() const
+	{
+		// The drag info should be... synth, type, and md5
+		return synth_->getName() + "||" + String(patch_->dataTypeID()).toStdString() + "||" + md5();
+	}
+
+	std::vector<std::string> PatchHolder::dragInfoFromString(std::string s) {
+		std::vector<std::string> result;
+		size_t pos = 0;
+		std::string token;
+		std::string delimiter = "||";
+		while ((pos = s.find(delimiter)) != std::string::npos) {
+			token = s.substr(0, pos);
+			result.push_back(token);
+			s.erase(0, pos + delimiter.length());
+		}
+		result.push_back(s);
+		return result;
+	}
+
+	void PatchHolder::setUserDecision(Category const& clicked)
 	{
 		userDecisions_.insert(clicked);
 	}

@@ -75,7 +75,9 @@ namespace midikraft {
 		bool switchDatabaseFile(std::string const &newDatabaseFile, OpenMode mode);
 
 		int getPatchesCount(PatchFilter filter);
+		bool getSinglePatch(std::shared_ptr<Synth> synth, std::string const& md5, std::vector<PatchHolder>& result);
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
+
 		void getPatchesAsync(PatchFilter filter, std::function<void(PatchFilter const filteredBy, std::vector<PatchHolder> const &)> finished, int skip, int limit);
 
 		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice);
@@ -98,6 +100,7 @@ namespace midikraft {
 		std::vector<ListInfo> allPatchLists();
 		PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths);
 		void putPatchList(PatchList patchList);
+		void addPatchToList(ListInfo info, PatchHolder const& patch);
 
 		// Convenience functions
 		static PatchFilter allForSynth(std::shared_ptr<Synth> synth);

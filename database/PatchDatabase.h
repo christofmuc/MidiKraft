@@ -14,6 +14,7 @@
 #include "ProgressHandler.h"
 #include "PatchHolder.h"
 #include "PatchList.h"
+#include "PatchFilter.h"
 #include "CategoryBitfield.h"
 #include "Category.h"
 
@@ -40,18 +41,6 @@ namespace midikraft {
 
 	class PatchDatabase {
 	public:
-		struct PatchFilter {
-			std::map<std::string, std::weak_ptr<Synth>> synths;
-			std::string importID;
-			std::string name;
-			bool onlyFaves;
-			bool onlySpecifcType;
-			int typeID;
-			bool showHidden;
-			bool onlyUntagged;
-			std::set<Category> categories;
-		};
-
 		enum class OpenMode {
 			READ_ONLY,
 			READ_WRITE,
@@ -115,7 +104,5 @@ namespace midikraft {
 		ThreadPool pool_;
 	};
 
-	// Inequality operator for patch filters - this can be used to e.g. match if a database query result is for a specific filter setup
-	bool operator !=(PatchDatabase::PatchFilter const& a, PatchDatabase::PatchFilter const& b);
 
 }

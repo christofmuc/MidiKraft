@@ -10,8 +10,9 @@ project(MidiKraft-database)
 
 # Define the sources for the static library
 set(Sources
-	PatchDatabase.cpp PatchDatabase.h
 	CategoryBitfield.cpp CategoryBitfield.h
+	PatchDatabase.cpp PatchDatabase.h
+	PatchFilter.cpp PatchFilter.h
 	README.md
 	LICENSE.md
 )

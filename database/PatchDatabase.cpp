@@ -1252,7 +1252,7 @@ namespace midikraft {
 		return impl->getCategories();
 	}
 
-	midikraft::PatchDatabase::PatchFilter PatchDatabase::allForSynth(std::shared_ptr<Synth> synth)
+	midikraft::PatchFilter PatchDatabase::allForSynth(std::shared_ptr<Synth> synth)
 	{
 		PatchFilter filter;
 		filter.onlyFaves = false;
@@ -1263,7 +1263,7 @@ namespace midikraft {
 		return filter;
 	}
 
-	midikraft::PatchDatabase::PatchFilter PatchDatabase::allPatchesFilter(std::vector<std::shared_ptr<Synth>> synths)
+	midikraft::PatchFilter PatchDatabase::allPatchesFilter(std::vector<std::shared_ptr<Synth>> synths)
 	{
 		PatchFilter filter;
 		filter.onlyFaves = false;
@@ -1275,32 +1275,4 @@ namespace midikraft {
 		}
 		return filter;
 	}
-
-	bool operator!=(PatchDatabase::PatchFilter const& a, PatchDatabase::PatchFilter const& b)
-	{
-		// Check complex fields 
-		for (auto const& asynth : a.synths) {
-			if (b.synths.find(asynth.first) == b.synths.end()) {
-				return true;
-			}
-		}
-		for (auto const& bsynth : b.synths) {
-			if (a.synths.find(bsynth.first) == a.synths.end()) {
-				return true;
-			}
-		}
-
-		if (a.categories != b.categories)
-			return true;
-
-		// Then check simple fields
-		return a.importID != b.importID
-			|| a.name != b.name
-			|| a.onlyFaves != b.onlyFaves
-			|| a.onlySpecifcType != b.onlySpecifcType
-			|| a.typeID != b.typeID
-			|| a.showHidden != b.showHidden
-			|| a.onlyUntagged != b.onlyUntagged;
-	}
-
 }

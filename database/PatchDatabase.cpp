@@ -310,7 +310,7 @@ namespace midikraft {
 				int s = 0;
 				for (auto synth : filter.synths) {
 					if (s != 0) where += " OR ";
-					where += "synth = " + synthVariable(s++);
+					where += "patches.synth = " + synthVariable(s++);
 				}
 				where += " ) ";
 			}
@@ -322,6 +322,9 @@ namespace midikraft {
 				if (needsCollate) {
 					where += " COLLATE NOCASE";
 				}
+			}
+			if (!filter.listID.empty()) {
+				where += " AND patch_in_list.id = :LID";
 			}
 			if (filter.onlyFaves) {
 				where += " AND favorite == 1";
@@ -345,6 +348,14 @@ namespace midikraft {
 			return where;
 		}
 
+		std::string buildJoinClause(PatchFilter filter) {
+			// If we are also filtering for a list, we need to join the patch_in_list table!
+			if (filter.listID.empty())
+				return "";
+			else
+				return " INNER JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
+		}
+
 		std::string synthVariable(int no) {
 			// Calculate a variable name to bind the synth name to. This will blow up if you query for more than 99 synths.
 			return (boost::format(":S%02d") % no).str();
@@ -357,6 +368,9 @@ namespace midikraft {
 			}
 			if (!filter.importID.empty()) {
 				query.bind(":SID", filter.importID);
+			}
+			if (!filter.listID.empty()) {
+				query.bind(":LID", filter.listID);
 			}
 			if (!filter.name.empty()) {
 				query.bind(":NAM", "%" + filter.name + "%");
@@ -371,10 +385,12 @@ namespace midikraft {
 
 		int getPatchesCount(PatchFilter filter) {
 			try {
-				SQLite::Statement query(db_, "SELECT count(*) FROM patches" + buildWhereClause(filter, false));
+				std::string queryString = "SELECT count(*) FROM patches" + buildJoinClause(filter) + buildWhereClause(filter, false);
+				SQLite::Statement query(db_, queryString);
 				bindWhereClause(query, filter);
 				if (query.executeStep()) {
-					return query.getColumn(0).getInt();
+					int count = query.getColumn(0).getInt();
+					return count;
 				}
 			}
 			catch (SQLite::Exception& ex) {
@@ -549,7 +565,7 @@ namespace midikraft {
 		}
 
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder>& result, std::vector<std::pair<std::string, PatchHolder>>& needsReindexing, int skip, int limit) {
-			std::string selectStatement = "SELECT * FROM patches " + buildWhereClause(filter, true) + " ORDER BY sourceID, midiBankNo, midiProgramNo ";
+			std::string selectStatement = "SELECT * FROM patches " + buildJoinClause(filter) + buildWhereClause(filter, true) + " ORDER BY sourceID, midiBankNo, midiProgramNo ";
 			if (limit != -1) {
 				selectStatement += " LIMIT :LIM ";
 				selectStatement += " OFFSET :OFS";

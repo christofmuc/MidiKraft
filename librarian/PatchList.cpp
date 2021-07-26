@@ -16,6 +16,11 @@ namespace midikraft {
 	{
 	}
 
+	std::string PatchList::id() const
+	{
+		return id_;
+	}
+
 	std::string PatchList::name() const
 	{
 		return name_;

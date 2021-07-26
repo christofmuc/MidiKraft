@@ -15,6 +15,7 @@ namespace midikraft {
 		PatchList(std::string const& name);
 		PatchList(std::string const& id, std::string const &name);
 		
+		std::string id() const;
 		std::string name() const;
 		void setName(std::string const& new_name);
 

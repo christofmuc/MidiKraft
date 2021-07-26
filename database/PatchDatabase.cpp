@@ -1078,10 +1078,21 @@ namespace midikraft {
 		void putPatchList(PatchList patchList)
 		{
 			try {
-				SQLite::Statement insert(db_, "INSERT INTO lists (id, name) VALUES (:ID, :NAM)");
-				insert.bind(":ID", patchList.id());
-				insert.bind(":NAM", patchList.name());
-				insert.exec();
+				// Check if it exists
+				SQLite::Statement search(db_, "SELECT * FROM lists WHERE id = :ID");
+				search.bind(":ID", patchList.id());
+				if (search.executeStep()) {
+					SQLite::Statement update(db_, "UPDATE lists SET name = :NAM WHERE id = :ID");
+					update.bind(":ID", patchList.id());
+					update.bind(":NAM", patchList.name());
+					update.exec();
+				}
+				else {
+					SQLite::Statement insert(db_, "INSERT INTO lists (id, name) VALUES (:ID, :NAM)");
+					insert.bind(":ID", patchList.id());
+					insert.bind(":NAM", patchList.name());
+					insert.exec();
+				}
 			}
 			catch (SQLite::Exception& ex) {
 				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in putPatchList: SQL Exception %s") % ex.what()).str());

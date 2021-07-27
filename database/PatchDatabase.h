@@ -89,6 +89,7 @@ namespace midikraft {
 		std::vector<ListInfo> allPatchLists();
 		PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths);
 		void putPatchList(PatchList patchList);
+		void deletePatchlist(ListInfo info);
 		void addPatchToList(ListInfo info, PatchHolder const& patch);
 
 		// Convenience functions

@@ -213,8 +213,8 @@ namespace midikraft {
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
 			}
 			if (!db_.tableExists("lists")) {
-				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT UNIQUE NOT NULL, name TEXT)");
-				db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT, synth TEXT, md5 TEXT, order_num INTEGER NOT NULL, FOREIGN KEY(id) REFERENCES lists(id))");
+				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL)");
+				db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL)");
 			}
 
 			// Commit transaction
@@ -1099,6 +1099,20 @@ namespace midikraft {
 			}
 		}
 
+		void deletePatchlist(ListInfo info) {
+			try {
+				SQLite::Statement deleteMembers(db_, "DELETE FROM patch_in_list WHERE id = :ID");
+				deleteMembers.bind(":ID", info.id);
+				deleteMembers.exec();
+				SQLite::Statement deleteIt(db_, "DELETE FROM lists WHERE id = :ID");
+				deleteIt.bind(":ID", info.id);
+				deleteIt.exec();
+			}
+			catch (SQLite::Exception& ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatchlist: SQL Exception %s") % ex.what()).str());
+			}
+		}
+
 
 	private:
 		SQLite::Database db_;
@@ -1205,6 +1219,11 @@ namespace midikraft {
 	void PatchDatabase::putPatchList(PatchList patchList)
 	{
 		impl->putPatchList(patchList);
+	}
+
+	void PatchDatabase::deletePatchlist(ListInfo info)
+	{
+		impl->deletePatchlist(info);
 	}
 
 	void PatchDatabase::addPatchToList(ListInfo info, PatchHolder const& patch)

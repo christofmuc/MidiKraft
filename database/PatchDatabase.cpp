@@ -214,7 +214,9 @@ namespace midikraft {
 			}
 			if (!db_.tableExists("lists")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL)");
-				db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL)");
+			}
+			if (!db_.tableExists("patch_in_list")) {
+					db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL)");
 			}
 
 			// Commit transaction

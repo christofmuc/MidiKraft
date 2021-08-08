@@ -883,8 +883,18 @@ namespace midikraft {
 
 		int deletePatches(PatchFilter filter) {
 			try {
-				// Build a delete query
-				std::string deleteStatement = "DELETE FROM patches " + buildWhereClause(filter, false);
+				// Build a delete query. If we delete a whole list's content, we cannot use a join clause like in the select, 
+				// but need to transform into a where exists clause :-(
+				std::string deleteStatement;
+				if (filter.listID.empty()) {
+					deleteStatement = "DELETE FROM patches " + buildWhereClause(filter, false);
+				} 
+				else {
+					// https://stackoverflow.com/questions/24511153/how-delete-table-inner-join-with-other-table-in-sqlite
+					// This wouldn't work for buildWhereClause during delete
+					deleteStatement = "DELETE FROM patches WHERE ROWID IN (SELECT patches.ROWID FROM patches "
+						+ buildJoinClause(filter) + buildWhereClause(filter, false) + ")";
+				}
 				SQLite::Statement query(db_, deleteStatement.c_str());
 				bindWhereClause(query, filter);
 

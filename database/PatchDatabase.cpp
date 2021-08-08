@@ -1077,6 +1077,19 @@ namespace midikraft {
 			}
 		}
 
+		void removePatchFromList(std::string const& list_id, std::string const& synth_name, std::string const& md5) {
+			try {
+				SQLite::Statement removeIt(db_, "DELETE FROM patch_in_list WHERE id = :ID AND synth = :SYN AND md5 = :MD5");
+				removeIt.bind(":ID", list_id);
+				removeIt.bind(":SYN", synth_name);
+				removeIt.bind(":MD5", md5);
+				removeIt.exec();
+			}
+			catch (SQLite::Exception& ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in removePatchFromList: SQL Exception %s") % ex.what()).str());
+			}
+		}
+
 		void putPatchList(PatchList patchList)
 		{
 			try {
@@ -1231,6 +1244,11 @@ namespace midikraft {
 	void PatchDatabase::addPatchToList(ListInfo info, PatchHolder const& patch)
 	{
 		impl->addPatchToList(info, patch);
+	}
+
+	void PatchDatabase::removePatchFromList(std::string const& list_id, std::string const& synth_name, std::string const& md5)
+	{
+		impl->removePatchFromList(list_id, synth_name, md5);
 	}
 
 	int PatchDatabase::deletePatches(PatchFilter filter)

@@ -17,6 +17,7 @@
 #include <boost/format.hpp>
 
 #include "RapidjsonHelper.h"
+#include "nlohmann/json.hpp"
 
 namespace midikraft {
 
@@ -221,22 +222,25 @@ namespace midikraft {
 
 	std::string PatchHolder::createDragInfoString() const
 	{
-		// The drag info should be... synth, type, and md5
-		return synth_->getName() + "||" + String(patch_->dataTypeID()).toStdString() + "||" + md5();
+		// The drag info should be... "PATCH", synth, type, and md5
+		nlohmann::json dragInfo = {
+			{ "drag_type", "PATCH"},
+			{ "synth", synth_->getName() },
+			{ "data_type", patch_->dataTypeID()},
+			{ "patch_name", patch_->name()},
+			{ "md5", md5() }
+		};
+		return dragInfo.dump();
 	}
 
-	std::vector<std::string> PatchHolder::dragInfoFromString(std::string s) {
-		std::vector<std::string> result;
-		size_t pos = 0;
-		std::string token;
-		std::string delimiter = "||";
-		while ((pos = s.find(delimiter)) != std::string::npos) {
-			token = s.substr(0, pos);
-			result.push_back(token);
-			s.erase(0, pos + delimiter.length());
+	nlohmann::json PatchHolder::dragInfoFromString(std::string s) {
+		try {
+			return nlohmann::json::parse(s);
 		}
-		result.push_back(s);
-		return result;
+		catch (nlohmann::json::parse_error& e) {
+			SimpleLogger::instance()->postMessage("Error parsing drop target: " + String(e.what()));
+			return {};
+		}
 	}
 
 	void PatchHolder::setUserDecision(Category const& clicked)

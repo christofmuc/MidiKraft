@@ -11,6 +11,7 @@
 #include "Patch.h"
 #include "MidiBankNumber.h"
 #include "AutomaticCategory.h"
+#include "nlohmann/json.hpp"
 
 #include <set>
 
@@ -129,7 +130,7 @@ namespace midikraft {
 		
 		std::string md5() const;
 		std::string createDragInfoString() const;
-		static std::vector<std::string> dragInfoFromString(std::string s);
+		static nlohmann::json dragInfoFromString(std::string s);
 
 	private:
 		std::shared_ptr<DataFile> patch_;

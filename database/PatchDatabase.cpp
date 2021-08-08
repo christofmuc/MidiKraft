@@ -890,6 +890,10 @@ namespace midikraft {
 
 				// Execute
 				int rowsDeleted = query.exec();
+
+				// Make sure there are no orphans left in any patch list
+				removeAllOrphansFromPatchLists();
+
 				return rowsDeleted;
 			}
 			catch (SQLite::Exception& ex) {
@@ -910,6 +914,10 @@ namespace midikraft {
 					// Execute
 					rowsDeleted += query.exec();
 				}
+
+				// Make sure there are no orphans left in any patch list
+				removeAllOrphansFromPatchLists();
+
 				return rowsDeleted;
 			}
 			catch (SQLite::Exception& ex) {
@@ -1125,6 +1133,17 @@ namespace midikraft {
 			}
 			catch (SQLite::Exception& ex) {
 				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatchlist: SQL Exception %s") % ex.what()).str());
+			}
+		}
+
+		void removeAllOrphansFromPatchLists() {
+			try {
+				SQLite::Statement cleanupPatchLists(db_, 
+					"delete from patch_in_list as pil where not exists(select * from patches as p where p.md5 = pil.md5 and p.synth = pil.synth)");
+				cleanupPatchLists.exec();
+			}
+			catch (SQLite::Exception& ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in removeAllOrphansFromPatchLists: SQL Exception %s") % ex.what()).str());
 			}
 		}
 

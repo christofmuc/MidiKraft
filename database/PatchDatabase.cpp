@@ -1238,6 +1238,11 @@ namespace midikraft {
 		return impl->deletePatches(filter);
 	}
 
+	int PatchDatabase::deletePatches(std::string const& synth, std::vector<std::string> const& md5s)
+	{
+		return impl->deletePatches(synth, md5s);
+	}
+
 	int PatchDatabase::reindexPatches(PatchFilter filter)
 	{
 		return impl->reindexPatches(filter);

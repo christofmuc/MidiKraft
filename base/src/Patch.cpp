@@ -7,7 +7,6 @@
 #include "Patch.h"
 
 #include "SynthParameterDefinition.h"
-#include "LayeredPatchCapability.h"
 
 #include <boost/format.hpp>
 
@@ -44,7 +43,7 @@ namespace midikraft {
 
 	int DataFile::at(int sysExIndex) const
 	{
-		return data_.at(sysExIndex);
+		return data_.at((size_t) sysExIndex);
 	}
 
 	void DataFile::setAt(int sysExIndex, uint8 value)

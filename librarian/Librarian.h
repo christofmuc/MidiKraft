@@ -62,11 +62,13 @@ namespace midikraft {
 		void clearHandlers();
 
 	private:
+		void startDownloadNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth);
 		void startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth);
 		void startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier);
 		void handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &message, StreamLoadCapability::StreamType streamType);
 		void handleNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
-		void handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &bankDump, MidiBankNumber bankNo);
+		void handleNextProgramBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& editBuffer, MidiBankNumber bankNo);
+		void handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& bankDump, MidiBankNumber bankNo);
 
 		std::vector<PatchHolder> tagPatchesWithImportFromSynth(std::shared_ptr<Synth> synth, TPatchVector &patches, MidiBankNumber bankNo);
 		void tagPatchesWithMultiBulkImport(std::vector<PatchHolder> &patches);
@@ -75,6 +77,8 @@ namespace midikraft {
 
 		std::vector<SynthHolder> synths_;
 		std::vector<MidiMessage> currentDownload_;
+		std::vector<MidiMessage> currentEditBuffer_;
+		std::vector<MidiMessage> currentProgramDump_;
 		MidiBankNumber currentDownloadBank_;
 		std::stack<MidiController::HandlerHandle> handles_;
 		TFinishedHandler onFinished_;

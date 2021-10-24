@@ -148,15 +148,33 @@ namespace midikraft {
 		}
 		else {
 			// Uh, stone age, need to start a loop
-			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput *source, const juce::MidiMessage &editBuffer) {
-				ignoreUnused(source);
-				this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, bankNo);
-			});
-			handles_.push(handle);
-			downloadNumber_ = bankNo.toZeroBased() * synth->numberOfPatches();
-			startDownloadNumber_ = downloadNumber_;
-			endDownloadNumber_ = downloadNumber_ + synth->numberOfPatches() - 1;
-			startDownloadNextPatch(midiOutput, synth);
+			auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
+			auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
+			if (programDumpCapability) {
+				MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput* source, const juce::MidiMessage& editBuffer) {
+					ignoreUnused(source);
+					this->handleNextProgramBuffer(midiOutput, synth, progressHandler, editBuffer, bankNo);
+				});
+				handles_.push(handle);
+				downloadNumber_ = bankNo.toZeroBased() * synth->numberOfPatches();
+				startDownloadNumber_ = downloadNumber_;
+				endDownloadNumber_ = downloadNumber_ + synth->numberOfPatches() - 1;
+				startDownloadNextPatch(midiOutput, synth);
+			}
+			else if (editBufferCapability) {
+				MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput* source, const juce::MidiMessage& editBuffer) {
+					ignoreUnused(source);
+					this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, bankNo);
+				});
+				handles_.push(handle);
+				downloadNumber_ = bankNo.toZeroBased() * synth->numberOfPatches();
+				startDownloadNumber_ = downloadNumber_;
+				endDownloadNumber_ = downloadNumber_ + synth->numberOfPatches() - 1;
+				startDownloadNextEditBuffer(midiOutput, synth);
+			}
+			else {
+				SimpleLogger::instance()->postMessage("Error: This synth has not implemented a single method to retrieve a bank. Please consult the documentation!");
+			}
 		}
 	}
 
@@ -196,7 +214,7 @@ namespace midikraft {
 			startDownloadNumber_ = 0;
 			endDownloadNumber_ = 0;
 			auto message = editBufferCapability->requestEditBufferDump();
-			midiOutput->sendMessageNow(message);
+			synth->sendBlockOfMessagesToSynth(midiOutput->name(), message);
 		}
 		else if (programDumpCapability && programChangeCapability) {
 			auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
@@ -617,27 +635,44 @@ namespace midikraft {
 		}
 	}
 
-	void Librarian::startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth) {
-		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
-		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
-
+	void Librarian::startDownloadNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth) {
 		// Get all commands
 		std::vector<MidiMessage> messages;
-		if (programDumpCapability) {
-			messages = programDumpCapability->requestPatch(downloadNumber_);
-		}
-		else if (editBufferCapability) {
-			//messages.push_back(MidiMessage::controllerEvent(synth->channel().toOneBasedInt(), 32, bankNo));
+		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
+		if (editBufferCapability) {
+			currentEditBuffer_.clear();
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(synth);
-			assert(midiLocation);
 			if (midiLocation) {
 				messages.push_back(MidiMessage::programChange(midiLocation->channel().toOneBasedInt(), downloadNumber_));
-				messages.push_back(editBufferCapability->requestEditBufferDump());
+				auto requestMessages = editBufferCapability->requestEditBufferDump();
+				std::copy(requestMessages.cbegin(), requestMessages.cend(), std::back_inserter(messages));
+			}
+			else {
+				SimpleLogger::instance()->postMessage("Error: Can't send to synth because no MIDI location implemented for it");
 			}
 		}
 		else {
 			SimpleLogger::instance()->postMessage("Failure: This synth does not implement any valid capability to start downloading a full bank");
 			downloadNumber_ = endDownloadNumber_; 
+		}
+
+		// Send messages
+		if (!messages.empty()) {
+			synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+		}
+	}
+
+	void Librarian::startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth) {
+		// Get all commands
+		std::vector<MidiMessage> messages;
+		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
+		if (programDumpCapability) {
+			currentProgramDump_.clear();
+			messages = programDumpCapability->requestPatch(downloadNumber_);
+		}		
+		else {
+			SimpleLogger::instance()->postMessage("Failure: This synth does not implement any valid capability to start downloading a full bank");
+			downloadNumber_ = endDownloadNumber_;
 		}
 
 		// Send messages
@@ -694,11 +729,45 @@ namespace midikraft {
 
 	void Librarian::handleNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo) {
 		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
+		// This message might be a part of a multi-message program dump?
+		if (editBufferCapability && editBufferCapability->isMessagePartOfEditBuffer(editBuffer)) {
+			currentEditBuffer_.push_back(editBuffer);
+			if (editBufferCapability->isEditBufferDump(currentEditBuffer_)) {
+				// Ok, that worked, save it and continue!
+				currentDownload_.push_back(MidiMessage(editBuffer));
+
+				// Finished?
+				if (downloadNumber_ >= endDownloadNumber_) {
+					clearHandlers();
+					auto patches = synth->loadSysex(currentDownload_);
+					onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
+					if (progressHandler) progressHandler->onSuccess();
+				}
+				else if (progressHandler->shouldAbort()) {
+					clearHandlers();
+					if (progressHandler) progressHandler->onCancel();
+				}
+				else {
+					downloadNumber_++;
+					startDownloadNextEditBuffer(midiOutput, synth);
+					if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)synth->numberOfPatches());
+				}
+			}
+		}
+		else {
+			// Ignore message
+		}
+	}
+
+	void Librarian::handleNextProgramBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& editBuffer, MidiBankNumber bankNo) {
 		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
-		if ((editBufferCapability  && editBufferCapability->isEditBufferDump(editBuffer)) ||
-			(programDumpCapability && programDumpCapability->isSingleProgramDump(editBuffer))) {
+		// This message might be a part of a multi-message program dump?
+		if (programDumpCapability->isMessagePartOfProgramDump(editBuffer)) {
+			currentProgramDump_.push_back(editBuffer);
+		}
+		if (programDumpCapability && programDumpCapability->isSingleProgramDump(currentProgramDump_)) {
 			// Ok, that worked, save it and continue!
-			currentDownload_.push_back(MidiMessage(editBuffer));
+			std::copy(currentProgramDump_.begin(), currentProgramDump_.end(), std::back_inserter(currentDownload_));
 
 			// Finished?
 			if (downloadNumber_ >= endDownloadNumber_) {
@@ -716,11 +785,6 @@ namespace midikraft {
 				startDownloadNextPatch(midiOutput, synth);
 				if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)synth->numberOfPatches());
 			}
-		}
-		else {
-			// Ignore message
-			//TODO we could add an echo check here, as e.g. the MKS80 is prone to just echo out everything you sent to it, you'd end up here.
-			/*jassert(false);*/
 		}
 	}
 

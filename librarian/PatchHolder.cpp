@@ -17,6 +17,7 @@
 #include <boost/format.hpp>
 
 #include "RapidjsonHelper.h"
+#include "nlohmann/json.hpp"
 
 namespace midikraft {
 
@@ -219,7 +220,30 @@ namespace midikraft {
 		return synth_->calculateFingerprint(patch_);
 	}
 
-	void PatchHolder::setUserDecision(Category const &clicked)
+	std::string PatchHolder::createDragInfoString() const
+	{
+		// The drag info should be... "PATCH", synth, type, and md5
+		nlohmann::json dragInfo = {
+			{ "drag_type", "PATCH"},
+			{ "synth", synth_->getName() },
+			{ "data_type", patch_->dataTypeID()},
+			{ "patch_name", patch_->name()},
+			{ "md5", md5() }
+		};
+		return dragInfo.dump();
+	}
+
+	nlohmann::json PatchHolder::dragInfoFromString(std::string s) {
+		try {
+			return nlohmann::json::parse(s);
+		}
+		catch (nlohmann::json::parse_error& e) {
+			SimpleLogger::instance()->postMessage("Error parsing drop target: " + String(e.what()));
+			return {};
+		}
+	}
+
+	void PatchHolder::setUserDecision(Category const& clicked)
 	{
 		userDecisions_.insert(clicked);
 	}

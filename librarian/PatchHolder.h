@@ -11,6 +11,7 @@
 #include "Patch.h"
 #include "MidiBankNumber.h"
 #include "AutomaticCategory.h"
+#include "nlohmann/json.hpp"
 
 #include <set>
 
@@ -128,7 +129,9 @@ namespace midikraft {
 		bool autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector); // Returns true if categories have changed!
 		
 		std::string md5() const;
-		
+		std::string createDragInfoString() const;
+		static nlohmann::json dragInfoFromString(std::string s);
+
 	private:
 		std::shared_ptr<DataFile> patch_;
 		std::shared_ptr<Synth> synth_;

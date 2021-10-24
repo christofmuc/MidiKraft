@@ -14,10 +14,13 @@ namespace midikraft {
 
 	class EditBufferCapability {
 	public:
-		virtual MidiMessage requestEditBufferDump() const = 0;
-		virtual bool isEditBufferDump(const MidiMessage& message) const = 0;
+		virtual std::vector<MidiMessage> requestEditBufferDump() const = 0;
+		virtual bool isEditBufferDump(const std::vector<MidiMessage> & message) const = 0;
+		virtual bool isMessagePartOfEditBuffer(const MidiMessage& message) const {
+			return isEditBufferDump({ message });
+		}
 
-		virtual std::shared_ptr<DataFile> patchFromSysex(const MidiMessage& message) const = 0;
+		virtual std::shared_ptr<DataFile> patchFromSysex(const std::vector<MidiMessage>& message) const = 0;
 		virtual std::vector<MidiMessage> patchToSysex(std::shared_ptr<DataFile> patch) const = 0;
 
 		virtual MidiMessage saveEditBufferToProgram(int programNumber) = 0;

@@ -11,7 +11,7 @@
 
 namespace midikraft {
 
-	midikraft::MidiRequest::MidiRequest(std::string const &midiOutput, MidiMessage const &request, TIsAnswerPredicate pred) : output_(midiOutput), request_(request), pred_(pred)
+	midikraft::MidiRequest::MidiRequest(std::string const &midiOutput, std::vector<MidiMessage> const &request, TIsAnswerPredicate pred) : output_(midiOutput), request_(request), pred_(pred)
 	{
 	}
 
@@ -40,7 +40,7 @@ namespace midikraft {
 				answered = true;
 			}
 		});
-		midikraft::MidiController::instance()->getMidiOutput(output_)->sendMessageNow(request_);
+		midikraft::MidiController::instance()->getMidiOutput(output_)->sendBlockOfMessagesFullSpeed(request_);
 		try {
 			blockUntilTrue([&answered]() { return answered; });
 			midikraft::MidiController::instance()->removeMessageHandler(handler);

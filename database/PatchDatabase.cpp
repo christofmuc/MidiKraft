@@ -992,8 +992,8 @@ namespace midikraft {
 			categoryDefinitions_ = getCategories();
 
 			// Now we need to merge the database persisted categories with the ones defined in the automatic categories from the json string
-			bool exists = false;
 			for (auto cat : categoryDefinitions_) {
+				bool exists = false;
 				for (auto rule : categorizer->loadedRules()) {
 					if (cat.category() == rule.category().category()) {
 						// Copy the rules

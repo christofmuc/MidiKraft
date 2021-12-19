@@ -230,7 +230,7 @@ namespace midikraft {
 			{ "patch_name", patch_->name()},
 			{ "md5", md5() }
 		};
-		return dragInfo.dump();
+		return dragInfo.dump(-1, ' ', true, nlohmann::detail::error_handler_t::replace); // Force ASCII, else we get UTF8 exceptions when using some old synths data. Like the MKS50...
 	}
 
 	nlohmann::json PatchHolder::dragInfoFromString(std::string s) {

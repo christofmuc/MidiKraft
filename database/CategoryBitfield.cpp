@@ -22,10 +22,14 @@ namespace midikraft {
 		for (int i = 0; i < 63; i++) {
 			if (bitfield & (1LL << i)) {
 				// This bit is set, find the category that has this bitindex
-				if (i < bitNames_.size()) {
-					cats.insert(Category(bitNames_[i]));
+				bool found = false;
+				for (auto bit : bitNames_) {
+					if (i == bit->id) {
+						found = true;
+						cats.insert(Category(bit));
+					}
 				}
-				else {
+				if (!found) {
 					jassertfalse;
 				}
 			}

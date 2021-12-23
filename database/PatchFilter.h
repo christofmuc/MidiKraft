@@ -23,6 +23,7 @@ namespace midikraft {
 		bool showHidden;
 		bool onlyUntagged;
 		std::set<Category> categories;
+		bool onlyDuplicateNames;
 	};
 
 	// Inequality operator for patch filters - this can be used to e.g. match if a database query result is for a specific filter setup

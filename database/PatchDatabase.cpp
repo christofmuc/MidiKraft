@@ -347,15 +347,33 @@ namespace midikraft {
 				// a concat on sub-query, so we're running into more complex SQL territory here.
 				where += " AND (categories & :CAT != 0)";
 			}
+			if (filter.onlyDuplicateNames) {
+				where += " AND (name_count > 1)";
+			}
 			return where;
+		}
+
+		std::string buildOrderClause(PatchFilter filter) {
+			std::string orderByClause = "";
+			if (filter.onlyDuplicateNames) {
+				orderByClause = " ORDER BY name, midiBankNo, midiProgramNo ";
+			}
+			else {
+				orderByClause = " ORDER BY sourceID, midiBankNo, midiProgramNo ";
+			}
+			return orderByClause;
 		}
 
 		std::string buildJoinClause(PatchFilter filter) {
 			// If we are also filtering for a list, we need to join the patch_in_list table!
-			if (filter.listID.empty())
-				return "";
-			else
-				return " INNER JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
+			std::string joinClause = "";
+			if (!filter.listID.empty()) {
+				joinClause += " INNER JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
+			}
+			if (filter.onlyDuplicateNames) {
+				joinClause += " JOIN (select name, synth, count(*) as name_count from patches group by name, synth) as ordinal_table on patches.name = ordinal_table.name and patches.synth = ordinal_table.synth";
+			}
+			return joinClause;
 		}
 
 		std::string synthVariable(int no) {
@@ -567,7 +585,7 @@ namespace midikraft {
 		}
 
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder>& result, std::vector<std::pair<std::string, PatchHolder>>& needsReindexing, int skip, int limit) {
-			std::string selectStatement = "SELECT * FROM patches " + buildJoinClause(filter) + buildWhereClause(filter, true) + " ORDER BY sourceID, midiBankNo, midiProgramNo ";
+			std::string selectStatement = "SELECT * FROM patches " + buildJoinClause(filter) + buildWhereClause(filter, true) + buildOrderClause(filter);
 			if (limit != -1) {
 				selectStatement += " LIMIT :LIM ";
 				selectStatement += " OFFSET :OFS";
@@ -1367,8 +1385,9 @@ namespace midikraft {
 		filter.onlyFaves = false;
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;
-		filter.showHidden = true;
+		filter.showHidden = false;
 		filter.synths.emplace(synth->getName(), synth);
+		filter.onlyDuplicateNames = false;
 		return filter;
 	}
 
@@ -1378,10 +1397,11 @@ namespace midikraft {
 		filter.onlyFaves = false;
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;
-		filter.showHidden = true;
+		filter.showHidden = false;
 		for (auto const& synth : synths) {
 			filter.synths.emplace(synth->getName(), synth);
 		}
+		filter.onlyDuplicateNames = false;
 		return filter;
 	}
 }

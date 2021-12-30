@@ -1114,14 +1114,21 @@ namespace midikraft {
 			return list;
 		}
 
-		void addPatchToList(ListInfo info, PatchHolder const& patch) {
+		void addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex) {
 			try {
+				SQLite::Transaction transaction(db_);
+				// First make room by moving existing items up
+				SQLite::Statement update(db_, "UPDATE patch_in_list SET order_num = order_num + 1 WHERE id = :ID AND order_num >= :ONO");
+				update.bind(":ID", info.id);
+				update.bind(":ONO", insertIndex);
+				update.exec();
 				SQLite::Statement insert(db_, "INSERT INTO patch_in_list (id, synth, md5, order_num) VALUES (:ID, :SYN, :MD5, :ONO)");
 				insert.bind(":ID", info.id);
 				insert.bind(":SYN", patch.smartSynth()->getName());
 				insert.bind(":MD5", patch.md5());
-				insert.bind(":ONO", 0);
+				insert.bind(":ONO", insertIndex);
 				insert.exec();
+				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
 				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in addPatchToList: SQL Exception %s") % ex.what()).str());
@@ -1303,9 +1310,9 @@ namespace midikraft {
 		impl->deletePatchlist(info);
 	}
 
-	void PatchDatabase::addPatchToList(ListInfo info, PatchHolder const& patch)
+	void PatchDatabase::addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex)
 	{
-		impl->addPatchToList(info, patch);
+		impl->addPatchToList(info, patch, insertIndex);
 	}
 
 	void PatchDatabase::removePatchFromList(std::string const& list_id, std::string const& synth_name, std::string const& md5)

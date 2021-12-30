@@ -33,7 +33,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 6;
+	const int SCHEMA_VERSION = 7;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -166,6 +166,21 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 6");
 				transaction.commit();
 			}
+			if (currentVersion < 7) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				if (!db_.tableExists("lists")) {
+					db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL)");
+				}
+				if (!db_.tableExists("patch_in_list")) {
+					db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL)");
+				}
+				// Bonus upgrade - should this be a database from the early lists experiments, the order_num column is empty and it needs to be calculated!
+				db_.exec("WITH po AS (SELECT *, ROW_NUMBER() OVER(PARTITION BY id) -1 AS new_order FROM patch_in_list) "
+					"UPDATE patch_in_list AS pl SET order_num = (SELECT new_order FROM po WHERE pl.id = po.id AND pl.synth = po.synth AND pl.md5 = po.md5)");
+				db_.exec("UPDATE schema_version SET number = 7");
+				transaction.commit();
+			}
 		}
 
 		void insertDefaultCategories() {
@@ -216,7 +231,7 @@ namespace midikraft {
 				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL)");
 			}
 			if (!db_.tableExists("patch_in_list")) {
-					db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL)");
+				db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL)");
 			}
 
 			// Commit transaction

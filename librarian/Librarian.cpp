@@ -83,7 +83,7 @@ namespace midikraft {
 			handles_.push(handle);
 			currentDownloadBank_ = bankNo;
 			auto messages = streamLoading->requestStreamElement(bankNo.toZeroBased(), StreamLoadCapability::StreamType::BANK_DUMP);
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		}
 		else if (handshakeLoadingRequired) {
 			// These are proper protocols that are implemented - each message we get from the synth has to be answered by an appropriate next message
@@ -98,7 +98,7 @@ namespace midikraft {
 					}
 					// Send an answer if the handshake handler constructed one
 					if (!answer.empty()) {
-						synth->sendBlockOfMessagesToSynth(midiOutput->name(), answer);
+						synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), answer);
 					}
 					// Update progress handler
 					progressHandler->setProgressPercentage(state->progress());
@@ -128,9 +128,9 @@ namespace midikraft {
 			// This is a mixture - you send one message (bank request), and then you get either one message back (like Kawai K3) or a stream of messages with
 			// one message per patch (e.g. Access Virus or Matrix1000)
 			auto buffer = bankCapableSynth->requestBankDump(bankNo);
-			std::string outname = midiOutput->name();
-			RunWithRetry::start([this, synth, outname, buffer]() {
-					synth->sendBlockOfMessagesToSynth(outname, buffer);
+			auto outDevice = midiOutput->deviceInfo();
+			RunWithRetry::start([this, synth, outDevice, buffer]() {
+					synth->sendBlockOfMessagesToSynth(outDevice, buffer);
 					}, 
 				[this]() {
 					return currentDownload_.empty();
@@ -185,7 +185,7 @@ namespace midikraft {
 			handles_.push(handle);
 			currentDownload_.clear();
 			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP);
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		} else if (editBufferCapability) {
 			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
@@ -200,7 +200,7 @@ namespace midikraft {
 		}
 		else if (programDumpCapability && programChangeCapability) {
 			auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		}
 		else {
 			SimpleLogger::instance()->postMessage("The " + synth->getName() + " has no way to request the edit buffer or program place");
@@ -642,7 +642,7 @@ namespace midikraft {
 
 		// Send messages
 		if (!messages.empty()) {
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		}
 	}
 
@@ -651,7 +651,7 @@ namespace midikraft {
 		// If this is a synth, it has a throttled send method
 		auto synth = dynamic_cast<Synth *>(sequencer);
 		if (synth) {
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), request);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), request);
 		}
 		else {
 			// This is not a synth... fall back to old behavior
@@ -682,7 +682,7 @@ namespace midikraft {
 				else if (streamLoading->shouldStreamAdvance(currentDownload_, streamType)) {
 					downloadNumber_++;
 					auto messages = streamLoading->requestStreamElement(downloadNumber_, streamType);
-					synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+					synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 					if (progressTotal == -1 && progressHandler) progressHandler->setProgressPercentage(downloadNumber_ / (double)synth->numberOfPatches());
 				}
 			}

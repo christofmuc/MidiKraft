@@ -1135,13 +1135,49 @@ namespace midikraft {
 			}
 		}
 
+		void renumList(std::string const& list_id) {
+			// Call this within a transaction!
+			SQLite::Statement renum(db_, "WITH po AS (SELECT*, ROW_NUMBER() OVER(order by order_num) - 1 AS new_order FROM patch_in_list WHERE id = :ID) "
+				"UPDATE patch_in_list AS pl SET order_num = (SELECT new_order FROM po WHERE pl.synth = po.synth AND pl.md5 = po.md5) where id = :ID");
+			renum.bind(":ID", list_id);
+			renum.exec();
+		}
+
+		void movePatchInList(ListInfo info, PatchHolder const& patch, int previousIndex, int newIndex) {
+			try {
+				SQLite::Transaction transaction(db_);
+				// First make room by moving existing items up
+				SQLite::Statement update(db_, "UPDATE patch_in_list SET order_num = order_num + 1 WHERE id = :ID AND order_num >= :ONO");
+				update.bind(":ID", info.id);
+				update.bind(":ONO", newIndex);
+				update.exec();
+				// Now update the existing element at the previous index at put it at the new Index
+				SQLite::Statement update2(db_, "UPDATE patch_in_list SET order_num = :ONO WHERE id = :ID AND synth = :SYN AND md5 = :MD5 AND order_num = :INC");
+				update2.bind(":ID", info.id);
+				update2.bind(":SYN", patch.smartSynth()->getName());
+				update2.bind(":MD5", patch.md5());
+				update2.bind(":INC", newIndex > previousIndex ? previousIndex : previousIndex+1);
+				update2.bind(":ONO", newIndex);
+				update2.exec();
+				// Then we may have created a gap in the list, so just renum the whole list
+				renumList(info.id);
+				transaction.commit();
+			}
+			catch (SQLite::Exception& ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in addPatchToList: SQL Exception %s") % ex.what()).str());
+			}
+		}
+
 		void removePatchFromList(std::string const& list_id, std::string const& synth_name, std::string const& md5) {
 			try {
+				SQLite::Transaction transaction(db_);
 				SQLite::Statement removeIt(db_, "DELETE FROM patch_in_list WHERE id = :ID AND synth = :SYN AND md5 = :MD5");
 				removeIt.bind(":ID", list_id);
 				removeIt.bind(":SYN", synth_name);
 				removeIt.bind(":MD5", md5);
 				removeIt.exec();
+				renumList(list_id);
+				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
 				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in removePatchFromList: SQL Exception %s") % ex.what()).str());
@@ -1313,6 +1349,11 @@ namespace midikraft {
 	void PatchDatabase::addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex)
 	{
 		impl->addPatchToList(info, patch, insertIndex);
+	}
+
+	void PatchDatabase::movePatchInList(ListInfo info, PatchHolder const& patch, int previousIndex, int newIndex)
+	{
+		impl->movePatchInList(info, patch, previousIndex, newIndex);
 	}
 
 	void PatchDatabase::removePatchFromList(std::string const& list_id, std::string const& synth_name, std::string const& md5)

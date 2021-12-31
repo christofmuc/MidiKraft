@@ -92,6 +92,7 @@ namespace midikraft {
 		void putPatchList(PatchList patchList);
 		void deletePatchlist(ListInfo info);
 		void addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex);
+		void movePatchInList(ListInfo info, PatchHolder const& patch, int previousIndex, int newIndex);
 		void removePatchFromList(std::string const &list_id, std::string const &synth_name, std::string const &md5);
 
 		// Convenience functions

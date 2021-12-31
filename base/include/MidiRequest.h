@@ -15,13 +15,13 @@ namespace midikraft {
 	public:
 		typedef std::function<bool(MidiMessage const &)> TIsAnswerPredicate;
 
-		MidiRequest(std::string const &midiOutput, MidiMessage const &request, TIsAnswerPredicate pred);
+		MidiRequest(juce::MidiDeviceInfo const &midiOutput, MidiMessage const &request, TIsAnswerPredicate pred);
 		MidiMessage blockForReply();
 
 		static void blockUntilTrue(std::function<bool()> pred, int timeOutInMilliseconds = 2000);
 
 	private:
-		std::string output_;
+		juce::MidiDeviceInfo output_;
 		MidiMessage request_;
 		TIsAnswerPredicate pred_;
 	};

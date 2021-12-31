@@ -64,11 +64,11 @@ namespace midikraft {
 				if (!checkSynth(synth)) {
 					SimpleLogger::instance()->postMessage(
 						(boost::format("Lost communication with %s on channel %d of device %s - please rerun auto-detect synths!")
-							% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
+							% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput().name).str());
 				}
 				else {
 					SimpleLogger::instance()->postMessage((boost::format("Detected %s on channel %d of device %s") 
-						% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
+						% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput().name).str());
 				}
 		}
 		}
@@ -81,16 +81,16 @@ namespace midikraft {
 		if (synth->channel().isValid()) {
 			Settings::instance().set(midiSetupKey(synth, kChannel), (boost::format("%d") % synth->channel().toZeroBasedInt()).str());
 		}
-		Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput());
-		Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput());
+		Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput().identifier.toStdString());
+		Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput().identifier.toStdString());
 	}
 
 	void AutoDetection::loadSettings(SimpleDiscoverableDevice *synth)
 	{
 		std::string input = Settings::instance().get(midiSetupKey(synth, kInput));
-		synth->setInput(input);
+		synth->setInput(MidiController::inputForIdentifier(input));
 		std::string output = Settings::instance().get(midiSetupKey(synth, kOutput));
-		synth->setOutput(output);
+		synth->setOutput(MidiController::outputForIdentifier(output));
 
 		synth->setChannel(MidiChannel::invalidChannel());
 		std::string channelString = Settings::instance().get(midiSetupKey(synth, kChannel));
@@ -116,12 +116,12 @@ namespace midikraft {
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
 				SimpleLogger::instance()->postMessage((boost::format("Found %s on channel %d replying on device %s when sending to %s on channel %d")
-					% synth->getName() % (loc.midiChannel.toOneBasedInt()) % loc.inputName % loc.outputName % loc.midiChannel.toOneBasedInt()).str());
+					% synth->getName() % (loc.midiChannel.toOneBasedInt()) % loc.input.name % loc.output.name % loc.midiChannel.toOneBasedInt()).str());
 			}
 
 			// Select the last location (the first one might be the "All" devices which we don't want to address the devices individually)
 			size_t loc = locations.size() - 1;
-			synth->setCurrentChannelZeroBased(locations[loc].inputName, locations[loc].outputName, locations[loc].midiChannel.toZeroBasedInt());
+			synth->setCurrentChannelZeroBased(locations[loc].input, locations[loc].output, locations[loc].midiChannel.toZeroBasedInt());
 
 			// Additionally, we want to persist this knowhow in the user settings file!
 			persistSetting(synth);
@@ -155,7 +155,7 @@ namespace midikraft {
 		// Check if we found it
 		bool ok = false;
 		for (auto found : callback->locations()) {
-			if (found.inputName == synth->midiInput() && found.midiChannel.toZeroBasedInt() == synth->channel().toZeroBasedInt()) {
+			if (found.input == synth->midiInput() && found.midiChannel.toZeroBasedInt() == synth->channel().toZeroBasedInt()) {
 				ok = true;
 				// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
 				MidiMessage endDetectMessage;

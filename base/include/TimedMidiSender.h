@@ -15,7 +15,7 @@ namespace midikraft {
 		TimedMidiSender(int sampleRate);
 		virtual ~TimedMidiSender();
 
-		void addMessageToBuffer(std::string const &midiOutput, MidiMessage &message, double timeRelativeToNowInS);
+		void addMessageToBuffer(juce::MidiDeviceInfo const &midiOutput, MidiMessage &message, double timeRelativeToNowInS);
 
 		void timerCallback() override;
 
@@ -23,7 +23,8 @@ namespace midikraft {
 		int sampleRate_;
 		int previousSampleNumber_;
 		double startTime_;
-		std::map<std::string, MidiBuffer> midiBuffer_;
+		std::map<String, MidiBuffer> midiBuffer_;
+		std::map<String, MidiDeviceInfo> midiDevices_;
 	};
 
 }

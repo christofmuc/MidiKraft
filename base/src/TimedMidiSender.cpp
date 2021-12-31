@@ -7,6 +7,7 @@
 #include "TimedMidiSender.h"
 
 #include "MidiController.h"
+#include "Logger.h"
 
 namespace midikraft {
 
@@ -22,16 +23,17 @@ namespace midikraft {
 		stopTimer();
 	}
 
-	void TimedMidiSender::addMessageToBuffer(std::string const &midiOutput, MidiMessage &message, double timeRelativeToNowInS)
+	void TimedMidiSender::addMessageToBuffer(juce::MidiDeviceInfo const &midiOutput, MidiMessage &message, double timeRelativeToNowInS)
 	{
 		auto timestamp = Time::getMillisecondCounterHiRes() * 0.001 + timeRelativeToNowInS - startTime_;
 		message.setTimeStamp(timestamp);
 		auto sampleNumber = (int)(timestamp * sampleRate_);
-		if (midiBuffer_.find(midiOutput) == midiBuffer_.end()) {
-			midiBuffer_[midiOutput] = MidiBuffer();
+		if (midiBuffer_.find(midiOutput.identifier) == midiBuffer_.end()) {
+			midiBuffer_[midiOutput.identifier] = MidiBuffer();
 		}
 		jassert(message.getRawDataSize() <= 65535);
-		midiBuffer_[midiOutput].addEvent(message, sampleNumber);
+		midiDevices_[midiOutput.identifier] = midiOutput; // Save for later
+		midiBuffer_[midiOutput.identifier].addEvent(message, sampleNumber);
 	}
 
 	void TimedMidiSender::timerCallback()
@@ -52,7 +54,12 @@ namespace midikraft {
 			}
 
 			if (!outputEvents.isEmpty()) {
-				midikraft::MidiController::instance()->getMidiOutput(buffer.first)->sendBlockOfMessagesFullSpeed(outputEvents);
+				if (midiDevices_.find(buffer.first) != midiDevices_.end()) {
+					midikraft::MidiController::instance()->getMidiOutput(midiDevices_[buffer.first])->sendBlockOfMessagesFullSpeed(outputEvents);
+				}
+				else {
+					SimpleLogger::instance()->postMessageOncePerRun("Can't send to unknown MIDI output - program error?");
+				}
 			}
 			buffer.second.clear(previousSampleNumber_, currentSampleNumber - previousSampleNumber_); 
 		}

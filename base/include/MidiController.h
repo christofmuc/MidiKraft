@@ -30,6 +30,7 @@ namespace midikraft {
 		void sendBlockOfMessagesFullSpeed(const std::vector<MidiMessage>& buffer);
 		void sendBlockOfMessagesThrottled(const std::vector<MidiMessage>& buffer, int millisecondsWait);
 
+		juce::MidiDeviceInfo deviceInfo() const;
 		std::string name() const;
 		bool isValid() const;
 
@@ -59,13 +60,16 @@ namespace midikraft {
 		void setMidiLogFunction(std::function<void(const MidiMessage& message, const String& source, bool)>);
 		void logMidiMessage(const MidiMessage& message, const String& source, bool isOut);
 
-		bool enableMidiOutput(std::string const &newOutput);
-		std::shared_ptr<SafeMidiOutput> getMidiOutput(std::string const &name);
-		bool enableMidiInput(std::string const &newInput);
-		void disableMidiInput(std::string const &input);
+		bool enableMidiOutput(juce::MidiDeviceInfo const &newOutput);
+		std::shared_ptr<SafeMidiOutput> getMidiOutput(juce::MidiDeviceInfo const &name);
+		bool enableMidiInput(juce::MidiDeviceInfo info);
+		void disableMidiInput(juce::MidiDeviceInfo info);
 
-		std::set<std::string> currentInputs(bool withHistory);
-		std::set<std::string> currentOutputs(bool withHistory);
+		std::map<String, juce::MidiDeviceInfo> currentInputs(bool withHistory);
+		std::map<String, juce::MidiDeviceInfo> currentOutputs(bool withHistory);
+
+		static MidiDeviceInfo inputForIdentifier(String const& identifier);
+		static MidiDeviceInfo outputForIdentifier(String const& identifier);
 
 	private:
 		// Implementation of Callback
@@ -79,11 +83,11 @@ namespace midikraft {
 		CriticalSection messageHandlerList_;
 		std::map<HandlerHandle, MidiCallback> messageHandlers_;
 
-		std::set<std::string> knownInputs_, historyOfAllInputs_;
-		std::set<std::string> knownOutputs_, historyOfAllOutpus_;
-		std::map< std::string, std::unique_ptr<MidiOutput>> outputsOpen_;
-		std::map< std::string, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
-		std::map< std::string, std::unique_ptr<MidiInput>> inputsOpen_;
+		std::map<String, juce::MidiDeviceInfo> knownInputs_, historyOfAllInputs_;
+		std::map<String, juce::MidiDeviceInfo> knownOutputs_, historyOfAllOutpus_;
+		std::map<String, std::unique_ptr<MidiOutput>> outputsOpen_;
+		std::map<String, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
+		std::map<String, std::unique_ptr<MidiInput>> inputsOpen_;
 		std::function<void(const MidiMessage& message, const String& source, bool)> midiLogFunction_;
 	};
 	

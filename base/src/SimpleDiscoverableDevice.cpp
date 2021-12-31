@@ -8,7 +8,7 @@
 
 namespace midikraft {
 
-	void SimpleDiscoverableDevice::setCurrentChannelZeroBased(std::string const &midiInput, std::string const &midiOutput, int midiChannel)
+	void SimpleDiscoverableDevice::setCurrentChannelZeroBased(juce::MidiDeviceInfo const &midiInput, juce::MidiDeviceInfo const &midiOutput, int midiChannel)
 	{
 		channel_ = MidiChannel::fromZeroBase(midiChannel & 0x0f); // Allowed values are 0-15
 		midiInput_ = midiInput;
@@ -20,12 +20,12 @@ namespace midikraft {
 		channel_ = newChannel;
 	}
 
-	void SimpleDiscoverableDevice::setInput(std::string const &midiInput)
+	void SimpleDiscoverableDevice::setInput(juce::MidiDeviceInfo const &midiInput)
 	{
 		midiInput_ = midiInput;
 	}
 
-	void SimpleDiscoverableDevice::setOutput(std::string const &midiOutput)
+	void SimpleDiscoverableDevice::setOutput(juce::MidiDeviceInfo const &midiOutput)
 	{
 		midiOutput_ = midiOutput;
 	}
@@ -40,12 +40,12 @@ namespace midikraft {
 		wasDetected_ = wasDetected;
 	}
 
-	std::string SimpleDiscoverableDevice::midiInput() const
+	juce::MidiDeviceInfo SimpleDiscoverableDevice::midiInput() const
 	{
 		return midiInput_;
 	}
 
-	std::string SimpleDiscoverableDevice::midiOutput() const
+	juce::MidiDeviceInfo SimpleDiscoverableDevice::midiOutput() const
 	{
 		return midiOutput_;
 	}

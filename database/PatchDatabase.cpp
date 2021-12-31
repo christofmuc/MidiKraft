@@ -1138,7 +1138,7 @@ namespace midikraft {
 		void renumList(std::string const& list_id) {
 			// Call this within a transaction!
 			SQLite::Statement renum(db_, "WITH po AS (SELECT*, ROW_NUMBER() OVER(order by order_num) - 1 AS new_order FROM patch_in_list WHERE id = :ID) "
-				"UPDATE patch_in_list AS pl SET order_num = (SELECT new_order FROM po WHERE pl.synth = po.synth AND pl.md5 = po.md5) where id = :ID");
+				"UPDATE patch_in_list AS pl SET order_num = (SELECT new_order FROM po WHERE pl.synth = po.synth AND pl.md5 = po.md5 AND pl.order_num = po.order_num) where id = :ID");
 			renum.bind(":ID", list_id);
 			renum.exec();
 		}

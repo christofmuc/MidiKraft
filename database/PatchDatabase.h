@@ -93,7 +93,7 @@ namespace midikraft {
 		void deletePatchlist(ListInfo info);
 		void addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex);
 		void movePatchInList(ListInfo info, PatchHolder const& patch, int previousIndex, int newIndex);
-		void removePatchFromList(std::string const &list_id, std::string const &synth_name, std::string const &md5);
+		void removePatchFromList(std::string const &list_id, std::string const &synth_name, std::string const &md5, int order_num);
 
 		// Convenience functions
 		static PatchFilter allForSynth(std::shared_ptr<Synth> synth);

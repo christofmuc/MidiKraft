@@ -1168,13 +1168,14 @@ namespace midikraft {
 			}
 		}
 
-		void removePatchFromList(std::string const& list_id, std::string const& synth_name, std::string const& md5) {
+		void removePatchFromList(std::string const& list_id, std::string const& synth_name, std::string const& md5, int order_num) {
 			try {
 				SQLite::Transaction transaction(db_);
-				SQLite::Statement removeIt(db_, "DELETE FROM patch_in_list WHERE id = :ID AND synth = :SYN AND md5 = :MD5");
+				SQLite::Statement removeIt(db_, "DELETE FROM patch_in_list WHERE id = :ID AND synth = :SYN AND md5 = :MD5 AND order_num = :ONO");
 				removeIt.bind(":ID", list_id);
 				removeIt.bind(":SYN", synth_name);
 				removeIt.bind(":MD5", md5);
+				removeIt.bind(":ONO", order_num);
 				removeIt.exec();
 				renumList(list_id);
 				transaction.commit();
@@ -1356,9 +1357,9 @@ namespace midikraft {
 		impl->movePatchInList(info, patch, previousIndex, newIndex);
 	}
 
-	void PatchDatabase::removePatchFromList(std::string const& list_id, std::string const& synth_name, std::string const& md5)
+	void PatchDatabase::removePatchFromList(std::string const& list_id, std::string const& synth_name, std::string const& md5, int order_num)
 	{
-		impl->removePatchFromList(list_id, synth_name, md5);
+		impl->removePatchFromList(list_id, synth_name, md5, order_num);
 	}
 
 	int PatchDatabase::deletePatches(PatchFilter filter)

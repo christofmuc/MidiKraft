@@ -386,7 +386,10 @@ namespace midikraft {
 				joinClause += " INNER JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
 			}
 			if (filter.onlyDuplicateNames) {
-				joinClause += " JOIN (select name, synth, count(*) as name_count from patches group by name, synth) as ordinal_table on patches.name = ordinal_table.name and patches.synth = ordinal_table.synth";
+				if (filter.showHidden)
+					joinClause += " JOIN (select name, synth, count(*) as name_count from patches group by name, synth) as ordinal_table on patches.name = ordinal_table.name and patches.synth = ordinal_table.synth";
+				else
+					joinClause += " JOIN (select name, synth, count(*) as name_count from patches where hidden = 0 group by name, synth) as ordinal_table on patches.name = ordinal_table.name and patches.synth = ordinal_table.synth";
 			}
 			return joinClause;
 		}

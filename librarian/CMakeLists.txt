@@ -32,6 +32,7 @@ set(Sources
 	PatchList.cpp PatchList.h
 	RapidjsonHelper.cpp RapidjsonHelper.h
 	Session.h
+	SynthBank.cpp SynthBank.h
 	SynthHolder.cpp SynthHolder.h
 	README.md
 	LICENSE.md
@@ -46,7 +47,7 @@ set_source_files_properties(
 # Setup library
 add_library(midikraft-librarian ${Sources})
 target_include_directories(midikraft-librarian PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${boost_SOURCE_DIR} ${MANUALLY_RAPID_JSON})
-target_link_libraries(midikraft-librarian juce-utils midikraft-base ${APPLE_BOOST} nlohmann_json::nlohmann_json)
+target_link_libraries(midikraft-librarian juce-utils midikraft-base ${APPLE_BOOST} nlohmann_json::nlohmann_json fmt::fmt)
 
 # Pedantic about warnings
 if (MSVC)

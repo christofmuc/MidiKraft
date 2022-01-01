@@ -22,7 +22,8 @@ namespace midikraft {
 		int typeID;
 		bool showHidden;
 		bool onlyUntagged;
-		std::set<Category> categories;
+		std::set<Category> categories; 
+		bool andCategories; // Turns OR into AND
 		bool onlyDuplicateNames;
 	};
 

@@ -34,6 +34,7 @@ namespace midikraft {
 			|| a.onlySpecifcType != b.onlySpecifcType
 			|| a.typeID != b.typeID
 			|| a.showHidden != b.showHidden
+			|| a.andCategories != b.andCategories
 			|| a.onlyUntagged != b.onlyUntagged;
 	}
 

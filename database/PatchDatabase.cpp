@@ -356,11 +356,15 @@ namespace midikraft {
 				where += " AND categories == 0";
 			}
 			else if (!filter.categories.empty()) {
-				// Empty category filter set will of course return everything
-				//TODO this has bad query performance as it will force a table scan, but for now I cannot see this becoming a problem as long as the database is not multi-tenant
-				// The correct way to do this would be to create a many to many relationship and run an "exists" query or join/unique the category table. Returning the list of categories also requires 
-				// a concat on sub-query, so we're running into more complex SQL territory here.
-				where += " AND (categories & :CAT != 0)";
+					// Empty category filter set will of course return everything
+					//TODO this has bad query performance as it will force a table scan, but for now I cannot see this becoming a problem as long as the database is not multi-tenant
+					// The correct way to do this would be to create a many to many relationship and run an "exists" query or join/unique the category table. Returning the list of categories also requires 
+					// a concat on sub-query, so we're running into more complex SQL territory here.
+				if (!filter.andCategories) {
+					where += " AND (categories & :CAT != 0)";
+				} else {
+					where += " AND (categories & :CAT == :CAT)";
+				}
 			}
 			if (filter.onlyDuplicateNames) {
 				where += " AND (name_count > 1)";
@@ -417,8 +421,8 @@ namespace midikraft {
 				query.bind(":TYP", filter.typeID);
 			}
 			if (!filter.onlyUntagged && !filter.categories.empty()) {
-				query.bind(":CAT", bitfield.categorySetAsBitfield(filter.categories));
-			}
+					query.bind(":CAT", bitfield.categorySetAsBitfield(filter.categories));
+				}
 		}
 
 		int getPatchesCount(PatchFilter filter) {
@@ -1455,6 +1459,7 @@ namespace midikraft {
 		filter.showHidden = false;
 		filter.synths.emplace(synth->getName(), synth);
 		filter.onlyDuplicateNames = false;
+		filter.andCategories = false;
 		return filter;
 	}
 
@@ -1469,6 +1474,7 @@ namespace midikraft {
 			filter.synths.emplace(synth->getName(), synth);
 		}
 		filter.onlyDuplicateNames = false;
+		filter.andCategories = false;
 		return filter;
 	}
 }

@@ -88,6 +88,7 @@ namespace midikraft {
 		void updateCategories(std::vector<CategoryDefinition> const &newdefs);
 
 		std::vector<ListInfo> allPatchLists();
+		bool doesListExist(std::string listId);
 		PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths);
 		void putPatchList(PatchList patchList);
 		void deletePatchlist(ListInfo info);

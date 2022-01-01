@@ -1102,6 +1102,16 @@ namespace midikraft {
 			return result;
 		}
 
+		bool doesListExist(std::string listId) {
+			SQLite::Statement query(db_, "SELECT count(*) as num_lists FROM lists WHERE id = :ID");
+			query.bind(":ID", listId);
+			if (query.executeStep()) {
+				auto result = query.getColumn("num_lists");
+				return result.getInt() != 0;
+			}
+			return false;
+		}
+
 		midikraft::PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
 		{
 			PatchList list(info.id, info.name);
@@ -1337,6 +1347,10 @@ namespace midikraft {
 	std::vector<ListInfo> PatchDatabase::allPatchLists()
 	{
 		return impl->allPatchLists();
+	}
+
+	bool PatchDatabase::doesListExist(std::string listId) {
+		return impl->doesListExist(listId);
 	}
 
 	midikraft::PatchList PatchDatabase::getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)

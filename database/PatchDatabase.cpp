@@ -1131,6 +1131,15 @@ namespace midikraft {
 			return list;
 		}
 
+		void addPatchToListInternal(std::string const& listId, std::string const& synthName, std::string const& md5, int insertIndex) {
+			SQLite::Statement insert(db_, "INSERT INTO patch_in_list (id, synth, md5, order_num) VALUES (:ID, :SYN, :MD5, :ONO)");
+			insert.bind(":ID", listId);
+			insert.bind(":SYN", synthName);
+			insert.bind(":MD5", md5);
+			insert.bind(":ONO", insertIndex);
+			insert.exec();
+		}
+
 		void addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex) {
 			try {
 				SQLite::Transaction transaction(db_);
@@ -1139,12 +1148,7 @@ namespace midikraft {
 				update.bind(":ID", info.id);
 				update.bind(":ONO", insertIndex);
 				update.exec();
-				SQLite::Statement insert(db_, "INSERT INTO patch_in_list (id, synth, md5, order_num) VALUES (:ID, :SYN, :MD5, :ONO)");
-				insert.bind(":ID", info.id);
-				insert.bind(":SYN", patch.smartSynth()->getName());
-				insert.bind(":MD5", patch.md5());
-				insert.bind(":ONO", insertIndex);
-				insert.exec();
+				addPatchToListInternal(info.id, patch.synth()->getName(), patch.md5(), insertIndex);
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
@@ -1206,6 +1210,7 @@ namespace midikraft {
 		{
 			try {
 				// Check if it exists
+				SQLite::Transaction transaction(db_);
 				SQLite::Statement search(db_, "SELECT * FROM lists WHERE id = :ID");
 				search.bind(":ID", patchList.id());
 				if (search.executeStep()) {
@@ -1220,6 +1225,13 @@ namespace midikraft {
 					insert.bind(":NAM", patchList.name());
 					insert.exec();
 				}
+				// If this list already has a list of patches, make sure to add them into the patch list as well!
+				int i = 0;
+				for (auto patch : patchList.patches()) {
+					addPatchToListInternal(patchList.id(), patch.synth()->getName(), patch.md5(), i++);
+				}
+
+				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
 				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in putPatchList: SQL Exception %s") % ex.what()).str());

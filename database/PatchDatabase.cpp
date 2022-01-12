@@ -1457,7 +1457,8 @@ namespace midikraft {
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;
 		filter.showHidden = false;
-		filter.synths.emplace(synth->getName(), synth);
+        if (synth)
+		    filter.synths.emplace(synth->getName(), synth);
 		filter.onlyDuplicateNames = false;
 		filter.andCategories = false;
 		return filter;

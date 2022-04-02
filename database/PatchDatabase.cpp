@@ -202,15 +202,6 @@ namespace midikraft {
 		}
 
 		void createSchema() {
-			if (false)
-			{
-				SQLite::Transaction transaction(db_);
-				db_.exec("DROP TABLE IF EXISTS patches");
-				db_.exec("DROP TABLE IF EXISTS imports");
-				db_.exec("DROP TABLE IF EXISTS schema_version");
-				transaction.commit();
-			}
-
 			SQLite::Transaction transaction(db_);
 			if (!db_.tableExists("patches")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
@@ -313,10 +304,36 @@ namespace midikraft {
 			query.bind(":SYN", activeSynth->getName());
 			std::vector<ImportInfo> result;
 			while (query.executeStep()) {
-				std::string description = (boost::format("%s (%d)") % query.getColumn("name").getText() % query.getColumn("patchCount").getInt()).str();
-				result.push_back({ query.getColumn("name").getText(), description, query.getColumn("id").getText() });
+				result.push_back({ query.getColumn("name").getText(), query.getColumn("id").getText(), query.getColumn("patchCount").getInt() });
 			}
 			return result;
+		}
+
+		bool renameImport(std::string importID, std::string newName) {
+			try {
+				SQLite::Transaction transaction(db_);
+				SQLite::Statement update(db_, "UPDATE imports set name = :NAM where id = :IID");
+				update.bind(":NAM", newName);
+				update.bind(":IID", importID);
+				int rowsModified = update.exec();
+				if (rowsModified == 1) {
+					// Success
+					transaction.commit();
+					return true;
+				}
+				else if (rowsModified == 0) {
+					SimpleLogger::instance()->postMessage((boost::format("Failed to update import - not found with ID %s") % importID).str());
+					return false;
+				}
+				else {
+					SimpleLogger::instance()->postMessage((boost::format("Failed to update import, abort - more than one row found with ID %s") % importID).str());
+					return false;
+				}
+			}
+			catch (SQLite::Exception& ex) {
+				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in renameImport: SQL Exception %s") % ex.what()).str());
+				return false;
+			}
 		}
 
 		std::string buildWhereClause(PatchFilter filter, bool needsCollate) {
@@ -1446,11 +1463,15 @@ namespace midikraft {
 		PatchDataBaseImpl::makeDatabaseBackup(databaseFile, backupFileToCreate);
 	}
 
+	bool PatchDatabase::renameImport(std::string importID, std::string newName) {
+		return impl->renameImport(importID, newName);
+	}
+
 	std::vector<Category> PatchDatabase::getCategories() const {
 		return impl->getCategories();
 	}
 
-	midikraft::PatchFilter PatchDatabase::allForSynth(std::shared_ptr<Synth> synth)
+	PatchFilter PatchDatabase::allForSynth(std::shared_ptr<Synth> synth)
 	{
 		PatchFilter filter;
 		filter.onlyFaves = false;
@@ -1464,7 +1485,7 @@ namespace midikraft {
 		return filter;
 	}
 
-	midikraft::PatchFilter PatchDatabase::allPatchesFilter(std::vector<std::shared_ptr<Synth>> synths)
+	PatchFilter PatchDatabase::allPatchesFilter(std::vector<std::shared_ptr<Synth>> synths)
 	{
 		PatchFilter filter;
 		filter.onlyFaves = false;
@@ -1477,5 +1498,6 @@ namespace midikraft {
 		filter.onlyDuplicateNames = false;
 		filter.andCategories = false;
 		return filter;
-	}
+	}	
 }
+

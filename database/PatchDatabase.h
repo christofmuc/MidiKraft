@@ -21,9 +21,9 @@
 namespace midikraft {
 
 	struct ImportInfo {
-		std::string name; // The name of the import - TODO this can be matched to the name stored in the patch, except for edit buffer imports
-		std::string description; // The nice display name of the import, this can contain e.g. the number of patches in this import in parentheses
+		std::string name; // The name of the import
 		std::string id; // The database ID, as a unique identifier
+		int countPatches; // The number of patches that currently macht this import ID
 	};
 
 	struct ListInfo {
@@ -81,6 +81,8 @@ namespace midikraft {
 		std::string makeDatabaseBackup(std::string const &suffix);
 		void makeDatabaseBackup(File backupFileToCreate);
 		static void makeDatabaseBackup(File databaseFile, File backupFileToCreate);
+
+		bool renameImport(std::string importID, std::string newName);
 
 		std::vector<Category> getCategories() const;
 		std::shared_ptr<AutomaticCategory> getCategorizer();

@@ -16,9 +16,12 @@ namespace midikraft {
 	class ProgramDumpCabability {
 	public:
 		virtual std::vector<MidiMessage> requestPatch(int patchNo) const = 0;
-		virtual bool isSingleProgramDump(const MidiMessage& message) const = 0;
-		virtual MidiProgramNumber getProgramNumber(const MidiMessage &message) const = 0;
-		virtual std::shared_ptr<DataFile> patchFromProgramDumpSysex(const MidiMessage& message) const = 0;
+		virtual bool isSingleProgramDump(const std::vector<MidiMessage>& messages) const = 0;
+		virtual bool isMessagePartOfProgramDump(const MidiMessage& message) const {
+			return isSingleProgramDump({ message });
+		}
+		virtual MidiProgramNumber getProgramNumber(const std::vector<MidiMessage> &message) const = 0;
+		virtual std::shared_ptr<DataFile> patchFromProgramDumpSysex(const std::vector<MidiMessage>& message) const = 0;
 		virtual std::vector<MidiMessage> patchToProgramDumpSysex(std::shared_ptr<DataFile> patch, MidiProgramNumber programNumber) const = 0;
 	};
 

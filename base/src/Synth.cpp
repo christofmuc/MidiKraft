@@ -65,26 +65,35 @@ namespace midikraft {
 		}
 		else {
 			// The other Synth types load message by message
+			std::vector<MidiMessage> currentStreak;
 			for (auto message : sysexMessages) {
-				if (editBufferSynth && editBufferSynth->isEditBufferDump(message)) {
-					auto patch = editBufferSynth->patchFromSysex(message);
-					if (patch) {
-						result.push_back(patch);
+				if (editBufferSynth && editBufferSynth->isMessagePartOfEditBuffer(message)) {
+					currentStreak.push_back(message);
+					if (editBufferSynth->isEditBufferDump(currentStreak)) {
+						auto patch = editBufferSynth->patchFromSysex(currentStreak);
+						currentStreak.clear();
+						if (patch) {
+							result.push_back(patch);
+						}
+						else {
+							SimpleLogger::instance()->postMessage((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
+						}
+						patchNo++;
 					}
-					else {
-						SimpleLogger::instance()->postMessage((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
-					}
-					patchNo++;
 				}
-				else if (programDumpSynth && programDumpSynth->isSingleProgramDump(message)) {
-					auto patch = programDumpSynth->patchFromProgramDumpSysex(message);
-					if (patch) {
-						result.push_back(patch);
+				else if (programDumpSynth && programDumpSynth->isMessagePartOfProgramDump(message)) {
+					currentStreak.push_back(message);
+					if (programDumpSynth->isSingleProgramDump(currentStreak)) {
+						auto patch = programDumpSynth->patchFromProgramDumpSysex(currentStreak);
+						currentStreak.clear();
+						if (patch) {
+							result.push_back(patch);
+						}
+						else {
+							SimpleLogger::instance()->postMessage((boost::format("Error decoding program dump for patch %d, skipping it") % patchNo).str());
+						}
+						patchNo++;
 					}
-					else {
-						SimpleLogger::instance()->postMessage((boost::format("Error decoding program dump for patch %d, skipping it") % patchNo).str());
-					}
-					patchNo++;
 				}
 				else if (bankDumpSynth && bankDumpSynth->isBankDump(message)) {
 					auto morePatches = bankDumpSynth->patchesFromSysexBank(message);

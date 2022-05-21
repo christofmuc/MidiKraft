@@ -11,7 +11,10 @@
 #include "Patch.h"
 #include "MidiBankNumber.h"
 #include "AutomaticCategory.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch-enum"
 #include "nlohmann/json.hpp"
+#pragma GCC diagnostic pop
 
 #include <set>
 
@@ -32,6 +35,7 @@ namespace midikraft {
 
 	class SourceInfo {
 	public:
+        virtual ~SourceInfo() = default;
 		virtual std::string toString() const;
 		virtual std::string md5(Synth *synth) const = 0;
 		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const = 0;
@@ -47,6 +51,7 @@ namespace midikraft {
 	public:
 		explicit FromSynthSource(Time timestamp); // Use this for edit buffer
 		FromSynthSource(Time timestamp, MidiBankNumber bankNo); // Use this when the program place is known
+        virtual ~FromSynthSource() override = default;
 		virtual std::string md5(Synth *synth) const override;
 		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const override;
 		static std::shared_ptr<FromSynthSource> fromString(std::string const &jsonString);

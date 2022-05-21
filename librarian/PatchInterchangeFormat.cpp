@@ -9,10 +9,13 @@
 #include "Logger.h"
 #include "Sysex.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/filewritestream.h"
+#pragma GCC diagnostic pop
 
 #include <boost/format.hpp>
 
@@ -315,7 +318,7 @@ namespace midikraft {
 			}
 
 			// Now the fun part, pack the sysex for transport
-			auto sysexMessages = patch.synth()->patchToSysex(patch.patch(), nullptr);
+			auto sysexMessages = patch.synth()->dataFileToSysex(patch.patch(), nullptr);
 			std::vector<uint8> data;
 			// Just concatenate all messages generated into one uint8 array
 			for (auto m : sysexMessages) {

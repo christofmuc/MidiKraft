@@ -91,7 +91,7 @@ namespace midikraft {
 		TFinishedHandler nextBankHandler_;
 		std::vector<midikraft::PatchHolder> currentDownloadedPatches_;
 		int downloadBankNumber_;
-		int endDownloadBankNumber_;
+		//int endDownloadBankNumber_;
 
 		std::string lastPath_; // Last import path
 		std::string lastExportDirectory_; 

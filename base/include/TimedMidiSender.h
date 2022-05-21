@@ -13,7 +13,7 @@ namespace midikraft {
 	class TimedMidiSender : private Timer {
 	public:
 		TimedMidiSender(int sampleRate);
-		virtual ~TimedMidiSender();
+		virtual ~TimedMidiSender() override;
 
 		void addMessageToBuffer(std::string const &midiOutput, MidiMessage &message, double timeRelativeToNowInS);
 

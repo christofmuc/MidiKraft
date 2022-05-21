@@ -26,8 +26,8 @@ namespace midikraft {
 	}
 
 	FindSynthOnMidiNetwork::FindSynthOnMidiNetwork(DiscoverableDevice &synth, std::string const &text, ProgressHandler *progressHandler) :
-		synth_(synth), Thread(text), progressHandler_(progressHandler), handler_(MidiController::makeOneHandle())
-	{
+		Thread(text), handler_(MidiController::makeOneHandle()), synth_(synth), progressHandler_(progressHandler)
+    {
 		MidiController::instance()->addMessageHandler(handler_, [this](MidiInput *source, MidiMessage const &midimessage) {
 			if (!isSynth_.expired()) {
 				isSynth_.lock()->handleIncomingMidiMessage(source, midimessage);

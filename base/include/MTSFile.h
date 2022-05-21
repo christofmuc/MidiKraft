@@ -15,7 +15,7 @@ namespace midikraft {
 
 	class MTSFile : public DataFile {
 	public:
-		MTSFile(int dataTypeID_, Synth::PatchData const &data) : DataFile(dataTypeID_, data) {}
+		MTSFile(int dataTypeID, Synth::PatchData const &data) : DataFile(dataTypeID, data) {}
 
 		std::string name() const override;
 

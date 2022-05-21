@@ -102,7 +102,7 @@ namespace midikraft {
 				}
 				else if (dataFileLoadSynth) {
 					// Should test all data file types!
-					for (int dataType = 0; dataType < dataFileLoadSynth->dataTypeNames().size(); dataType++) {
+					for (int dataType = 0; dataType < static_cast<int>(dataFileLoadSynth->dataTypeNames().size()); dataType++) {
 						if (dataFileLoadSynth->isDataFile(message, dataType)) {
 							// Hit, we can load this
 							auto items = dataFileLoadSynth->loadData({ message }, dataType);
@@ -127,7 +127,7 @@ namespace midikraft {
 		FileOutputStream outStream(outFile);
 
 		for (auto message : messages) {
-			outStream.write(message.getRawData(), message.getRawDataSize());
+			outStream.write(message.getRawData(), static_cast<size_t>(message.getRawDataSize()));
 		}
 	}
 

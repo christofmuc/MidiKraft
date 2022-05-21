@@ -21,7 +21,7 @@ namespace midikraft {
 
 		virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
 
-		std::vector<MidiNetworkLocation> locations() { return found_; };
+		std::vector<MidiNetworkLocation> locations() { return found_; }
 		void restart() { found_.clear(); }
 
 	private:
@@ -40,7 +40,7 @@ namespace midikraft {
 
 	private:
 		FindSynthOnMidiNetwork(DiscoverableDevice &synth, std::string const &text, ProgressHandler *progressHandler);
-		virtual ~FindSynthOnMidiNetwork();
+		virtual ~FindSynthOnMidiNetwork() override;
 
 		MidiController::HandlerHandle handler_;
 		std::weak_ptr<IsSynth> isSynth_; // The synth that is to be detected

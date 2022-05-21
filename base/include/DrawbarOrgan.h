@@ -21,7 +21,7 @@ namespace midikraft {
 		};
 
 		Drawbar(std::string const &name, Color color, std::string const &pitch, std::string const &traditional_name, int harmonic_number) :
-			name_(name), color_(color), pitch_(pitch), traditional_name_(traditional_name), harmonic_number_(harmonic_number) {
+			name_(name), pitch_(pitch), traditional_name_(traditional_name), color_(color), harmonic_number_(harmonic_number) {
 		}
 
 		std::string name_, pitch_, traditional_name_;

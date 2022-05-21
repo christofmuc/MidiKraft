@@ -314,12 +314,12 @@ namespace midikraft {
 	{
 		// Parse the string - there should be 9 digits in there, ignore spaces
 		Additive::Harmonics harmonics;
-		int position = 0;
+		size_t position = 0;
 		for (char c : registrationString) {
 			if (c >= '0' && c <= '8') {
 				// Valid character
 				int value = c - '0';
-				harmonics.setHarmonic(hammondDrawbars()[position].harmonic_number_, value / 8.0f);
+				harmonics.setHarmonic(hammondDrawbars()[position].harmonic_number_, static_cast<float>(value) / 8.0f);
 				position++;
 			}
 			else if (c != ' ') {

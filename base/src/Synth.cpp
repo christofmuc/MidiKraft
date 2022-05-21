@@ -131,7 +131,7 @@ namespace midikraft {
 		}
 	}
 
-	std::vector<juce::MidiMessage> Synth::patchToSysex(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
+	std::vector<juce::MidiMessage> Synth::dataFileToSysex(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
 		std::vector<MidiMessage> messages;
 		if (!target) {
@@ -176,7 +176,7 @@ namespace midikraft {
 
 	void Synth::sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
-		auto messages = patchToSysex(dataFile, target);
+		auto messages = dataFileToSysex(dataFile, target);
 		if (!messages.empty()) {
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
 			if (midiLocation && !messages.empty()) {

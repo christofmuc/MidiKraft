@@ -20,6 +20,15 @@ namespace midikraft {
 
 	void SynthBank::setPatches(std::vector<PatchHolder> patches)
 	{
+		// Renumber the patches, the original patch information will not reflect the position 
+		// of the patch in the bank, so it needs to be fixed.
+		int i = 0;
+		for (auto& patch : patches) {
+			patch.setBank(bankNo_);
+			patch.setPatchNumber(MidiProgramNumber::fromZeroBase(i++));
+		}
+
+		// Validate everything worked
 		for (auto patch : patches) {
 			if (!validatePatchInfo(patch)) {
 				return;

@@ -243,6 +243,11 @@ namespace midikraft {
 		}
 	}
 
+	bool PatchHolder::dragItemIsPatch(nlohmann::json const& infos)
+	{
+		return infos.contains("drag_type") && (infos["drag_type"] == "PATCH" || infos["drag_type"] == "PATCH_IN_LIST");
+	}
+
 	void PatchHolder::setUserDecision(Category const& clicked)
 	{
 		userDecisions_.insert(clicked);

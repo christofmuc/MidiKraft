@@ -23,7 +23,7 @@ namespace midikraft {
 		// Renumber the patches, the original patch information will not reflect the position 
 		// of the patch in the bank, so it needs to be fixed.
 		int i = 0;
-		for (auto& patch : patches) {
+		for (midikraft::PatchHolder& patch : patches) {
 			patch.setBank(bankNo_);
 			patch.setPatchNumber(MidiProgramNumber::fromZeroBase(i++));
 		}
@@ -43,6 +43,18 @@ namespace midikraft {
 			return;
 		}
 		PatchList::addPatch(patch);
+	}
+
+	void SynthBank::changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch) 
+	{
+		auto currentList = patches();
+		if (programPlace.toZeroBased() < currentList.size()) {
+			currentList[programPlace.toZeroBased()] = patch;
+			setPatches(currentList);
+		}
+		else {
+			jassertfalse;
+		}
 	}
 
 	bool SynthBank::validatePatchInfo(PatchHolder patch) 

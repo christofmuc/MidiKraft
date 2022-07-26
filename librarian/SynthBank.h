@@ -16,8 +16,10 @@ namespace midikraft {
 
 		// Override these to make sure they only contain patches for the synth, and have a proper program
 		// location
-		virtual void setPatches(std::vector<PatchHolder> patches);
-		virtual void addPatch(PatchHolder patch);
+		virtual void setPatches(std::vector<PatchHolder> patches) override;
+		virtual void addPatch(PatchHolder patch) override;
+		
+		virtual void changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
 
 		std::shared_ptr<Synth> synth() const
 		{

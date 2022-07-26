@@ -132,6 +132,8 @@ namespace midikraft {
 		std::string createDragInfoString() const;
 		static nlohmann::json dragInfoFromString(std::string s);
 
+		static bool dragItemIsPatch(nlohmann::json const& dragInfo);
+
 	private:
 		std::shared_ptr<DataFile> patch_;
 		std::shared_ptr<Synth> synth_;

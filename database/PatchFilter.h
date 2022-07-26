@@ -11,9 +11,17 @@
 
 namespace midikraft {
 
+	enum class PatchOrdering {
+		No_ordering,
+		Order_by_Name, // then bank, then program
+		Order_by_Import_id, // then bank, then program. This is the default, but not really useful?
+		Order_by_Place_in_List
+	};
+
 	class PatchFilter {
 	public:
 		std::map<std::string, std::weak_ptr<Synth>> synths;
+		PatchOrdering orderBy;
 		std::string importID;
 		std::string listID;
 		std::string name;

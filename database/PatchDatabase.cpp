@@ -392,12 +392,15 @@ namespace midikraft {
 		}
 
 		std::string buildOrderClause(PatchFilter filter) {
-			std::string orderByClause = "";
-			if (filter.onlyDuplicateNames) {
-				orderByClause = " ORDER BY name, midiBankNo, midiProgramNo ";
-			}
-			else {
-				orderByClause = " ORDER BY sourceID, midiBankNo, midiProgramNo ";
+			std::string orderByClause;
+			switch (filter.orderBy) {
+			case PatchOrdering::No_ordering: orderByClause = ""; break;
+			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY sourceID, midiBankNo, midiProgramNo ";; break;
+			case PatchOrdering::Order_by_Name: orderByClause = " ORDER BY name, midiBankNo, midiProgramNo "; break;
+			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY order_num"; break;
+			default:
+				jassertfalse;
+				SimpleLogger::instance()->postMessage("Program error - encountered invalid ordering field in buildOrderClause");
 			}
 			return orderByClause;
 		}
@@ -1541,6 +1544,7 @@ namespace midikraft {
 	PatchFilter PatchDatabase::allForSynth(std::shared_ptr<Synth> synth)
 	{
 		PatchFilter filter;
+		filter.orderBy = PatchOrdering::Order_by_Import_id;
 		filter.onlyFaves = false;
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;
@@ -1555,6 +1559,7 @@ namespace midikraft {
 	PatchFilter PatchDatabase::allPatchesFilter(std::vector<std::shared_ptr<Synth>> synths)
 	{
 		PatchFilter filter;
+		filter.orderBy = PatchOrdering::Order_by_Import_id;
 		filter.onlyFaves = false;
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;

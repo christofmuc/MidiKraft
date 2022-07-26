@@ -12,9 +12,35 @@ namespace midikraft {
 
 	class SynthBank : public PatchList {
 	public:
-		SynthBank(std::shared_ptr<Synth> synth, MidiBankNumber bank);
-	};
+		SynthBank(std::shared_ptr<Synth> synth, MidiBankNumber bank, juce::Time lastSynced);
 
+		// Override these to make sure they only contain patches for the synth, and have a proper program
+		// location
+		virtual void setPatches(std::vector<PatchHolder> patches);
+		virtual void addPatch(PatchHolder patch);
+
+		std::shared_ptr<Synth> synth() const
+		{
+			return synth_;
+		}
+
+		MidiBankNumber bankNumber() const
+		{
+			return bankNo_;
+		}
+
+		juce::Time lastSynced() const
+		{
+			return lastSynced_;
+		}
+
+	private:
+		bool validatePatchInfo(PatchHolder patch);
+
+		std::shared_ptr<Synth> synth_;
+		MidiBankNumber bankNo_;
+		juce::Time lastSynced_;
+	};
 
 }
 

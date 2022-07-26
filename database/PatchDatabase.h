@@ -91,8 +91,8 @@ namespace midikraft {
 
 		std::vector<ListInfo> allPatchLists();
 		bool doesListExist(std::string listId);
-		PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths);
-		void putPatchList(PatchList patchList);
+		std::shared_ptr<PatchList> getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths);
+		void putPatchList(std::shared_ptr<PatchList> patchList);
 		void deletePatchlist(ListInfo info);
 		void addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex);
 		void movePatchInList(ListInfo info, PatchHolder const& patch, int previousIndex, int newIndex);

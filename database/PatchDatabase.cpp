@@ -10,6 +10,7 @@
 #include "Patch.h"
 #include "Logger.h"
 #include "PatchHolder.h"
+#include "SynthBank.h"
 #include "StoredPatchNameCapability.h"
 
 #include "JsonSchema.h"
@@ -33,7 +34,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 7;
+	const int SCHEMA_VERSION = 8;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -42,6 +43,7 @@ namespace midikraft {
 	/* 5 - adding bank number column for better sorting of multi-imports */
 	/* 6 - adding the table categories to track which bit index is used for which tag */
 	/* 7 - adding the table lists to allow storing lists of patches */
+	/* 8 - adding synth name, timestamp and banknumber to patch list to allow store synth banks */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -219,7 +221,7 @@ namespace midikraft {
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
 			}
 			if (!db_.tableExists("lists")) {
-				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL)");
+				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL, synth TEXT, midi_bank_number INTEGER, last_synced INTEGER)");
 			}
 			if (!db_.tableExists("patch_in_list")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL)");
@@ -1129,9 +1131,36 @@ namespace midikraft {
 			return false;
 		}
 
-		midikraft::PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
+		std::shared_ptr<midikraft::PatchList> getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
 		{
-			PatchList list(info.id, info.name);
+			// First load the list
+			SQLite::Statement queryList(db_, "SELECT * FROM lists WHERE id = :ID");
+			queryList.bind(":ID", info.id);
+			std::shared_ptr<midikraft::PatchList> list;
+			if (queryList.executeStep()) {
+				if (queryList.getColumn("synth").isNull()) {
+					list = std::make_shared<midikraft::PatchList>(info.id, queryList.getColumn("name").getText());
+				}
+				else {
+					// Find synth
+					auto synthName = queryList.getColumn("synth").getText();
+					for (auto synth : synths) {
+						if (synth.second.lock()->getName() == synthName) {
+							list = std::make_shared<SynthBank>(synth.second.lock()
+								, MidiBankNumber::fromZeroBase(queryList.getColumn("midi_bank_number").getInt())
+								, juce::Time(queryList.getColumn("last_synced").getInt())
+								);
+							break;
+						}
+					}
+					if (!list) {
+						SimpleLogger::instance()->postMessage("Can't load list of synth that is not configured!");
+						return nullptr;
+					}
+				}
+			}
+
+			// Now load the patches in this list
 			SQLite::Statement query(db_, "SELECT * from patch_in_list where id=:ID order by order_num");
 			query.bind(":ID", info.id.c_str());
 			std::vector<std::pair<std::string, std::string>> md5s;
@@ -1144,7 +1173,7 @@ namespace midikraft {
 					getSinglePatch(synths[md5.first].lock(), md5.second, result);
 				}
 			}
-			list.setPatches(result);
+			list->setPatches(result);
 			return list;
 		}
 
@@ -1223,29 +1252,41 @@ namespace midikraft {
 			}
 		}
 
-		void putPatchList(PatchList patchList)
+		void putPatchList(std::shared_ptr<PatchList> patchList)
 		{
 			try {
 				// Check if it exists
 				SQLite::Transaction transaction(db_);
 				SQLite::Statement search(db_, "SELECT * FROM lists WHERE id = :ID");
-				search.bind(":ID", patchList.id());
+				search.bind(":ID", patchList->id());
+				auto isSynthBank = std::dynamic_pointer_cast<SynthBank>(patchList);
 				if (search.executeStep()) {
 					SQLite::Statement update(db_, "UPDATE lists SET name = :NAM WHERE id = :ID");
-					update.bind(":ID", patchList.id());
-					update.bind(":NAM", patchList.name());
+					update.bind(":ID", patchList->id());
+					update.bind(":NAM", patchList->name());
 					update.exec();
 				}
 				else {
-					SQLite::Statement insert(db_, "INSERT INTO lists (id, name) VALUES (:ID, :NAM)");
-					insert.bind(":ID", patchList.id());
-					insert.bind(":NAM", patchList.name());
+					SQLite::Statement insert(db_, "INSERT INTO lists (id, name, synth, midi_bank_number, last_synced) VALUES (:ID, :NAM, :SYN, :BNK, :LSY)");
+					insert.bind(":ID", patchList->id());
+					insert.bind(":NAM", patchList->name());
+					if (isSynthBank) {
+						insert.bind(":SYN", isSynthBank->synth()->getName());
+						insert.bind(":BNK", isSynthBank->bankNumber().toZeroBased());
+						insert.bind(":LSY", isSynthBank->lastSynced().toMilliseconds()); // Storing UNIX epoch here
+					}
+					else {
+						// Insert NULLs for those three columns
+						insert.bind(":SYN");
+						insert.bind(":BNK");
+						insert.bind(":LSY");
+					}
 					insert.exec();
 				}
 				// If this list already has a list of patches, make sure to add them into the patch list as well!
 				int i = 0;
-				for (auto patch : patchList.patches()) {
-					addPatchToListInternal(patchList.id(), patch.synth()->getName(), patch.md5(), i++);
+				for (auto patch : patchList->patches()) {
+					addPatchToListInternal(patchList->id(), patch.synth()->getName(), patch.md5(), i++);
 				}
 
 				transaction.commit();
@@ -1382,12 +1423,12 @@ namespace midikraft {
 		return impl->doesListExist(listId);
 	}
 
-	midikraft::PatchList PatchDatabase::getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
+	std::shared_ptr<midikraft::PatchList> PatchDatabase::getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
 	{
 		return impl->getPatchList(info, synths);
 	}
 
-	void PatchDatabase::putPatchList(PatchList patchList)
+	void PatchDatabase::putPatchList(std::shared_ptr<PatchList> patchList)
 	{
 		impl->putPatchList(patchList);
 	}

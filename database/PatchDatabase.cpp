@@ -1151,7 +1151,7 @@ namespace midikraft {
 						if (synth.second.lock()->getName() == synthName) {
 							list = std::make_shared<SynthBank>(synth.second.lock()
 								, MidiBankNumber::fromZeroBase(queryList.getColumn("midi_bank_number").getInt())
-								, juce::Time(queryList.getColumn("last_synced").getInt())
+								, juce::Time(queryList.getColumn("last_synced").getInt64())
 								);
 							break;
 						}

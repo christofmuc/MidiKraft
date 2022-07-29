@@ -899,8 +899,11 @@ namespace midikraft {
 				else {
 					std::string importDisplayString = newPatch.sourceInfo()->toDisplayString(newPatch.synth(), true);;
 					std::string importUID = newPatch.sourceInfo()->md5(newPatch.synth());
-					mapMD5_to_idOfImport[newPatch.md5()] = importUID;
-					importsToBeCreated.emplace(newPatch.synth()->getName(), importUID, importDisplayString);
+					if (mapMD5_to_idOfImport.find(newPatch.md5()) == mapMD5_to_idOfImport.end()) {
+						// Only use the import ID of the first instance of the patch found, because the loop below will skip all duplicates!
+						mapMD5_to_idOfImport[newPatch.md5()] = importUID;
+						importsToBeCreated.emplace(newPatch.synth()->getName(), importUID, importDisplayString);
+					}
 				}
 			}
 

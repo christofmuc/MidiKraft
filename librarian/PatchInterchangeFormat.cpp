@@ -9,6 +9,9 @@
 #include "Logger.h"
 #include "Sysex.h"
 
+// Turn off warning on unknown pragmas for VC++
+#pragma warning(push)
+#pragma warning(disable: 4068)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include "rapidjson/document.h"
@@ -16,6 +19,7 @@
 #include "rapidjson/prettywriter.h"
 #include "rapidjson/filewritestream.h"
 #pragma GCC diagnostic pop
+#pragma warning(pop)
 
 #include <boost/format.hpp>
 

@@ -11,10 +11,14 @@
 #include "Patch.h"
 #include "MidiBankNumber.h"
 #include "AutomaticCategory.h"
+// Turn off warning on unknown pragmas for VC++
+#pragma warning(push)
+#pragma warning(disable: 4068)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wswitch-enum"
 #include "nlohmann/json.hpp"
 #pragma GCC diagnostic pop
+#pragma warning(pop)
 
 #include <set>
 

@@ -468,7 +468,7 @@ namespace midikraft {
 					default:
 					case Librarian::EDIT_BUFFER_DUMPS:
 						// Every synth is forced to have an implementation for this
-						sysexMessages = patch.synth()->patchToSysex(patch.patch(), nullptr);
+						sysexMessages = patch.synth()->dataFileToSysex(patch.patch(), nullptr);
 						break;
 					}
 

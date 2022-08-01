@@ -48,9 +48,11 @@ namespace midikraft {
 	void SynthBank::changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch) 
 	{
 		auto currentList = patches();
-		if (programPlace.toZeroBased() < currentList.size()) {
-			currentList[programPlace.toZeroBased()] = patch;
+		int position = programPlace.toZeroBased();
+		if (position < currentList.size()) {
+			currentList[position] = patch;
 			setPatches(currentList);
+			dirtyPositions_.insert(position);
 		}
 		else {
 			jassertfalse;

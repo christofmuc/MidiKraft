@@ -36,10 +36,16 @@ namespace midikraft {
 			return lastSynced_;
 		}
 
+		bool isPositionDirty(int position) const
+		{
+			return dirtyPositions_.find(position) != dirtyPositions_.end();
+		}
+
 	private:
 		bool validatePatchInfo(PatchHolder patch);
 
 		std::shared_ptr<Synth> synth_;
+		std::set<int> dirtyPositions_;
 		MidiBankNumber bankNo_;
 		juce::Time lastSynced_;
 	};

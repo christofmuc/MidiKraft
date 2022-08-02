@@ -1128,7 +1128,7 @@ namespace midikraft {
 
 		std::vector<ListInfo> allPatchLists()
 		{
-			SQLite::Statement query(db_, "SELECT * from lists");
+			SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth is null");
 			std::vector<ListInfo> result;
 			while (query.executeStep()) {
 				result.push_back({ query.getColumn("id").getText(), query.getColumn("name").getText() });

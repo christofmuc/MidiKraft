@@ -50,9 +50,12 @@ namespace midikraft {
 		auto currentList = patches();
 		int position = programPlace.toZeroBased();
 		if (position < currentList.size()) {
-			currentList[position] = patch;
-			setPatches(currentList);
-			dirtyPositions_.insert(position);
+			// Check that we are not dropping a patch onto itself
+			if (currentList[position].md5() != patch.md5()) {
+				currentList[position] = patch;
+				setPatches(currentList);
+				dirtyPositions_.insert(position);
+			}
 		}
 		else {
 			jassertfalse;

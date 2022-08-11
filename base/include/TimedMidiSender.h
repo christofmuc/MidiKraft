@@ -8,6 +8,8 @@
 
 #include "JuceHeader.h"
 
+#include "MidiController.h"
+
 namespace midikraft {
 
 	class TimedMidiSender : private Timer {
@@ -15,7 +17,7 @@ namespace midikraft {
 		TimedMidiSender(int sampleRate);
 		virtual ~TimedMidiSender() override;
 
-		void addMessageToBuffer(std::string const &midiOutput, MidiMessage &message, double timeRelativeToNowInS);
+		void addMessageToBuffer(juce::MidiDeviceInfo const &midiOutput, MidiMessage &message, double timeRelativeToNowInS);
 
 		void timerCallback() override;
 
@@ -23,7 +25,7 @@ namespace midikraft {
 		int sampleRate_;
 		int previousSampleNumber_;
 		double startTime_;
-		std::map<std::string, MidiBuffer> midiBuffer_;
+		std::map<juce::MidiDeviceInfo, MidiBuffer> midiBuffer_;
 	};
 
 }

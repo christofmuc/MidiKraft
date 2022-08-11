@@ -18,7 +18,7 @@ namespace midikraft {
 			});
 		}
 
-		~RunMidiLoopDetection()
+		virtual ~RunMidiLoopDetection() override
 		{
 			MidiController::instance()->removeMessageHandler(handler_);
 		}
@@ -27,7 +27,7 @@ namespace midikraft {
 		{
 			// Listen to all devices connected at the same time
 			for (auto const &input : MidiInput::getAvailableDevices()) {
-				MidiController::instance()->enableMidiInput(input.name.toStdString());
+				MidiController::instance()->enableMidiInput(input);
 			}
 
 			// Now loop over outputs
@@ -36,7 +36,7 @@ namespace midikraft {
 				if (!progressHandler_.expired() && progressHandler_.lock()->shouldAbort()) break;
 
 				// Just one message is enough - test sysex loop
-				currentOut_ = output.name.toStdString();
+				currentOut_ = output;
 				MidiController::instance()->getMidiOutput(currentOut_)->sendMessageNow(loopDetectionSysexMessage_);
 
 				// Then test note loop
@@ -68,7 +68,7 @@ namespace midikraft {
 		MidiMessage loopDetectionSysexMessage_ = MidiHelpers::sysexMessage({ 0x7e, 0x7f /* all sysex channels */, 0x06, 0x02 }); // Useless "Identity Reply" package
 		MidiMessage loopDetectionNoteOnMessage_ = MidiMessage::noteOn(0xf, 0, (uint8) 1); // Don't use velocity 0, as this might be called erroneously note-off by JUCE
 
-		std::string currentOut_;
+		juce::MidiDeviceInfo currentOut_;
 		std::vector<MidiLoop> loops_;
 
 		void handleIncomingMidiMessage(MidiInput * source, MidiMessage const & midimessage)
@@ -77,13 +77,13 @@ namespace midikraft {
 			if (midimessage.isSysEx()) {
 				if (MidiHelpers::equalSysexMessageContent(midimessage, loopDetectionSysexMessage_)) {
 					// Looks like a loop
-					loops_.push_back({ currentOut_, source->getName().toStdString(), MidiLoopType::Sysex });
+					loops_.push_back({ currentOut_, source->getDeviceInfo(), MidiLoopType::Sysex });
 				}
 			}
 			else if (midimessage.isNoteOn()) {
 				if (midimessage.getChannel() == 0x0f && midimessage.getNoteNumber() == 0 && midimessage.getVelocity() == 1) {
 					// Oops, this is a loop
-					loops_.push_back({ currentOut_, source->getName().toStdString(), MidiLoopType::Note });
+					loops_.push_back({ currentOut_, source->getDeviceInfo(), MidiLoopType::Note });
 				}
 			}
 		}

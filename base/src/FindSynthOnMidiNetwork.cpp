@@ -21,7 +21,7 @@ namespace midikraft {
 		MidiChannel channel = synth_.channelIfValidDeviceResponse(message);
 		if (channel.isValid()) {
 			synth_.setWasDetected(true);
-			found_.push_back(MidiNetworkLocation(source->getName().toStdString(), "unknown", channel));
+			found_.push_back(MidiNetworkLocation(source->getDeviceInfo(), MidiDeviceInfo(), channel));
 		}
 	}
 
@@ -44,8 +44,8 @@ namespace midikraft {
 	{
 		// We will do the following - select a MIDI in, and send the "Device ID" message to all MIDI outs.
 		// If none found, repeat with the next MIDI in
-		int midiIns = MidiInput::getDevices().size();
-		int midiOuts = MidiOutput::getDevices().size();
+		int midiIns = MidiInput::getAvailableDevices().size();
+		int midiOuts = MidiOutput::getAvailableDevices().size();
 
 		// This detector can be enabled on all ins during the scan
 		std::shared_ptr<IsSynth> callback = std::make_shared<IsSynth>(synth_);
@@ -53,8 +53,8 @@ namespace midikraft {
 
 		// Loop over all inputs and enable them, add the callback
 		for (int input = 0; input < midiIns; input++) {
-			auto inputName = MidiInput::getDevices()[input];
-			MidiController::instance()->enableMidiInput(inputName.toStdString());
+			auto inputName = MidiInput::getAvailableDevices()[input];
+			MidiController::instance()->enableMidiInput(inputName);
 		}
 
 		// Now loop over outputs
@@ -67,14 +67,14 @@ namespace midikraft {
 					// Send the synth detection signal
 					auto detectMessage = synth_.deviceDetect(channel);
 					//TODO:  I cannot use the synth's sendBlockOfMessagesToSynth() here because I do not have a synth pointer. Smell?
-					MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
+					MidiController::instance()->getMidiOutput(MidiOutput::getAvailableDevices()[output])->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
 				}
 			}
 			else {
 				// Just one message is enough - use a "broadcast" channel or sysex device ID as parameter
 				auto detectMessage = synth_.deviceDetect(0x7f);
 				//TODO:  I cannot use the synth's sendBlockOfMessagesToSynth() here because I do not have a synth pointer. Smell?
-				MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
+				MidiController::instance()->getMidiOutput(MidiOutput::getAvailableDevices()[output])->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
 			}
 
 			// Sleep
@@ -91,20 +91,20 @@ namespace midikraft {
 			// Copy results
 			for (auto const &found : callback->locations()) {
 				auto withOutput = found;
-				withOutput.outputName = MidiOutput::getDevices()[output].toStdString();
+				withOutput.output = MidiOutput::getAvailableDevices()[output];
 				locations_.push_back(withOutput);
 				// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
 				MidiMessage endDetectMessage;
 				if (synth_.endDeviceDetect(endDetectMessage)) {
-					MidiController::instance()->getMidiOutput(MidiOutput::getDevices()[output].toStdString())->sendMessageNow(endDetectMessage);
+					MidiController::instance()->getMidiOutput(MidiOutput::getAvailableDevices()[output])->sendMessageNow(endDetectMessage);
 				}
 			}
 		}
 
 		// Loop over all inputs and turn them off, remove callback
 		for (int input = 0; input < midiIns; input++) {
-			auto inputName = MidiInput::getDevices()[input];
-			MidiController::instance()->disableMidiInput(inputName.toStdString());
+			auto inputName = MidiInput::getAvailableDevices()[input];
+			MidiController::instance()->disableMidiInput(inputName);
 		}
 		
 	}

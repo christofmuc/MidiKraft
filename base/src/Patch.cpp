@@ -49,14 +49,17 @@ namespace midikraft {
 	void DataFile::setAt(int sysExIndex, uint8 value)
 	{
 		jassert(((size_t) sysExIndex) < data_.size());
-		data_[sysExIndex] = value;
+        if (sysExIndex >= 0)
+		    data_[(size_t) sysExIndex] = value;
+        else
+            jassertfalse;
 	}
 
-	Synth::PatchData Patch::blankOut(std::vector<Range<int>> const &blankoutZones, Synth::PatchData const &inputData)
+	Synth::PatchData Patch::blankOut(std::vector<Range<size_t>> const &blankoutZones, Synth::PatchData const &inputData)
 	{
 		auto dataCopy = inputData;
 		for (auto blankOut : blankoutZones) {
-			for (int i = blankOut.getStart(); i < blankOut.getEnd(); i++) {
+			for (size_t i = blankOut.getStart(); i < blankOut.getEnd(); i++) {
 				dataCopy[i] = 0;
 			}
 		}

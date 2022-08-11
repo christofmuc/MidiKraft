@@ -18,8 +18,8 @@ namespace midikraft {
 	};
 
 	struct MidiLoop {
-		std::string midiOutput;
-		std::string midiInput;
+		juce::MidiDeviceInfo midiOutput;
+		juce::MidiDeviceInfo midiInput;
 		MidiLoopType type;
 	};
 

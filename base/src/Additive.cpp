@@ -33,7 +33,7 @@ namespace midikraft {
 
 	}
 
-	void Additive::Harmonics::setHarmonic(int harmonicNumber, float value)
+	void Additive::Harmonics::setHarmonic(unsigned harmonicNumber, float value)
 	{
 		if (value > 0.0f) {
 			harmonics_[harmonicNumber] = value;

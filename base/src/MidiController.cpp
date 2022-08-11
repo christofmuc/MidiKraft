@@ -82,7 +82,11 @@ namespace midikraft {
 		return midiOut_ != nullptr;
 	}
 
-	MidiController::MidiController()
+    juce::MidiDeviceInfo SafeMidiOutput::deviceInfo() const {
+        return midiOut_ ? midiOut_->getDeviceInfo() : MidiDeviceInfo();
+    }
+
+    MidiController::MidiController()
 	{
 		if (instance_ != nullptr) {
 			throw new std::runtime_error("This is a singleton, can't create twice");
@@ -115,15 +119,15 @@ namespace midikraft {
 		}
 	}
 
-	bool MidiController::enableMidiOutput(std::string const &newOutput)
+	bool MidiController::enableMidiOutput(juce::MidiDeviceInfo const &newOutput)
 	{
-		if (newOutput.empty()) return false;
+		//if (newOutput.isEmpty()) return false;
 
 		// Check if it is already open
 		if (outputsOpen_.find(newOutput) == outputsOpen_.end()) {
 			auto devices = MidiOutput::getAvailableDevices();
 			for (const auto& device : devices) {
-				if (device.name == juce::String(newOutput)) {
+				if (device == newOutput) {
 					auto newDevice = MidiOutput::openDevice(device.identifier);
 					if (newDevice) {
 						// Take responsibility for the lifetime of the returned output
@@ -133,7 +137,7 @@ namespace midikraft {
 #endif
 						return true;
 					}
-					SimpleLogger::instance()->postMessage("MIDI output " + newOutput + " could not be opened, maybe it is turned off or used by another software?");
+					SimpleLogger::instance()->postMessage("MIDI output " + newOutput.name + " could not be opened, maybe it is turned off or used by another software?");
 					return false;
 				}
 			}
@@ -145,7 +149,7 @@ namespace midikraft {
 		midiLogFunction_ = logFunction;
 	}
 
-	std::shared_ptr<SafeMidiOutput> MidiController::getMidiOutput(std::string const &name)
+	std::shared_ptr<SafeMidiOutput> MidiController::getMidiOutput(juce::MidiDeviceInfo const &name)
 	{
 		if (safeOutputs_.find(name) == safeOutputs_.end() || !safeOutputs_[name]->isValid()) {
 			if (outputsOpen_.find(name) == outputsOpen_.end()) {
@@ -161,13 +165,13 @@ namespace midikraft {
 		return safeOutputs_[name];
 	}
 
-	bool MidiController::enableMidiInput(std::string const &newInput)
+	bool MidiController::enableMidiInput(juce::MidiDeviceInfo const &newInput)
 	{
 		// Do not and never open a MIDI Input with an empty identifier, as this is a "catch all" function for JUCE, and you suddenly get duplicated messages everywhere!
-		if (newInput.empty()) return false;
+		//if (newInput.isEmpty()) return false;
 
 		for (const auto& device : MidiInput::getAvailableDevices()) {
-			if (device.name == String(newInput)) {
+			if (device == newInput) {
 				// Has this device already been opened?
 				if (inputsOpen_.find(newInput) == inputsOpen_.end()) {
 					inputsOpen_[newInput] = MidiInput::openDevice(device.identifier, this);
@@ -180,7 +184,7 @@ namespace midikraft {
 					}
 					else {
 						inputsOpen_.erase(newInput);
-						SimpleLogger::instance()->postMessage("MIDI input" + newInput + " could not be opened, maybe it is locked by another software running?");
+						SimpleLogger::instance()->postMessage("MIDI input" + newInput.name + " could not be opened, maybe it is locked by another software running?");
 						return false;
 					}
 				}
@@ -194,12 +198,12 @@ namespace midikraft {
 				}
 			}
 		}
-		SimpleLogger::instance()->postMessage("MIDI input " + newInput + " could not be opened, not found. Please plugin/turn on the device.");
+		SimpleLogger::instance()->postMessage("MIDI input " + newInput.name + " could not be opened, not found. Please plugin/turn on the device.");
 		return false;
 	}
 
-	void MidiController::disableMidiInput(std::string const &input) {
-		if (input.empty()) return;
+	void MidiController::disableMidiInput(juce::MidiDeviceInfo const &input) {
+		//if (input.isEmpty()) return;
 
 		// Has this device ever been opened?
 		if (inputsOpen_.find(input) == inputsOpen_.end()) {
@@ -242,12 +246,12 @@ namespace midikraft {
 		
 		// Check if all open devices are still there, else stop them and delete them
 		//TODO Could I use the new set knownDevices_ here to an advantage?
-		std::vector<std::string> toDelete;
+		std::vector<juce::MidiDeviceInfo> toDelete;
 		auto inputDevices = currentInputs(false);
 		for (auto input = inputsOpen_.begin(); input != inputsOpen_.end(); input++) {
 			if (inputDevices.find(input->first) == inputDevices.end()) {
 				// Nope, that one is gone, closing it!
-				SimpleLogger::instance()->postMessage("MIDI Input " + input->first + " unplugged");
+				SimpleLogger::instance()->postMessage("MIDI Input " + input->first.name + " unplugged");
 				input->second.reset();
 				toDelete.push_back(input->first);
 				dirty = true;
@@ -262,7 +266,7 @@ namespace midikraft {
 		if (inputDevices != knownInputs_) {
 			for (auto input : inputDevices) {
 				if (knownInputs_.find(input) == knownInputs_.end()) {
-					SimpleLogger::instance()->postMessage("MIDI Input " + input + " connected");
+					SimpleLogger::instance()->postMessage("MIDI Input " + input.name + " connected");
 					dirty = true;
 				}
 			}
@@ -271,11 +275,11 @@ namespace midikraft {
 		historyOfAllInputs_.insert(knownInputs_.begin(), knownInputs_.end());
 
 		// Now the same for the Output devices
-		std::vector<std::string> toDeleteOutput;
+		std::vector<juce::MidiDeviceInfo> toDeleteOutput;
 		auto outputDevices = currentOutputs(false);
 		for (auto output = outputsOpen_.begin(); output != outputsOpen_.end(); output++) {
 			if (outputDevices.find(output->first) == outputDevices.end()) {
-				SimpleLogger::instance()->postMessage("MIDI Output " + output->first + " unplugged");
+				SimpleLogger::instance()->postMessage("MIDI Output " + output->first.name + " unplugged");
 				output->second.reset();
 				toDeleteOutput.push_back(output->first);
 				dirty = true;
@@ -291,7 +295,7 @@ namespace midikraft {
 		if (outputDevices!= knownOutputs_) {
 			for (auto output: outputDevices) {
 				if (knownOutputs_.find(output) == knownOutputs_.end()) {
-					SimpleLogger::instance()->postMessage("MIDI output " + output+ " connected");
+					SimpleLogger::instance()->postMessage("MIDI output " + output.name + " connected");
 					dirty = true;
 				}
 			}
@@ -304,27 +308,51 @@ namespace midikraft {
 		}
 	}
 
-	std::set<std::string> MidiController::currentInputs(bool withHistory)
+	std::set<juce::MidiDeviceInfo> MidiController::currentInputs(bool withHistory)
 	{
-		std::set<std::string> inputDevices;
+		std::set<juce::MidiDeviceInfo> inputDevices;
 		auto availableInputs = MidiInput::getAvailableDevices();
-		std::for_each(availableInputs.begin(), availableInputs.end(), [&](MidiDeviceInfo device) {inputDevices.insert(device.name.toStdString()); });
+		std::for_each(availableInputs.begin(), availableInputs.end(), [&](MidiDeviceInfo device) {inputDevices.insert(device); });
 		if (withHistory) {
 			inputDevices.insert(historyOfAllInputs_.begin(), historyOfAllInputs_.end());
 		}
 		return inputDevices;
 	}
 
-	std::set<std::string> MidiController::currentOutputs(bool withHistory)
+	std::set<juce::MidiDeviceInfo> MidiController::currentOutputs(bool withHistory)
 	{
-		std::set<std::string> outputDevices;
+		std::set<juce::MidiDeviceInfo> outputDevices;
 		auto availableOuputs = MidiOutput::getAvailableDevices();
-		std::for_each(availableOuputs.begin(), availableOuputs.end(), [&](MidiDeviceInfo device) {outputDevices.insert(device.name.toStdString()); });
+		std::for_each(availableOuputs.begin(), availableOuputs.end(), [&](MidiDeviceInfo device) {outputDevices.insert(device); });
 		if (withHistory) {
 			outputDevices.insert(historyOfAllOutpus_.begin(), historyOfAllOutpus_.end());
 		}
 		return outputDevices;
 	}
+
+    juce::MidiDeviceInfo MidiController::getMidiOutputByIdentifier(const String &identifier)
+    {
+        for (auto const& output : currentOutputs(true))
+        {
+            if (output.identifier == identifier)
+            {
+                return output;
+            }
+        }
+        return MidiDeviceInfo();
+    }
+
+    juce::MidiDeviceInfo MidiController::getMidiInputByIdentifier(const String &identifier)
+    {
+        for (auto const& output : currentInputs(true))
+        {
+            if (output.identifier == identifier)
+            {
+                return output;
+            }
+        }
+        return MidiDeviceInfo();
+    }
 
 	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler) {
 		ScopedLock lock(messageHandlerList_);

@@ -192,7 +192,7 @@ namespace midikraft {
 		}
 	}
 
-	void Synth::sendBlockOfMessagesToSynth(std::string const& midiOutput, std::vector<MidiMessage> const& buffer)
+	void Synth::sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const& midiOutput, std::vector<MidiMessage> const& buffer)
 	{
 		MidiController::instance()->getMidiOutput(midiOutput)->sendBlockOfMessagesFullSpeed(buffer);
 	}

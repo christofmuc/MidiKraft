@@ -11,7 +11,7 @@
 
 namespace midikraft {
 
-	midikraft::MidiRequest::MidiRequest(std::string const &midiOutput, std::vector<MidiMessage> const &request, TIsAnswerPredicate pred) : output_(midiOutput), request_(request), pred_(pred)
+	midikraft::MidiRequest::MidiRequest(juce::MidiDeviceInfo const &midiOutput, std::vector<MidiMessage> const &request, TIsAnswerPredicate pred) : output_(midiOutput), request_(request), pred_(pred)
 	{
 	}
 

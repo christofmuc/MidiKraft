@@ -13,6 +13,23 @@
 
 #include "DebounceTimer.h"
 
+/*
+inline bool operator <(const juce::MidiDeviceInfo &a, const juce::MidiDeviceInfo &b)
+{
+    return a.identifier < b.identifier;
+}*/
+
+namespace std
+{
+    template<> struct less<juce::MidiDeviceInfo>
+    {
+        bool operator() (const juce::MidiDeviceInfo& lhs, const juce::MidiDeviceInfo& rhs) const
+        {
+            return lhs.identifier < rhs.identifier;
+        }
+    };
+}
+
 namespace midikraft {
 
 	// Forward declaration for the SafeMidiOutput class
@@ -30,6 +47,7 @@ namespace midikraft {
 		void sendBlockOfMessagesFullSpeed(const std::vector<MidiMessage>& buffer);
 		void sendBlockOfMessagesThrottled(const std::vector<MidiMessage>& buffer, int millisecondsWait);
 
+        juce::MidiDeviceInfo deviceInfo() const;
 		std::string name() const;
 		bool isValid() const;
 
@@ -59,13 +77,16 @@ namespace midikraft {
 		void setMidiLogFunction(std::function<void(const MidiMessage& message, const String& source, bool)>);
 		void logMidiMessage(const MidiMessage& message, const String& source, bool isOut);
 
-		bool enableMidiOutput(std::string const &newOutput);
-		std::shared_ptr<SafeMidiOutput> getMidiOutput(std::string const &name);
-		bool enableMidiInput(std::string const &newInput);
-		void disableMidiInput(std::string const &input);
+		bool enableMidiOutput(juce::MidiDeviceInfo const &newOutput);
+		std::shared_ptr<SafeMidiOutput> getMidiOutput(juce::MidiDeviceInfo const &name);
+		bool enableMidiInput(juce::MidiDeviceInfo const &newInput);
+		void disableMidiInput(juce::MidiDeviceInfo const &input);
 
-		std::set<std::string> currentInputs(bool withHistory);
-		std::set<std::string> currentOutputs(bool withHistory);
+        MidiDeviceInfo getMidiInputByIdentifier(String const &identifier);
+        MidiDeviceInfo getMidiOutputByIdentifier(String const &identifier);
+
+		std::set<juce::MidiDeviceInfo> currentInputs(bool withHistory);
+		std::set<juce::MidiDeviceInfo> currentOutputs(bool withHistory);
 
 	private:
 		// Implementation of Callback
@@ -79,12 +100,13 @@ namespace midikraft {
 		CriticalSection messageHandlerList_;
 		std::map<HandlerHandle, MidiCallback> messageHandlers_;
 
-		std::set<std::string> knownInputs_, historyOfAllInputs_;
-		std::set<std::string> knownOutputs_, historyOfAllOutpus_;
-		std::map< std::string, std::unique_ptr<MidiOutput>> outputsOpen_;
-		std::map< std::string, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
-		std::map< std::string, std::unique_ptr<MidiInput>> inputsOpen_;
+		std::set<juce::MidiDeviceInfo> knownInputs_, historyOfAllInputs_;
+		std::set<juce::MidiDeviceInfo> knownOutputs_, historyOfAllOutpus_;
+		std::map< juce::MidiDeviceInfo, std::unique_ptr<MidiOutput>> outputsOpen_;
+		std::map< juce::MidiDeviceInfo, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
+		std::map< juce::MidiDeviceInfo, std::unique_ptr<MidiInput>> inputsOpen_;
 		std::function<void(const MidiMessage& message, const String& source, bool)> midiLogFunction_;
 	};
 	
 }
+

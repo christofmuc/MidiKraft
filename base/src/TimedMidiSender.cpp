@@ -22,7 +22,7 @@ namespace midikraft {
 		stopTimer();
 	}
 
-	void TimedMidiSender::addMessageToBuffer(std::string const &midiOutput, MidiMessage &message, double timeRelativeToNowInS)
+	void TimedMidiSender::addMessageToBuffer(juce::MidiDeviceInfo const &midiOutput, MidiMessage &message, double timeRelativeToNowInS)
 	{
 		auto timestamp = Time::getMillisecondCounterHiRes() * 0.001 + timeRelativeToNowInS - startTime_;
 		message.setTimeStamp(timestamp);

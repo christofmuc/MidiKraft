@@ -15,6 +15,12 @@
 #include "Logger.h"
 #include "HasBanksCapability.h"
 
+#ifdef _MSC_VER
+// We have to disable warning deprecated, because we use /WX all warnings as errors, and cannot turn off the error level for just one 
+// warning. Sigh. Keep it off so I can start adding deprecated tags and fix at a later date
+#pragma warning(disable:4996)
+#endif
+
 namespace midikraft {
 
 	class SendTarget;
@@ -32,8 +38,12 @@ namespace midikraft {
 		virtual std::shared_ptr<DataFile> patchFromPatchData(const Synth::PatchData &data, MidiProgramNumber place) const = 0;
 		virtual bool isOwnSysex(MidiMessage const &message) const = 0;
 
-		// Override this to make a prettier program name
+		// Override this to make a prettier program name. This is the old version that expects the program number equal to program number + bank number times bank size
+		// Use friendlyProgramAndBankName instead
+		[[deprecated]]
 		virtual std::string friendlyProgramName(MidiProgramNumber programNo) const;
+
+		virtual std::string friendlyProgramAndBankName(MidiBankNumber bankNo, MidiProgramNumber programNo) const;
 
 		// Override this in case not all bytes contribute to the sound of the patch
 		virtual PatchData filterVoiceRelevantData(std::shared_ptr<DataFile> unfilteredData) const;

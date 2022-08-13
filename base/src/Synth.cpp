@@ -29,6 +29,22 @@ namespace midikraft {
 		return (boost::format("%02d") % programNo.toZeroBased()).str();
 	}
 
+	std::string Synth::friendlyProgramAndBankName(MidiBankNumber bankNo, MidiProgramNumber programNo) const
+	{
+		if (programNo.toZeroBased() < numberOfPatches()) {
+			// Default implementation is the old logic that the program numbers are just continuous
+			// from one bank to the next
+			int bank = bankNo.toZeroBased();
+			int program = programNo.toZeroBased();
+			return friendlyProgramName(MidiProgramNumber::fromZeroBase(bank * numberOfPatches() + program));
+		}
+		else {
+			// This is inconsistent - obviously the programNo contains the bank, but you supplied a bank as well!?
+			SimpleLogger::instance()->postMessageOncePerRun("Implementation error - called friendlyProgramAndBankName with program number too big for the bank");
+			return friendlyProgramName(programNo);
+		}
+	}
+
 	Synth::PatchData Synth::filterVoiceRelevantData(std::shared_ptr<DataFile> unfilteredData) const
 	{
 		// The default implementation does nothing, i.e. all bytes are relevant for the sound of the patch

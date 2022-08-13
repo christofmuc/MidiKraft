@@ -41,6 +41,11 @@ namespace midikraft {
 			return dirtyPositions_.find(position) != dirtyPositions_.end();
 		}
 
+		void clearDirty()
+		{
+			dirtyPositions_.clear();
+		}
+
 	private:
 		bool validatePatchInfo(PatchHolder patch);
 

@@ -23,6 +23,7 @@
 #include "FileHelpers.h"
 
 #include <boost/format.hpp>
+#include "fmt/format.h"
 #include <set>
 #include "Settings.h"
 
@@ -425,6 +426,58 @@ namespace midikraft {
 			i++;
 		}
 		return result;
+	}
+
+	void Librarian::sendBankToSynth(SynthBank const& synthBank, bool fullBank, ProgressHandler* progressHandler, std::function<void(bool completed)> finishedHandler)
+	{
+		auto synth = synthBank.synth();
+		if (!synth) {
+			return;
+		}
+
+		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
+		if (programDumpCapability) {
+			// Count how many to send first
+			int count = 0;
+			int i = 0;
+			for (auto const& patch : synthBank.patches()) {
+				ignoreUnused(patch);
+				if (fullBank || synthBank.isPositionDirty(i++)) {
+					count++;
+				}
+			}
+
+			auto location = midikraft::Capability::hasCapability<midikraft::MidiLocationCapability>(synth);
+			if (!location || !location->channel().isValid() /* || !synth->wasDetected()*/) {
+				SimpleLogger::instance()->postMessage(fmt::format("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName()));
+				return;
+			}
+
+			// Now to send and update the progressHandler
+			int sent = 0;
+			i = 0;
+			for (auto const& patch : synthBank.patches()) {
+				if (progressHandler) progressHandler->setMessage(fmt::format("Sending patch {} to {}", patch.name(), synth->friendlyProgramName(patch.patchNumber())));
+				if (fullBank || synthBank.isPositionDirty(i++)) {
+					auto messages = programDumpCapability->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
+					synth->sendBlockOfMessagesToSynth(location->midiOutput(), messages);
+				}
+				if (progressHandler) progressHandler->setProgressPercentage(++sent / (double) count);
+				if (progressHandler && progressHandler->shouldAbort()) {
+					SimpleLogger::instance()->postMessage("Canceled bank upload in mid-flight!");
+					if (finishedHandler) {
+						finishedHandler(false);
+					}
+					return;
+				}
+			}
+			if (finishedHandler) {
+				finishedHandler(true);
+			}
+		}
+		else {
+			SimpleLogger::instance()->postMessage(fmt::format("Sending banks to {} is not implemented yet", synth->getName()));
+		}
 	}
 
 	class ExportSysexFilesInBackground: public ThreadWithProgressWindow {

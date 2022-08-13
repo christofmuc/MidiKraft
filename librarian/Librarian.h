@@ -16,6 +16,7 @@
 #include "PatchHolder.h"
 #include "DataFileLoadCapability.h"
 #include "StreamLoadCapability.h"
+#include "SynthBank.h"
 
 #include <stack>
 
@@ -41,6 +42,8 @@ namespace midikraft {
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::shared_ptr<AutomaticCategory> automaticCategories);
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::string const &fullpath, std::string const &filename, std::shared_ptr<AutomaticCategory> automaticCategories);
 		std::vector<PatchHolder> loadSysexPatchesManualDump(std::shared_ptr<Synth> synth, std::vector<MidiMessage> const &messages, std::shared_ptr<AutomaticCategory> automaticCategories);
+
+		void sendBankToSynth(SynthBank const& synthBank, bool fullBank, ProgressHandler *progressHandler, std::function<void(bool completed)> finishedHandler);
 
 		enum ExportFormatOption {
 			PROGRAM_DUMPS = 0,

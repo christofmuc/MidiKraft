@@ -1276,10 +1276,23 @@ namespace midikraft {
 				search.bind(":ID", patchList->id());
 				auto isSynthBank = std::dynamic_pointer_cast<SynthBank>(patchList);
 				if (search.executeStep()) {
-					SQLite::Statement update(db_, "UPDATE lists SET name = :NAM WHERE id = :ID");
-					update.bind(":ID", patchList->id());
-					update.bind(":NAM", patchList->name());
-					update.exec();
+					if (!isSynthBank) {
+						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM WHERE id = :ID");
+						update.bind(":ID", patchList->id());
+						update.bind(":NAM", patchList->name());
+						update.exec();
+					}
+					else {
+						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM, last_synced = :LSY WHERE id = :ID");
+						update.bind(":ID", patchList->id());
+						update.bind(":NAM", patchList->name());
+						update.bind(":LSY", isSynthBank->lastSynced().toMilliseconds());
+						update.exec();
+					}
+					// Delete the previous list content, this operation overwrites the list!
+					SQLite::Statement removeEntries(db_, "DELETE FROM patch_in_list WHERE id = :ID");
+					removeEntries.bind(":ID", patchList->id());
+					removeEntries.exec();
 				}
 				else {
 					SQLite::Statement insert(db_, "INSERT INTO lists (id, name, synth, midi_bank_number, last_synced) VALUES (:ID, :NAM, :SYN, :BNK, :LSY)");

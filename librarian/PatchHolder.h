@@ -74,8 +74,22 @@ namespace midikraft {
 		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const override;
 		static std::shared_ptr<FromFileSource> fromString(std::string const &jsonString);
 
+		std::string filename() const {
+			return filename_;
+		}
+
+		std::string fullpath() const {
+			return fullpath_;
+		}
+
+		MidiProgramNumber programNumber() const {
+			return program_;
+		}
+
 	private:
 		const std::string filename_;
+		const std::string fullpath_;
+		MidiProgramNumber program_;
 	};
 
 	class FromBulkImportSource : public SourceInfo {

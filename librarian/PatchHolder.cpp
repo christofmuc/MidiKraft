@@ -396,7 +396,7 @@ namespace midikraft {
 		return bankNo_;
 	}
 
-	FromFileSource::FromFileSource(std::string const &filename, std::string const &fullpath, MidiProgramNumber program) : filename_(filename)
+	FromFileSource::FromFileSource(std::string const &filename, std::string const &fullpath, MidiProgramNumber program) : filename_(filename), fullpath_(fullpath), program_(program)
 	{
 		rapidjson::Document doc;
 		doc.SetObject();

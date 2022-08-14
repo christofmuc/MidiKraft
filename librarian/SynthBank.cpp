@@ -7,6 +7,7 @@
 #include "SynthBank.h"
 
 #include "Logger.h"
+#include "fmt/format.h"
 
 namespace midikraft {
 
@@ -74,9 +75,16 @@ namespace midikraft {
 		if (position < currentList.size()) {
 			auto listToCopy = list.patches();
 			int read_pos = 0;
-			for (int write_pos = position; write_pos < std::min(currentList.size(), position + list.patches().size()); write_pos++) {
-				currentList[write_pos] = listToCopy[read_pos++];
-				dirtyPositions_.insert(write_pos);
+			int write_pos = position;
+			while (write_pos < std::min(currentList.size(), position + list.patches().size()) && read_pos < listToCopy.size()) {
+				if (listToCopy[read_pos].synth()->getName() == synth_->getName()) {
+					currentList[write_pos] = listToCopy[read_pos++];
+					dirtyPositions_.insert(write_pos++);
+				}
+				else {
+					SimpleLogger::instance()->postMessage(fmt::format("Skipping patch %s because it is for synth %s and cannot be put into the bank", listToCopy[read_pos].name(), listToCopy[read_pos].synth()->getName()));
+					read_pos++;
+				}
 			}
 			setPatches(currentList);
 		}

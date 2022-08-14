@@ -14,12 +14,16 @@ namespace midikraft {
 	public:
 		SynthBank(std::shared_ptr<Synth> synth, MidiBankNumber bank, juce::Time lastSynced);
 
+		static std::string makeId(std::shared_ptr<Synth> synth, MidiBankNumber bank);
+
 		// Override these to make sure they only contain patches for the synth, and have a proper program
 		// location
 		virtual void setPatches(std::vector<PatchHolder> patches) override;
 		virtual void addPatch(PatchHolder patch) override;
 		
 		virtual void changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
+		
+		void copyListToPosition(MidiProgramNumber programPlace, PatchList const& list);
 
 		std::shared_ptr<Synth> synth() const
 		{

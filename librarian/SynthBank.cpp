@@ -18,6 +18,11 @@ namespace midikraft {
 	{
 	}
 
+	std::string SynthBank::makeId(std::shared_ptr<Synth> synth, MidiBankNumber bank)
+	{
+		return (String(synth->getName()) + "-bank-" + String(bank.toZeroBased())).toStdString();
+	}
+
 	void SynthBank::setPatches(std::vector<PatchHolder> patches)
 	{
 		// Renumber the patches, the original patch information will not reflect the position 
@@ -37,7 +42,7 @@ namespace midikraft {
 		PatchList::setPatches(patches);
 	}
 
-	void SynthBank::addPatch(PatchHolder patch) 
+	void SynthBank::addPatch(PatchHolder patch)
 	{
 		if (!validatePatchInfo(patch)) {
 			return;
@@ -45,7 +50,7 @@ namespace midikraft {
 		PatchList::addPatch(patch);
 	}
 
-	void SynthBank::changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch) 
+	void SynthBank::changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch)
 	{
 		auto currentList = patches();
 		int position = programPlace.toZeroBased();
@@ -56,6 +61,24 @@ namespace midikraft {
 				setPatches(currentList);
 				dirtyPositions_.insert(position);
 			}
+		}
+		else {
+			jassertfalse;
+		}
+	}
+
+	void SynthBank::copyListToPosition(MidiProgramNumber programPlace, PatchList const& list)
+	{
+		auto currentList = patches();
+		int position = programPlace.toZeroBased();
+		if (position < currentList.size()) {
+			auto listToCopy = list.patches();
+			int read_pos = 0;
+			for (int write_pos = position; write_pos < std::min(currentList.size(), position + list.patches().size()); write_pos++) {
+				currentList[write_pos] = listToCopy[read_pos++];
+				dirtyPositions_.insert(write_pos);
+			}
+			setPatches(currentList);
 		}
 		else {
 			jassertfalse;

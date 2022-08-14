@@ -27,10 +27,10 @@ namespace midikraft {
 	{
 		// The default implementation is just that you see something
 		if (programNo.isBankKnown()) {
-			return (boost::format("%02d-%02d") % programNo.bank().toZeroBased() % programNo.toZeroBasedWithoutBank()).str();
+			return (boost::format("%02d-%02d") % programNo.bank().toZeroBased() % programNo.toZeroBased()).str();
 		}
 		else {
-			return (boost::format("%02d") % programNo.toZeroBasedWithoutBank()).str();
+			return (boost::format("%02d") % programNo.toZeroBased()).str();
 		}
 	}
 

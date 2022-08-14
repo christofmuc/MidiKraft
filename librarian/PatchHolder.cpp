@@ -44,7 +44,7 @@ namespace midikraft {
 		}
 	}
 
-	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), bankNumber_(MidiBankNumber::fromZeroBase(0)), patchNumber_(MidiProgramNumber::fromZeroBase(0))
+	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::fromZeroBase(0))
 	{
 	}
 
@@ -376,7 +376,9 @@ namespace midikraft {
 				}
 				MidiBankNumber bankNo = MidiBankNumber::invalid();
 				if (obj.HasMember(kBankNumber)) {
-					bankNo = MidiBankNumber::fromZeroBase(obj.FindMember(kBankNumber).operator*().value.GetInt());
+					//TODO - a bank size of -1 seems to ask for trouble
+					jassertfalse;
+					bankNo = MidiBankNumber::fromZeroBase(obj.FindMember(kBankNumber).operator*().value.GetInt(), -1);
 				}
 				return std::make_shared<FromSynthSource>(timestamp, bankNo);
 			}
@@ -396,7 +398,14 @@ namespace midikraft {
 		doc.AddMember(rapidjson::StringRef(kFileSource), true, doc.GetAllocator());
 		doc.AddMember(rapidjson::StringRef(kFileName), rapidjson::Value(filename.c_str(), (rapidjson::SizeType)  filename.size()), doc.GetAllocator());
 		doc.AddMember(rapidjson::StringRef(kFullPath), rapidjson::Value(fullpath.c_str(), (rapidjson::SizeType) fullpath.size()), doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kProgramNo), program.toZeroBased(), doc.GetAllocator());
+		if (program.bank().isValid()) {
+			doc.AddMember(rapidjson::StringRef(kBankNumber), program.bank().toZeroBased(), doc.GetAllocator());
+			doc.AddMember(rapidjson::StringRef(kProgramNo), program.toZeroBasedWithBank(), doc.GetAllocator());
+		}
+		else
+		{
+			doc.AddMember(rapidjson::StringRef(kProgramNo), program.toZeroBased(), doc.GetAllocator());
+		}
 		jsonRep_ = renderToJson(doc);
 
 	}
@@ -422,7 +431,15 @@ namespace midikraft {
 			if (obj.HasMember(kFileSource)) {
 				std::string filename = obj.FindMember(kFileName).operator*().value.GetString();
 				std::string fullpath = obj.FindMember(kFullPath).operator*().value.GetString();
-				MidiProgramNumber program = MidiProgramNumber::fromZeroBase(obj.FindMember(kProgramNo).operator*().value.GetInt());
+				MidiProgramNumber program = MidiProgramNumber::fromZeroBase(0);
+				if (obj.HasMember(kBankNumber)) {
+					jassertfalse;
+					MidiBankNumber bank = MidiBankNumber::fromZeroBase(obj.FindMember(kBankNumber).operator*().value.GetInt(), -1);
+					program = MidiProgramNumber::fromZeroBaseWithBank(bank, obj.FindMember(kProgramNo).operator*().value.GetInt());
+				}
+				else {
+					program = MidiProgramNumber::fromZeroBase(obj.FindMember(kProgramNo).operator*().value.GetInt());
+				}
 				return std::make_shared<FromFileSource>(filename, fullpath, program);
 			}
 		}

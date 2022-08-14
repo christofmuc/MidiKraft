@@ -208,7 +208,7 @@ namespace midikraft {
 		} else if (editBufferCapability) {
 			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
-				this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0));
+				this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0, synth->numberOfPatches()));
 			});
 			handles_.push(handle);
 			// Special case - load only a single patch. In this case we're interested in the edit buffer only!
@@ -404,8 +404,8 @@ namespace midikraft {
 		std::vector<PatchHolder> result;
 		int i = 0;
 		for (auto patch : patches) {
-			result.push_back(PatchHolder(synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch, 
-				MidiBankNumber::fromZeroBase(0), MidiProgramNumber::fromZeroBase(i), automaticCategories));
+			result.push_back(PatchHolder(synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch,
+				MidiBankNumber::fromZeroBase(0, synth->numberOfPatches()), MidiProgramNumber::fromZeroBase(i), automaticCategories));
 			i++;
 		}
 		return result;
@@ -422,7 +422,7 @@ namespace midikraft {
 		Time now;
 		for (auto patch : patches) {
 			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, MidiBankNumber::invalid()), patch,
-				MidiBankNumber::fromZeroBase(0), MidiProgramNumber::fromZeroBase(i), automaticCategories));
+				MidiBankNumber::invalid(), MidiProgramNumber::fromZeroBase(i), automaticCategories));
 			i++;
 		}
 		return result;

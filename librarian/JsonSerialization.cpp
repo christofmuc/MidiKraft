@@ -54,64 +54,7 @@ namespace midikraft {
 			return {};
 		}
 	}
-
-	std::string JsonSerialization::patchToJson(std::shared_ptr<Synth> synth, PatchHolder *patchholder)
-	{
-		if (!patchholder || !patchholder->patch() || !synth) {
-			jassert(false);
-			return "";
-		}
-
-		rapidjson::Document doc;
-		doc.SetObject();
-		addToJson(JsonSchema::kSynth, synth->getName(), doc, doc);
-		addToJson(JsonSchema::kName, patchholder->name(), doc, doc);
-		addToJson(JsonSchema::kSysex, dataToString(patchholder->patch()->data()), doc, doc);
-		auto realPatch = std::dynamic_pointer_cast<Patch>(patchholder->patch());
-		if (realPatch) {
-			std::string numberAsString = (boost::format("%d") % realPatch->patchNumber().toZeroBased()).str();
-			addToJson(JsonSchema::kPlace, numberAsString, doc, doc);
-		}
-		addToJson(JsonSchema::kMD5, patchholder->md5(), doc, doc);
-		return renderToJson(doc);
-	}
-
-	bool JsonSerialization::jsonToPatch(std::shared_ptr<Synth> activeSynth, rapidjson::Value &patchDoc, PatchHolder &outPatchHolder) {
-		//TODO - I think this is dead code?
-		// Build the patch via the synth from the sysex data...
-		std::string name;
-		Synth::PatchData data;
-		int bankNo = 0;
-		int programNo = 0;
-		getStringIfSet(patchDoc, JsonSchema::kName, name);
-		getBufferIfSet(patchDoc, JsonSchema::kSysex, data);
-		getNumberIfSet(patchDoc, JsonSchema::kBank, bankNo);
-		getNumberIfSet(patchDoc, JsonSchema::kPlace, programNo);
-		auto newPatch = activeSynth->patchFromPatchData(data, MidiProgramNumber::fromZeroBase(programNo));
-		if (newPatch != nullptr) {
-			/*std::string importInfoJson;
-			getStringIfSet(patch, JsonSchema::kImport, importInfoJson);
-			PatchHolder withMeta(SourceInfo::fromString(importInfoJson), newPatch, patch.find(JsonSchema::kCategory) == patch.end()); // If there is no category field in the database, allow to autodetect
-			bool fav = false;
-			if (getBoolIfSet(patch, JsonSchema::kFavorite, fav)) {
-				withMeta.setFavorite(Favorite(fav));
-			}
-			std::vector<std::string> categories;
-			if (getStringSetIfSet(patch, JsonSchema::kCategory, categories)) {
-				for (auto cat : categories) {
-					withMeta.setCategory(cat, true);
-				}
-			}*/
-			PatchHolder simple(activeSynth, std::make_shared<FromFileSource>("", "", MidiProgramNumber::fromZeroBase(programNo)), newPatch, MidiBankNumber::fromZeroBase(bankNo), MidiProgramNumber::fromZeroBase(programNo));
-			simple.setName(name);
-			outPatchHolder = simple;
-			return true;
-		}
-		else {
-			return false;
-		}
-	}
-
+	
 	std::string JsonSerialization::patchInSessionID(Synth *synth, std::shared_ptr<SessionPatch> patch) {
 		// Every possible patch can be stored in the database once per synth and session.
 		// build a hash to represent this.

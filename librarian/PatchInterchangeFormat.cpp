@@ -33,6 +33,7 @@ const char *kName = "Name";
 const char *kSysex = "Sysex";
 const char *kFavorite = "Favorite";
 const char *kPlace = "Place";
+const char *kBank = "Bank";
 const char *kCategories = "Categories";
 const char *kNonCategories = "NonCategories";
 const char *kSourceInfo = "SourceInfo";
@@ -174,17 +175,43 @@ namespace midikraft {
 						}
 					}
 
+					MidiBankNumber bank = MidiBankNumber::invalid();
+					if (item->HasMember(kBank)) {
+						if ((*item)[kBank].IsInt()) {
+							bank = MidiBankNumber::fromZeroBase((*item)[kBank].GetInt(), activeSynth->numberOfPatches());
+						}
+						else {
+							std::string bankStr = (*item)[kBank].GetString();
+							try {
+								bank = MidiBankNumber::fromZeroBase(std::stoi(bankStr), activeSynth->numberOfPatches());
+							}
+							catch (std::invalid_argument &) {
+								SimpleLogger::instance()->postMessage((boost::format("Ignoring MIDI bank information for patch %s because %s does not convert to an integer") % patchName % bankStr).str());
+							}
+						}
+					}
+
 					MidiProgramNumber place = MidiProgramNumber::fromZeroBase(0);
 					if (item->HasMember(kPlace)) {
 						if ((*item)[kPlace].IsInt()) {
-							place = MidiProgramNumber::fromZeroBase((*item)[kPlace].GetInt());
+							if (bank.isValid()) {
+								place = MidiProgramNumber::fromZeroBaseWithBank(bank, (*item)[kPlace].GetInt());
+							}
+							else {
+								place = MidiProgramNumber::fromZeroBase((*item)[kPlace].GetInt());
+							}
 						}
 						else {
 							std::string placeStr = (*item)[kPlace].GetString();
 							try {
-								place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
+								if (bank.isValid()) {
+									place = MidiProgramNumber::fromZeroBaseWithBank(bank, std::stoi(placeStr));
+								}
+								else {
+									place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
+								}
 							}
-							catch (std::invalid_argument &) {
+							catch (std::invalid_argument&) {
 								SimpleLogger::instance()->postMessage((boost::format("Ignoring MIDI place information for patch %s because %s does not convert to an integer") % patchName % placeStr).str());
 							}
 						}
@@ -233,8 +260,7 @@ namespace midikraft {
 						auto patches = activeSynth->loadSysex(messages);
 						//jassert(patches.size() == 1);
 						if (patches.size() == 1) {
-							//TODO The file format did not specify MIDI banks 
-							PatchHolder holder(activeSynth, fileSource, patches[0], MidiBankNumber::fromZeroBase(0), place, detector);
+							PatchHolder holder(activeSynth, fileSource, patches[0], bank, place, detector);
 							holder.setFavorite(fav);
 							holder.setName(patchName);
 							for (const auto& cat : categories) {
@@ -286,6 +312,9 @@ namespace midikraft {
 			addToJson(kSynth, patch.synth()->getName(), patchJson, doc);
 			addToJson(kName, patch.name(), patchJson, doc);
 			patchJson.AddMember(rapidjson::StringRef(kFavorite), patch.isFavorite() ? 1 : 0, doc.GetAllocator());
+			if (patch.bankNumber().isValid()) {
+				patchJson.AddMember(rapidjson::StringRef(kBank), patch.bankNumber().toZeroBased(), doc.GetAllocator());
+			}
 			patchJson.AddMember(rapidjson::StringRef(kPlace), patch.patchNumber().toZeroBased(), doc.GetAllocator());
  			auto categoriesSet = patch.categories();
 			auto userDecisions = patch.userDecisionSet();

@@ -25,7 +25,7 @@ namespace midikraft {
 		int i = 0;
 		for (midikraft::PatchHolder& patch : patches) {
 			patch.setBank(bankNo_);
-			patch.setPatchNumber(MidiProgramNumber::fromZeroBase(i++));
+			patch.setPatchNumber(MidiProgramNumber::fromZeroBaseWithBank(bankNo_, i++));
 		}
 
 		// Validate everything worked
@@ -72,8 +72,8 @@ namespace midikraft {
 			SimpleLogger::instance()->postMessage("program error - list contains patches for a different bank, aborting");
 			return false;
 		}
-		if (patch.patchNumber().toOneBased() > synth_->numberOfPatches()) {
-			SimpleLogger::instance()->postMessage("program error - list contains patches with non normalized program position, aborting");
+		if (patch.patchNumber().isBankKnown() && patch.patchNumber().bank().toZeroBased() != bankNo_.toZeroBased()) {
+			SimpleLogger::instance()->postMessage("program error - list contains patches with non normalized program position not matching current bank, aborting");
 			return false;
 		}
 		return true;

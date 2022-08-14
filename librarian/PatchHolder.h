@@ -141,7 +141,9 @@ namespace midikraft {
 		std::string createDragInfoString() const;
 		static nlohmann::json dragInfoFromString(std::string s);
 
+		// Some helpers for our drag and drop operatios
 		static bool dragItemIsPatch(nlohmann::json const& dragInfo);
+		static bool dragItemIsList(nlohmann::json const& dragInfo);
 
 	private:
 		std::shared_ptr<DataFile> patch_;

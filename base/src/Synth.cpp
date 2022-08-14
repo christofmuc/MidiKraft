@@ -26,17 +26,21 @@ namespace midikraft {
 	std::string Synth::friendlyProgramName(MidiProgramNumber programNo) const
 	{
 		// The default implementation is just that you see something
-		return (boost::format("%02d") % programNo.toZeroBased()).str();
+		if (programNo.isBankKnown()) {
+			return (boost::format("%02d-%02d") % programNo.bank().toZeroBased() % programNo.toZeroBasedWithoutBank()).str();
+		}
+		else {
+			return (boost::format("%02d") % programNo.toZeroBasedWithoutBank()).str();
+		}
 	}
 
 	std::string Synth::friendlyProgramAndBankName(MidiBankNumber bankNo, MidiProgramNumber programNo) const
 	{
-		if (programNo.toZeroBased() < numberOfPatches()) {
+		if (!programNo.isBankKnown()) {
 			// Default implementation is the old logic that the program numbers are just continuous
 			// from one bank to the next
-			int bank = bankNo.toZeroBased();
 			int program = programNo.toZeroBased();
-			return friendlyProgramName(MidiProgramNumber::fromZeroBase(bank * numberOfPatches() + program));
+			return friendlyProgramName(MidiProgramNumber::fromZeroBaseWithBank(bankNo, program));
 		}
 		else {
 			// This is inconsistent - obviously the programNo contains the bank, but you supplied a bank as well!?
@@ -167,7 +171,7 @@ namespace midikraft {
 				}
 				else {
 					// Well, where should it go? I'd say last patch of first bank is a good compromise
-					place = MidiProgramNumber::fromZeroBase(numberOfPatches() - 1);
+					place = MidiProgramNumber::fromZeroBaseWithBank(MidiBankNumber::fromZeroBase(0, numberOfPatches()), numberOfPatches() - 1);
 					SimpleLogger::instance()->postMessageOncePerRun((boost::format("%s has no edit buffer, using program %s instead") % getName() % friendlyProgramName(place)).str());
 				}
 				messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);

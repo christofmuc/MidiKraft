@@ -298,7 +298,7 @@ namespace midikraft {
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
 				sql.bind(":BNK", patch.bankNumber().isValid() ? patch.bankNumber().toZeroBased() : 0);
-				sql.bind(":PRG", patch.patchNumber().toZeroBased());
+				sql.bind(":PRG", patch.patchNumber().toZeroBasedWithBank());
 				sql.bind(":CAT", bitfield.categorySetAsBitfield(patch.categories()));
 				sql.bind(":CUD", bitfield.categorySetAsBitfield(patch.userDecisionSet()));
 
@@ -563,6 +563,21 @@ namespace midikraft {
 			}
 		}
 
+		void loadBankAndProgram(std::shared_ptr<Synth> synth, SQLite::Statement& query, MidiBankNumber& outBank, MidiProgramNumber& outProgram)
+		{
+			// Determine Bank (if stored) and Program 
+			auto bankCol = query.getColumn("midiBankNo");
+			int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
+			if (bankCol.isNull()) {
+				outBank = MidiBankNumber::invalid();
+				outProgram = MidiProgramNumber::fromZeroBase(midiProgramNumber);
+			}
+			else {
+				outBank = MidiBankNumber::fromZeroBase(bankCol.getInt(), synth->numberOfPatches());
+				outProgram = MidiProgramNumber::fromZeroBaseWithBank(outBank, midiProgramNumber);
+			}
+		}
+
 		bool loadPatchFromQueryRow(std::shared_ptr<Synth> synth, SQLite::Statement& query, std::vector<PatchHolder>& result) {
 			ScopedLock lock(categoryLock_);
 
@@ -571,20 +586,24 @@ namespace midikraft {
 			// Create the patch itself, from the BLOB stored
 			auto dataColumn = query.getColumn("data");
 
+
+			MidiProgramNumber program;
+			MidiBankNumber bank = MidiBankNumber::invalid();
+			loadBankAndProgram(synth, query, bank, program);
+
+			// Load the BLOB
 			if (dataColumn.isBlob()) {
 				std::vector<uint8> patchData((uint8*)dataColumn.getBlob(), ((uint8*)dataColumn.getBlob()) + dataColumn.getBytes());
 				//TODO I should not need the midiProgramNumber here
-				int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-				newPatch = synth->patchFromPatchData(patchData, MidiProgramNumber::fromZeroBase(midiProgramNumber));
+				newPatch = synth->patchFromPatchData(patchData, program);
 			}
+
 			// We need the current categories
 			categoryDefinitions_ = getCategories();
 			if (newPatch) {
 				auto sourceColumn = query.getColumn("sourceInfo");
 				if (sourceColumn.isText()) {
-					int midiBankNumber = query.getColumn("midiBankNo").getInt();
-					int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, MidiBankNumber::fromZeroBase(midiBankNumber), MidiProgramNumber::fromZeroBase(midiProgramNumber));
+					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, bank, program);
 
 					std::string patchName = query.getColumn("name").getString();
 					holder.setName(patchName);
@@ -691,9 +710,10 @@ namespace midikraft {
 					query.bind(":SYN", ph.synth()->getName());
 					query.bind(":MD5", md5);
 					if (query.executeStep()) {
-						int midiBankNumber = query.getColumn("midiBankNo").getInt();
-						int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, MidiBankNumber::fromZeroBase(midiBankNumber), MidiProgramNumber::fromZeroBase(midiProgramNumber));
+						MidiProgramNumber program;
+						MidiBankNumber bank = MidiBankNumber::invalid();
+						loadBankAndProgram(ph.smartSynth(), query, bank, program);
+						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, bank, program);
 						std::string name = query.getColumn("name");
 						existingPatch.setName(name);
 						result.emplace(md5, existingPatch);
@@ -1160,9 +1180,10 @@ namespace midikraft {
 					// Find synth
 					auto synthName = queryList.getColumn("synth").getText();
 					for (auto synth : synths) {
-						if (synth.second.lock()->getName() == synthName) {
-							list = std::make_shared<SynthBank>(synth.second.lock()
-								, MidiBankNumber::fromZeroBase(queryList.getColumn("midi_bank_number").getInt())
+						auto s = synth.second.lock();
+						if (s->getName() == synthName) {
+							list = std::make_shared<SynthBank>(s
+								, MidiBankNumber::fromZeroBase(queryList.getColumn("midi_bank_number").getInt(), s->numberOfPatches())
 								, juce::Time(queryList.getColumn("last_synced").getInt64())
 								);
 							break;

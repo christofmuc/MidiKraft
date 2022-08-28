@@ -384,13 +384,14 @@ namespace midikraft {
 				where += " AND categories == 0";
 			}
 			else if (!filter.categories.empty()) {
-					// Empty category filter set will of course return everything
-					//TODO this has bad query performance as it will force a table scan, but for now I cannot see this becoming a problem as long as the database is not multi-tenant
-					// The correct way to do this would be to create a many to many relationship and run an "exists" query or join/unique the category table. Returning the list of categories also requires 
-					// a concat on sub-query, so we're running into more complex SQL territory here.
+				// Empty category filter set will of course return everything
+				//TODO this has bad query performance as it will force a table scan, but for now I cannot see this becoming a problem as long as the database is not multi-tenant
+				// The correct way to do this would be to create a many to many relationship and run an "exists" query or join/unique the category table. Returning the list of categories also requires 
+				// a concat on sub-query, so we're running into more complex SQL territory here.
 				if (!filter.andCategories) {
 					where += " AND (categories & :CAT != 0)";
-				} else {
+				}
+				else {
 					where += " AND (categories & :CAT == :CAT)";
 				}
 			}
@@ -452,8 +453,8 @@ namespace midikraft {
 				query.bind(":TYP", filter.typeID);
 			}
 			if (!filter.onlyUntagged && !filter.categories.empty()) {
-					query.bind(":CAT", bitfield.categorySetAsBitfield(filter.categories));
-				}
+				query.bind(":CAT", bitfield.categorySetAsBitfield(filter.categories));
+			}
 		}
 
 		int getPatchesCount(PatchFilter filter) {
@@ -982,7 +983,7 @@ namespace midikraft {
 				std::string deleteStatement;
 				if (filter.listID.empty()) {
 					deleteStatement = "DELETE FROM patches " + buildWhereClause(filter, false);
-				} 
+				}
 				else {
 					// https://stackoverflow.com/questions/24511153/how-delete-table-inner-join-with-other-table-in-sqlite
 					// This wouldn't work for buildWhereClause during delete
@@ -1148,12 +1149,19 @@ namespace midikraft {
 
 		std::vector<ListInfo> allPatchLists()
 		{
-			SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth is null");
-			std::vector<ListInfo> result;
-			while (query.executeStep()) {
-				result.push_back({ query.getColumn("id").getText(), query.getColumn("name").getText() });
+			try {
+				SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth is null");
+				std::vector<ListInfo> result;
+				while (query.executeStep()) {
+					result.push_back({ query.getColumn("id").getText(), query.getColumn("name").getText() });
+				}
+				return result;
 			}
-			return result;
+			catch (SQLite::Exception& e) {
+				std::string message = (boost::format("Database error when retrieving lists of patches: %s") % e.what()).str();
+				SimpleLogger::instance()->postMessage(message);
+				return {};
+			}
 		}
 
 		bool doesListExist(std::string listId) {
@@ -1259,7 +1267,7 @@ namespace midikraft {
 				update2.bind(":ID", info.id);
 				update2.bind(":SYN", patch.smartSynth()->getName());
 				update2.bind(":MD5", patch.md5());
-				update2.bind(":INC", newIndex > previousIndex ? previousIndex : previousIndex+1);
+				update2.bind(":INC", newIndex > previousIndex ? previousIndex : previousIndex + 1);
 				update2.bind(":ONO", newIndex);
 				update2.exec();
 				// Then we may have created a gap in the list, so just renum the whole list
@@ -1361,7 +1369,7 @@ namespace midikraft {
 
 		void removeAllOrphansFromPatchLists() {
 			try {
-				SQLite::Statement cleanupPatchLists(db_, 
+				SQLite::Statement cleanupPatchLists(db_,
 					"delete from patch_in_list as pil where not exists(select * from patches as p where p.md5 = pil.md5 and p.synth = pil.synth)");
 				cleanupPatchLists.exec();
 			}
@@ -1539,8 +1547,8 @@ namespace midikraft {
 			auto result = getPatches(filter, skip, limit);
 			MessageManager::callAsync([filter, finished, result]() {
 				finished(filter, result);
+				});
 			});
-		});
 	}
 
 	size_t PatchDatabase::mergePatchesIntoDatabase(std::vector<PatchHolder>& patches, std::vector<PatchHolder>& outNewPatches, ProgressHandler* progress, unsigned updateChoice)
@@ -1595,8 +1603,8 @@ namespace midikraft {
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;
 		filter.showHidden = false;
-        if (synth)
-		    filter.synths.emplace(synth->getName(), synth);
+		if (synth)
+			filter.synths.emplace(synth->getName(), synth);
 		filter.onlyDuplicateNames = false;
 		filter.andCategories = false;
 		return filter;
@@ -1616,6 +1624,6 @@ namespace midikraft {
 		filter.onlyDuplicateNames = false;
 		filter.andCategories = false;
 		return filter;
-	}	
+	}
 }
 

@@ -42,6 +42,26 @@ namespace midikraft {
 				categories_ = detector->determineAutomaticCategories(*this);
 			}
 		}
+		/*if (sourceInfo && !bankNumber_.isValid() && patchNumber_.toZeroBased() == 0) {
+			// Bug fix for old data - the bank/program columns might contain nothing while the file source actually has the correct data.
+			// Apply this
+			auto filesource = std::dynamic_pointer_cast<FromFileSource>(sourceInfo);
+			if (filesource) {
+				patchNumber_ = filesource->programNumber();
+				if (patchNumber_.bank().isValid()) {
+					bankNumber_ = patchNumber_.bank();
+				}
+			}
+			else if (auto bulksource = std::dynamic_pointer_cast<FromBulkImportSource>(sourceInfo)) {
+				filesource = std::dynamic_pointer_cast<FromFileSource>(bulksource->individualInfo());
+				if (filesource) {
+					patchNumber_ = filesource->programNumber();
+					if (patchNumber_.bank().isValid()) {
+						bankNumber_ = patchNumber_.bank();
+					}
+				}
+			}
+		}*/
 	}
 
 	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::fromZeroBase(0))
@@ -382,7 +402,7 @@ namespace midikraft {
 				MidiBankNumber bankNo = MidiBankNumber::invalid();
 				if (obj.HasMember(kBankNumber)) {
 					//TODO - a bank size of -1 seems to ask for trouble
-					jassertfalse;
+					//jassertfalse;
 					bankNo = MidiBankNumber::fromZeroBase(obj.FindMember(kBankNumber).operator*().value.GetInt(), -1);
 				}
 				return std::make_shared<FromSynthSource>(timestamp, bankNo);

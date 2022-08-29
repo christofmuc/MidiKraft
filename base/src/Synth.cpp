@@ -154,7 +154,7 @@ namespace midikraft {
 					// Well, where should it go? I'd say last patch of first bank is a good compromise
 					auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(this);
 					if (descriptors) {
-						place = MidiProgramNumber::fromZeroBase(descriptors->bankDescriptors()[0].numPatchesInBank - 1);
+						place = MidiProgramNumber::fromZeroBase(descriptors->bankDescriptors()[0].size - 1);
 					}
 					else {
 						auto banks = Capability::hasCapability<HasBanksCapability>(this);

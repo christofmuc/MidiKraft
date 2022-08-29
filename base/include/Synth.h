@@ -13,7 +13,6 @@
 #include "MidiProgramNumber.h"
 #include "MidiBankNumber.h"
 #include "Logger.h"
-#include "HasBanksCapability.h"
 
 namespace midikraft {
 
@@ -23,7 +22,7 @@ namespace midikraft {
 
 	typedef std::vector<std::shared_ptr<DataFile>> TPatchVector;
 
-	class Synth : public virtual NamedDeviceCapability, public HasBanksCapability /* TODO - this should go away */ {
+	class Synth : public virtual NamedDeviceCapability /* TODO - this should go away */ {
 	public:
 		typedef std::vector<uint8> PatchData;
 

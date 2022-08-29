@@ -35,7 +35,7 @@ namespace midikraft {
 		if (descriptors) {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo.toZeroBased() < banks.size()) {
-				return banks[bankNo.toZeroBased()].friendlyBankName;
+				return banks[bankNo.toZeroBased()].name;
 			}
 			else {
 				return (boost::format("out of range bank %d") % bankNo.toZeroBased()).str();
@@ -54,7 +54,7 @@ namespace midikraft {
 		if (descriptors) {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo.toZeroBased() < banks.size()) {
-				return banks[bankNo.toZeroBased()].numPatchesInBank;
+				return banks[bankNo.toZeroBased()].size;
 			}
 			else {
 				jassertfalse;
@@ -79,7 +79,7 @@ namespace midikraft {
 			if (bankNo.toZeroBased() < banks.size()) {
 				int index = 0;
 				for (int b = 0; b < bankNo.toZeroBased(); b++)
-					index += banks[bankNo.toZeroBased()].numPatchesInBank;
+					index += banks[bankNo.toZeroBased()].size;
 				return index;
 			}
 			else {

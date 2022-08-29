@@ -347,7 +347,7 @@ namespace midikraft {
 			if (descriptors) {
 				auto banks = descriptors->bankDescriptors();
 				if (bankNo_.toZeroBased() < banks.size()) {
-					bank = " " + banks[bankNo_.toZeroBased()].friendlyBankName;
+					bank = " " + banks[bankNo_.toZeroBased()].name;
 				}
 				else {
 					bank = (boost::format(" bank %d") % bankNo_.toOneBased()).str();

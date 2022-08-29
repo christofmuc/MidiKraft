@@ -86,6 +86,7 @@ namespace midikraft {
 		int downloadNumber_;
 		int startDownloadNumber_;
 		int endDownloadNumber_;
+		int expectedDownloadNumber_;
 
 		// To download multiple banks. This needs to go into its own context object
 		TFinishedHandler nextBankHandler_;

@@ -10,6 +10,7 @@
 
 #include "AutomaticCategory.h"
 #include "StoredPatchNameCapability.h"
+#include "HasBanksCapability.h"
 
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
@@ -342,7 +343,25 @@ namespace midikraft {
 		ignoreUnused(shortVersion);
 		std::string bank = "";
 		if (bankNo_.isValid()) {
-			bank = (boost::format(" bank %s") % synth->friendlyBankName(bankNo_)).str();;
+			auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(synth);
+			if (descriptors) {
+				auto banks = descriptors->bankDescriptors();
+				if (bankNo_.toZeroBased() < banks.size()) {
+					bank = " " + banks[bankNo_.toZeroBased()].friendlyBankName;
+				}
+				else {
+					bank = (boost::format(" bank %d") % bankNo_.toOneBased()).str();
+				}
+			}
+			else {
+				auto bankCapa = Capability::hasCapability<HasBanksCapability>(synth);
+				if (bankCapa) {
+					bank = " " + bankCapa->friendlyBankName(bankNo_);
+				}
+				else {
+					bank = (boost::format(" bank %d") % bankNo_.toOneBased()).str();;
+				}
+			}
 		}
 		else {
 			bank = " edit buffer";

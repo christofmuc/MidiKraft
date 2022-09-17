@@ -806,7 +806,7 @@ namespace midikraft {
 			currentEditBuffer_.push_back(editBuffer);
 			if (editBufferCapability->isEditBufferDump(currentEditBuffer_)) {
 				// Ok, that worked, save it and continue!
-				currentDownload_.push_back(MidiMessage(editBuffer));
+				std::copy(currentEditBuffer_.begin(), currentEditBuffer_.end(), std::back_inserter(currentDownload_));
 
 				// Finished?
 				if (downloadNumber_ >= endDownloadNumber_-1) {

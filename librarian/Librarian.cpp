@@ -242,7 +242,7 @@ namespace midikraft {
 				downloadNumber_ = startIndexInBank(synth, bankNo);
 				startDownloadNumber_ = downloadNumber_;
 				endDownloadNumber_ = downloadNumber_ + numberOfPatchesInBank(synth, bankNo);
-				startDownloadNextEditBuffer(midiOutput, synth);
+				startDownloadNextEditBuffer(midiOutput, synth, true);
 			}
 			else {
 				SimpleLogger::instance()->postMessage("Error: This synth has not implemented a single method to retrieve a bank. Please consult the documentation!");
@@ -285,8 +285,7 @@ namespace midikraft {
 			// Special case - load only a single patch. In this case we're interested in the edit buffer only!
 			startDownloadNumber_ = 0;
 			endDownloadNumber_ = 1;
-			auto message = editBufferCapability->requestEditBufferDump();
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), message);
+			startDownloadNextEditBuffer(midiOutput, synth, false); // No program change required, we want exactly one edit buffer, the current one
 		}
 		else if (programDumpCapability && programChangeCapability) {
 			auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
@@ -707,7 +706,7 @@ namespace midikraft {
 		}
 	}
 
-	void Librarian::startDownloadNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth) {
+	void Librarian::startDownloadNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, bool sendProgramChange) {
 		// Get all commands
 		std::vector<MidiMessage> messages;
 		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
@@ -715,7 +714,9 @@ namespace midikraft {
 			currentEditBuffer_.clear();
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(synth);
 			if (midiLocation) {
-				messages.push_back(MidiMessage::programChange(midiLocation->channel().toOneBasedInt(), downloadNumber_));
+				if (sendProgramChange) {
+					messages.push_back(MidiMessage::programChange(midiLocation->channel().toOneBasedInt(), downloadNumber_));
+				}
 				auto requestMessages = editBufferCapability->requestEditBufferDump();
 				std::copy(requestMessages.cbegin(), requestMessages.cend(), std::back_inserter(messages));
 			}
@@ -821,7 +822,7 @@ namespace midikraft {
 				}
 				else {
 					downloadNumber_++;
-					startDownloadNextEditBuffer(midiOutput, synth);
+					startDownloadNextEditBuffer(midiOutput, synth, true); // To continue with more than one download makes only sense if we send program change commands
 					if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)(endDownloadNumber_ - startDownloadNumber_));
 				}
 			}
@@ -834,28 +835,28 @@ namespace midikraft {
 	void Librarian::handleNextProgramBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& editBuffer, MidiBankNumber bankNo) {
 		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
 		// This message might be a part of a multi-message program dump?
-		if (programDumpCapability->isMessagePartOfProgramDump(editBuffer)) {
+		if (programDumpCapability && programDumpCapability->isMessagePartOfProgramDump(editBuffer)) {
 			currentProgramDump_.push_back(editBuffer);
-		}
-		if (programDumpCapability && programDumpCapability->isSingleProgramDump(currentProgramDump_)) {
-			// Ok, that worked, save it and continue!
-			std::copy(currentProgramDump_.begin(), currentProgramDump_.end(), std::back_inserter(currentDownload_));
+			if (programDumpCapability->isSingleProgramDump(currentProgramDump_)) {
+				// Ok, that worked, save it and continue!
+				std::copy(currentProgramDump_.begin(), currentProgramDump_.end(), std::back_inserter(currentDownload_));
 
-			// Finished?
-			if (downloadNumber_ >= endDownloadNumber_-1) {
-				clearHandlers();
-				auto patches = synth->loadSysex(currentDownload_);
-				onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
-				if (progressHandler) progressHandler->onSuccess();
-			}
-			else if (progressHandler->shouldAbort()) {
-				clearHandlers();
-				if (progressHandler) progressHandler->onCancel();
-			}
-			else {
-				downloadNumber_++;
-				startDownloadNextPatch(midiOutput, synth);
-				if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)(endDownloadNumber_ - startDownloadNumber_));
+				// Finished?
+				if (downloadNumber_ >= endDownloadNumber_ - 1) {
+					clearHandlers();
+					auto patches = synth->loadSysex(currentDownload_);
+					onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
+					if (progressHandler) progressHandler->onSuccess();
+				}
+				else if (progressHandler->shouldAbort()) {
+					clearHandlers();
+					if (progressHandler) progressHandler->onCancel();
+				}
+				else {
+					downloadNumber_++;
+					startDownloadNextPatch(midiOutput, synth);
+					if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)(endDownloadNumber_ - startDownloadNumber_));
+				}
 			}
 		}
 	}

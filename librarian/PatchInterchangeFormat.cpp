@@ -6,6 +6,8 @@
 
 #include "PatchInterchangeFormat.h"
 
+#include "SynthBank.h"
+
 #include "Logger.h"
 #include "Sysex.h"
 
@@ -28,6 +30,8 @@
 
 #include <cstdio>
 
+namespace {
+
 const char *kSynth = "Synth";
 const char *kName = "Name";
 const char *kSysex = "Sysex";
@@ -42,6 +46,8 @@ const char *kHeader = "Header";
 const char *kFileFormat = "FileFormat";
 const char *kPIF = "PatchInterchangeFormat";
 const char *kVersion = "Version";
+
+}
 
 namespace midikraft {
 
@@ -178,12 +184,14 @@ namespace midikraft {
 					MidiBankNumber bank = MidiBankNumber::invalid();
 					if (item->HasMember(kBank)) {
 						if ((*item)[kBank].IsInt()) {
-							bank = MidiBankNumber::fromZeroBase((*item)[kBank].GetInt(), activeSynth->numberOfPatches());
+							int bankInt = (*item)[kBank].GetInt();
+							bank = MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(activeSynth, bankInt));
 						}
 						else {
 							std::string bankStr = (*item)[kBank].GetString();
 							try {
-								bank = MidiBankNumber::fromZeroBase(std::stoi(bankStr), activeSynth->numberOfPatches());
+								int bankInt = std::stoi(bankStr);
+								bank = MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(activeSynth, bankInt));
 							}
 							catch (std::invalid_argument &) {
 								SimpleLogger::instance()->postMessage((boost::format("Ignoring MIDI bank information for patch %s because %s does not convert to an integer") % patchName % bankStr).str());
@@ -198,8 +206,8 @@ namespace midikraft {
 								place = MidiProgramNumber::fromZeroBaseWithBank(bank, (*item)[kPlace].GetInt());
 							}
 							else {
-								place = MidiProgramNumber::fromZeroBase((*item)[kPlace].GetInt());
-							}
+							place = MidiProgramNumber::fromZeroBase((*item)[kPlace].GetInt());
+						}
 						}
 						else {
 							std::string placeStr = (*item)[kPlace].GetString();
@@ -208,10 +216,10 @@ namespace midikraft {
 									place = MidiProgramNumber::fromZeroBaseWithBank(bank, std::stoi(placeStr));
 								}
 								else {
-									place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
-								}
+								place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
 							}
-							catch (std::invalid_argument&) {
+							}
+							catch (std::invalid_argument &) {
 								SimpleLogger::instance()->postMessage((boost::format("Ignoring MIDI place information for patch %s because %s does not convert to an integer") % patchName % placeStr).str());
 							}
 						}

@@ -7,12 +7,15 @@
 #include "SynthBank.h"
 
 #include "Logger.h"
+#include "Capability.h"
+#include "HasBanksCapability.h"
+
 #include "fmt/format.h"
 
 namespace midikraft {
 
 	SynthBank::SynthBank(std::shared_ptr<Synth> synth, MidiBankNumber bank, juce::Time lastSynced) :
-		PatchList((String(synth->getName()) + "-bank-" + String(bank.toZeroBased())).toStdString(), synth->friendlyBankName(bank))
+		PatchList((String(synth->getName()) + "-bank-" + String(bank.toZeroBased())).toStdString(), friendlyBankName(synth, bank))
 		, synth_(synth)
 		, bankNo_(bank)
 		, lastSynced_(lastSynced)
@@ -110,6 +113,78 @@ namespace midikraft {
 		return true;
 	}
 
+	std::string SynthBank::friendlyBankName(std::shared_ptr<Synth> synth, MidiBankNumber bankNo)
+	{
+		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth);
+		if (descriptors) {
+			auto banks = descriptors->bankDescriptors();
+			if (bankNo.toZeroBased() < banks.size()) {
+				return banks[bankNo.toZeroBased()].name;
+			}
+			else {
+				return fmt::format("out of range bank %d", bankNo.toZeroBased());
+			}
+		}
+		auto banks = midikraft::Capability::hasCapability<midikraft::HasBanksCapability>(synth);
+		if (banks) {
+			return banks->friendlyBankName(bankNo);
+		}
+		return fmt::format("invalid bank %d", bankNo.toZeroBased());
+	}
+
+	int SynthBank::numberOfPatchesInBank(std::shared_ptr<Synth> synth, MidiBankNumber bankNo)
+	{
+		return numberOfPatchesInBank(synth, bankNo.toZeroBased());
+	}
+
+	int SynthBank::numberOfPatchesInBank(std::shared_ptr<Synth> synth, int bankNo)
+	{
+		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth);
+		if (descriptors) {
+			auto banks = descriptors->bankDescriptors();
+			if (bankNo < banks.size()) {
+				return banks[bankNo].size;
+			}
+			else {
+				jassertfalse;
+				SimpleLogger::instance()->postMessage("Program error: Bank number out of range in numberOfPatchesInBank in Librarian");
+				return 0;
+			}
+		}
+		auto banks = midikraft::Capability::hasCapability<midikraft::HasBanksCapability>(synth);
+		if (banks) {
+			return banks->numberOfPatches();
+		}
+		jassertfalse;
+		SimpleLogger::instance()->postMessage("Program error: Trying to determine number of patches for synth without HasBanksCapability");
+		return 0;
+	}
+
+	int SynthBank::startIndexInBank(std::shared_ptr<Synth> synth, MidiBankNumber bankNo)
+	{
+		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth);
+		if (descriptors) {
+			auto banks = descriptors->bankDescriptors();
+			if (bankNo.toZeroBased() < banks.size()) {
+				int index = 0;
+				for (int b = 0; b < bankNo.toZeroBased(); b++)
+					index += banks[bankNo.toZeroBased()].size;
+				return index;
+			}
+			else {
+				jassertfalse;
+				SimpleLogger::instance()->postMessage("Program error: Bank number out of range in numberOfPatchesInBank in Librarian");
+				return 0;
+			}
+		}
+		auto banks = midikraft::Capability::hasCapability<midikraft::HasBanksCapability>(synth);
+		if (banks) {
+			return bankNo.toZeroBased() * banks->numberOfPatches();
+		}
+		jassertfalse;
+		SimpleLogger::instance()->postMessage("Program error: Trying to determine number of patches for synth without HasBanksCapability");
+		return 0;
+	}
 
 
 }

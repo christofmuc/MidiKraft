@@ -50,6 +50,11 @@ namespace midikraft {
 			dirtyPositions_.clear();
 		}
 
+		static std::string friendlyBankName(std::shared_ptr<Synth> synth, MidiBankNumber bankNo);
+		static int numberOfPatchesInBank(std::shared_ptr<Synth> synth, MidiBankNumber bankNo);
+		static int numberOfPatchesInBank(std::shared_ptr<Synth> synth, int bankNoZeroBased);
+		static int startIndexInBank(std::shared_ptr<Synth> synth, MidiBankNumber bankNo);
+
 	private:
 		bool validatePatchInfo(PatchHolder patch);
 

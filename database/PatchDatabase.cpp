@@ -574,7 +574,7 @@ namespace midikraft {
 				outProgram = MidiProgramNumber::fromZeroBase(midiProgramNumber);
 			}
 			else {
-				outBank = MidiBankNumber::fromZeroBase(bankCol.getInt(), synth->numberOfPatches());
+				outBank = MidiBankNumber::fromZeroBase(bankCol.getInt(), SynthBank::numberOfPatchesInBank(synth, bankCol.getInt()));
 				outProgram = MidiProgramNumber::fromZeroBaseWithBank(outBank, midiProgramNumber);
 			}
 		}
@@ -1190,8 +1190,9 @@ namespace midikraft {
 					for (auto synth : synths) {
 						auto s = synth.second.lock();
 						if (s->getName() == synthName) {
+							int bankInt = queryList.getColumn("midi_bank_number").getInt();
 							list = std::make_shared<SynthBank>(s
-								, MidiBankNumber::fromZeroBase(queryList.getColumn("midi_bank_number").getInt(), s->numberOfPatches())
+								, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
 								, juce::Time(queryList.getColumn("last_synced").getInt64())
 								);
 							break;

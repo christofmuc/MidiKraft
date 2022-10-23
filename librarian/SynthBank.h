@@ -12,9 +12,7 @@ namespace midikraft {
 
 	class SynthBank : public PatchList {
 	public:
-		SynthBank(std::shared_ptr<Synth> synth, MidiBankNumber bank, juce::Time lastSynced);
-
-		static std::string makeId(std::shared_ptr<Synth> synth, MidiBankNumber bank);
+		SynthBank(std::string const& name, std::shared_ptr<Synth> synth, MidiBankNumber bank);
 
 		// Override these to make sure they only contain patches for the synth, and have a proper program
 		// location
@@ -35,11 +33,6 @@ namespace midikraft {
 			return bankNo_;
 		}
 
-		juce::Time lastSynced() const
-		{
-			return lastSynced_;
-		}
-
 		bool isPositionDirty(int position) const
 		{
 			return dirtyPositions_.find(position) != dirtyPositions_.end();
@@ -55,12 +48,31 @@ namespace midikraft {
 		static int numberOfPatchesInBank(std::shared_ptr<Synth> synth, int bankNoZeroBased);
 		static int startIndexInBank(std::shared_ptr<Synth> synth, MidiBankNumber bankNo);
 
+	protected:
+		SynthBank(std::string const& id, std::string const& name, std::shared_ptr<Synth> synth, MidiBankNumber bank);
+
 	private:
 		bool validatePatchInfo(PatchHolder patch);
 
 		std::shared_ptr<Synth> synth_;
 		std::set<int> dirtyPositions_;
 		MidiBankNumber bankNo_;
+		
+	};
+
+	class ActiveSynthBank : public SynthBank
+	{
+	public:
+		ActiveSynthBank(std::shared_ptr<Synth> synth, MidiBankNumber bank, juce::Time lastSynced);
+
+		static std::string makeId(std::shared_ptr<Synth> synth, MidiBankNumber bank);
+
+		juce::Time lastSynced() const
+		{
+			return lastSynced_;
+		}
+
+	private:
 		juce::Time lastSynced_;
 	};
 

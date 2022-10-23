@@ -14,17 +14,18 @@
 
 namespace midikraft {
 
-	SynthBank::SynthBank(std::shared_ptr<Synth> synth, MidiBankNumber bank, juce::Time lastSynced) :
-		PatchList((String(synth->getName()) + "-bank-" + String(bank.toZeroBased())).toStdString(), friendlyBankName(synth, bank))
+	SynthBank::SynthBank(std::string const& name, std::shared_ptr<Synth> synth, MidiBankNumber bank) :
+		PatchList(name)
 		, synth_(synth)
 		, bankNo_(bank)
-		, lastSynced_(lastSynced)
 	{
 	}
 
-	std::string SynthBank::makeId(std::shared_ptr<Synth> synth, MidiBankNumber bank)
+	SynthBank::SynthBank(std::string const& id, std::string const& name, std::shared_ptr<Synth> synth, MidiBankNumber bank) :
+		PatchList(id, name)
+		, synth_(synth)
+		, bankNo_(bank)
 	{
-		return (String(synth->getName()) + "-bank-" + String(bank.toZeroBased())).toStdString();
 	}
 
 	void SynthBank::setPatches(std::vector<PatchHolder> patches)
@@ -186,6 +187,17 @@ namespace midikraft {
 		return 0;
 	}
 
+	ActiveSynthBank::ActiveSynthBank(std::shared_ptr<Synth> synth, MidiBankNumber bank, juce::Time lastSynced) :
+		SynthBank(ActiveSynthBank::makeId(synth, bank), friendlyBankName(synth, bank), synth, bank)
+		, lastSynced_(lastSynced)
+	{
+	}
+
+
+	std::string ActiveSynthBank::makeId(std::shared_ptr<Synth> synth, MidiBankNumber bank)
+	{
+		return (String(synth->getName()) + "-bank-" + String(bank.toZeroBased())).toStdString();
+	}
 
 }
 

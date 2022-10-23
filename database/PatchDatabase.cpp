@@ -423,9 +423,9 @@ namespace midikraft {
 			}
 			if (filter.onlyDuplicateNames) {
 				if (filter.showHidden)
-					joinClause += " JOIN (select name, synth, count(*) as name_count from patches group by name, synth) as ordinal_table on patches.name = ordinal_table.name and patches.synth = ordinal_table.synth";
+					joinClause += " JOIN (select name as dup_name, synth, count(*) as name_count from patches group by dup_name, synth) as ordinal_table on patches.name = ordinal_table.dup_name and patches.synth = ordinal_table.synth";
 				else
-					joinClause += " JOIN (select name, synth, count(*) as name_count from patches where hidden = 0 group by name, synth) as ordinal_table on patches.name = ordinal_table.name and patches.synth = ordinal_table.synth";
+					joinClause += " JOIN (select name as dup_name, synth, count(*) as name_count from patches where hidden = 0 group by dup_name, synth) as ordinal_table on patches.name = ordinal_table.dup_name and patches.synth = ordinal_table.synth";
 			}
 			return joinClause;
 		}

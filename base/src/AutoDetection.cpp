@@ -10,7 +10,7 @@
 #include "Settings.h"
 #include "MidiHelpers.h"
 
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 namespace midikraft {
 
@@ -20,7 +20,7 @@ namespace midikraft {
 		*kOutput = "output";
 
 	std::string midiSetupKey(DiscoverableDevice *synth, std::string const &trait) {
-		return (boost::format("%s-%s") % synth->getName() % trait).str();
+		return fmt::format("{}-{}", synth->getName(), trait);
 	}
 
 	AutoDetection::AutoDetection() : handler_(MidiController::makeOneHandle())
@@ -63,12 +63,12 @@ namespace midikraft {
 				}
 				if (!checkSynth(synth)) {
 					SimpleLogger::instance()->postMessage(
-						(boost::format("Lost communication with %s on channel %d of device %s - please rerun auto-detect synths!")
-							% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
+						fmt::format("Lost communication with {} on channel {} of device {} - please rerun auto-detect synths!",
+							 synth->getName(), synth->channel().toOneBasedInt(), synth->midiOutput()));
 				}
 				else {
-					SimpleLogger::instance()->postMessage((boost::format("Detected %s on channel %d of device %s") 
-						% synth->getName() % synth->channel().toOneBasedInt() % synth->midiOutput()).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Detected {} on channel {} of device {}",
+						synth->getName(), synth->channel().toOneBasedInt(), synth->midiOutput()));
 				}
 		}
 		}
@@ -79,7 +79,7 @@ namespace midikraft {
 	void AutoDetection::persistSetting(SimpleDiscoverableDevice *synth)
 	{
 		if (synth->channel().isValid()) {
-			Settings::instance().set(midiSetupKey(synth, kChannel), (boost::format("%d") % synth->channel().toZeroBasedInt()).str());
+			Settings::instance().set(midiSetupKey(synth, kChannel), fmt::format("{}", synth->channel().toZeroBasedInt()));
 		}
 		Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput());
 		Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput());
@@ -109,14 +109,14 @@ namespace midikraft {
 		}
 
 		if (progressHandler) {
-			progressHandler->setMessage((boost::format("Trying to detect %s...") % synth->getName()).str());
+			progressHandler->setMessage(fmt::format("Trying to detect {}...", synth->getName()));
 		}
 
 		auto locations = FindSynthOnMidiNetwork::detectSynth(*synth, progressHandler);
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
-				SimpleLogger::instance()->postMessage((boost::format("Found %s on channel %d replying on device %s when sending to %s on channel %d")
-					% synth->getName() % (loc.midiChannel.toOneBasedInt()) % loc.inputName % loc.outputName % loc.midiChannel.toOneBasedInt()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("Found {} on channel {} replying on device {} when sending to {} on channel {}",
+					synth->getName(), (loc.midiChannel.toOneBasedInt()),  loc.inputName, loc.outputName, loc.midiChannel.toOneBasedInt()));
 			}
 
 			// Select the last location (the first one might be the "All" devices which we don't want to address the devices individually)
@@ -128,7 +128,7 @@ namespace midikraft {
 		}
 		else {
 			// Ups
-			SimpleLogger::instance()->postMessage((boost::format("No %s could be detected - is it turned on?") % synth->getName()).str());
+			SimpleLogger::instance()->postMessage(fmt::format("No {} could be detected - is it turned on?", synth->getName()));
 		}
 	}
 

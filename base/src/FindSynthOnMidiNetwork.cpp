@@ -8,7 +8,7 @@
 
 #include "MidiHelpers.h"
 
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 namespace midikraft {
 
@@ -111,7 +111,7 @@ namespace midikraft {
 
 	std::vector<MidiNetworkLocation> FindSynthOnMidiNetwork::detectSynth(DiscoverableDevice &synth, ProgressHandler *progressHandler)
 	{
-		FindSynthOnMidiNetwork m(synth, (boost::format("Looking for %s on your MIDI network...") % synth.getName()).str(), progressHandler);
+		FindSynthOnMidiNetwork m(synth, fmt::format("Looking for {} on your MIDI network...", synth.getName()), progressHandler);
 		m.startThread();
 		if (m.waitForThreadToExit(15000))
 		{

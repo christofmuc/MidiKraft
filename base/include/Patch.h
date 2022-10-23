@@ -45,7 +45,7 @@ namespace midikraft {
 		virtual MidiProgramNumber patchNumber() const = 0;
 
 		// For patch comparison
-		static Synth::PatchData blankOut(std::vector<Range<int>> const &blankoutZones, Synth::PatchData const &inputData);
+		static Synth::PatchData blankOut(std::vector<Range<size_t>> const &blankoutZones, Synth::PatchData const &inputData);
 	};
 
 }

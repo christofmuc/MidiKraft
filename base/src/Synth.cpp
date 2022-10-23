@@ -12,6 +12,7 @@
 #include "MidiHelpers.h"
 #include "Logger.h"
 
+#include "HasBanksCapability.h"
 #include "EditBufferCapability.h"
 #include "ProgramDumpCapability.h"
 #include "BankDumpCapability.h"
@@ -171,7 +172,16 @@ namespace midikraft {
 				}
 				else {
 					// Well, where should it go? I'd say last patch of first bank is a good compromise
-					place = MidiProgramNumber::fromZeroBaseWithBank(MidiBankNumber::fromZeroBase(0, numberOfPatches()), numberOfPatches() - 1);
+					auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(this);
+					if (descriptors) {
+						place = MidiProgramNumber::fromZeroBase(descriptors->bankDescriptors()[0].size - 1);
+					}
+					else {
+						auto banks = Capability::hasCapability<HasBanksCapability>(this);
+						if (banks) {
+							place = MidiProgramNumber::fromZeroBase(banks->numberOfPatches() - 1);
+						}
+					}
 					SimpleLogger::instance()->postMessageOncePerRun((boost::format("%s has no edit buffer, using program %s instead") % getName() % friendlyProgramName(place)).str());
 				}
 				messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);

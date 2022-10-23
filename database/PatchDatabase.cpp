@@ -21,7 +21,7 @@
 #include "FileHelpers.h"
 
 #include <iostream>
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 #include "SQLiteCpp/Database.h"
 #include "SQLiteCpp/Statement.h"
@@ -122,7 +122,7 @@ namespace midikraft {
 				}
 			}
 			if (backupSize != keptBackupSize) {
-				SimpleLogger::instance()->postMessage((boost::format("Removing all but %d backup files reducing disk space used from %d to %d bytes") % numKept % backupSize % keptBackupSize).str());
+				SimpleLogger::instance()->postMessage(fmt::format("Removing all but {} backup files reducing disk space used from {} to {} bytes", numKept, backupSize, keptBackupSize));
 			}
 		}
 
@@ -249,7 +249,7 @@ namespace midikraft {
 					}
 					catch (SQLite::Exception& e) {
 						if (mode_ == OpenMode::READ_WRITE) {
-							std::string message = (boost::format("Cannot open database file %s - Cannot upgrade to latest version, schema version found is %d. Error: %s") % db_.getFilename() % version % e.what()).str();
+							std::string message = fmt::format("Cannot open database file {} - Cannot upgrade to latest version, schema version found is {}. Error: {}", db_.getFilename(), version, e.what());
 							AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Failure to open database", message);
 						}
 						if (e.getErrorCode() == SQLITE_READONLY) {
@@ -262,7 +262,7 @@ namespace midikraft {
 				}
 				else if (version > SCHEMA_VERSION) {
 					// This is a database from the future, can't open!
-					std::string message = (boost::format("Cannot open database file %s - this was produced with a newer version of KnobKraft Orm, schema version is %d.") % db_.getFilename() % version).str();
+					std::string message = fmt::format("Cannot open database file {} - this was produced with a newer version of KnobKraft Orm, schema version is {}.", db_.getFilename(), version);
 					if (mode_ == OpenMode::READ_WRITE) {
 						AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Database Error", message);
 					}
@@ -305,7 +305,7 @@ namespace midikraft {
 				sql.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in putPatch: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in putPatch: SQL Exception {}", ex.what()));
 			}
 			return true;
 		}
@@ -333,16 +333,16 @@ namespace midikraft {
 					return true;
 				}
 				else if (rowsModified == 0) {
-					SimpleLogger::instance()->postMessage((boost::format("Failed to update import - not found with ID %s") % importID).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Failed to update import - not found with ID {}", importID));
 					return false;
 				}
 				else {
-					SimpleLogger::instance()->postMessage((boost::format("Failed to update import, abort - more than one row found with ID %s") % importID).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Failed to update import, abort - more than one row found with ID {}", importID));
 					return false;
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in renameImport: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in renameImport: SQL Exception {}", ex.what()));
 				return false;
 			}
 		}
@@ -432,7 +432,7 @@ namespace midikraft {
 
 		std::string synthVariable(int no) {
 			// Calculate a variable name to bind the synth name to. This will blow up if you query for more than 99 synths.
-			return (boost::format(":S%02d") % no).str();
+			return fmt::format(":S{:02d}", no);
 		}
 
 		void bindWhereClause(SQLite::Statement& query, PatchFilter filter) {
@@ -468,7 +468,7 @@ namespace midikraft {
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in getPatchesCount: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in getPatchesCount: SQL Exception {}", ex.what()));
 			}
 			return 0;
 		}
@@ -560,7 +560,7 @@ namespace midikraft {
 				categoryDefinitions_ = getCategories();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in updateCategories: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in updateCategories: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -652,7 +652,7 @@ namespace midikraft {
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in getSinglePatch: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in getSinglePatch: SQL Exception {}", ex.what()));
 			}
 			return false;
 		}
@@ -675,7 +675,7 @@ namespace midikraft {
 					// Find the synth this patch is for
 					auto synthName = query.getColumn("synth");
 					if (filter.synths.find(synthName) == filter.synths.end()) {
-						SimpleLogger::instance()->postMessage((boost::format("Program error, query returned patch for synth %s which was not part of the filter") % synthName).str());
+						SimpleLogger::instance()->postMessage(fmt::format("Program error, query returned patch for synth {} which was not part of the filter", synthName));
 						continue;
 					}
 					auto thisSynth = filter.synths[synthName].lock();
@@ -691,7 +691,7 @@ namespace midikraft {
 				return true;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in getPatches: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in getPatches: SQL Exception {}", ex.what()));
 			}
 			return false;
 		}
@@ -721,7 +721,7 @@ namespace midikraft {
 					}
 				}
 				catch (SQLite::Exception& ex) {
-					SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in bulkGetPatches: SQL Exception %s") % ex.what()).str());
+					SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in bulkGetPatches: SQL Exception {}", ex.what()));
 				}
 				if (progress) progress->setProgressPercentage(checkedForExistance++ / (double)patches.size());
 			}
@@ -810,7 +810,7 @@ namespace midikraft {
 					}
 				}
 				catch (SQLite::Exception& ex) {
-					SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in updatePatch: SQL Exception %s") % ex.what()).str());
+					SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in updatePatch: SQL Exception {}", ex.what()));
 				}
 			}
 		}
@@ -845,7 +845,7 @@ namespace midikraft {
 				return true;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in insertImportInfo: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in insertImportInfo: SQL Exception {}", ex.what()));
 			}
 			return false;
 		}
@@ -874,7 +874,7 @@ namespace midikraft {
 					}
 					if ((onlyUpdateThis & UPDATE_NAME) && (patch.name() != knownPatches[md5_key].name())) {
 						updatedNames++;
-						SimpleLogger::instance()->postMessage((boost::format("Renaming %s with better name %s") % knownPatches[md5_key].name() % patch.name()).str());
+						SimpleLogger::instance()->postMessage(fmt::format("Renaming {} with better name {}", knownPatches[md5_key].name(), patch.name()));
 					}
 
 					// Update the database with the new info. If more than the name should be updated, we first need to load the full existing patch (the bulkGetPatches only is a projection with the name loaded only)
@@ -901,7 +901,7 @@ namespace midikraft {
 
 			// Did we find better names? Then log it
 			if (updatedNames > 0) {
-				SimpleLogger::instance()->postMessage((boost::format("Updated %d patches in the database with new names") % updatedNames).str());
+				SimpleLogger::instance()->postMessage(fmt::format("Updated {} patches in the database with new names", updatedNames));
 			}
 
 			// Check if all new patches are editBuffer patches (aka have an invalid MidiBank)
@@ -1002,7 +1002,7 @@ namespace midikraft {
 				return rowsDeleted;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatches via filter: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in deletePatches via filter: SQL Exception {}", ex.what()));
 			}
 			return 0;
 		}
@@ -1026,7 +1026,7 @@ namespace midikraft {
 				return rowsDeleted;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatches via md5s: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in deletePatches via md5s: SQL Exception {}", ex.what()));
 			}
 			return 0;
 		}
@@ -1158,7 +1158,7 @@ namespace midikraft {
 				return result;
 			}
 			catch (SQLite::Exception& e) {
-				std::string message = (boost::format("Database error when retrieving lists of patches: %s") % e.what()).str();
+				std::string message = fmt::format("Database error when retrieving lists of patches: {}", e.what());
 				SimpleLogger::instance()->postMessage(message);
 				return {};
 			}
@@ -1192,9 +1192,9 @@ namespace midikraft {
 						if (s->getName() == synthName) {
 							int bankInt = queryList.getColumn("midi_bank_number").getInt();
 							list = std::make_shared<SynthBank>(s
-								, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
-								, juce::Time(queryList.getColumn("last_synced").getInt64())
-								);
+									, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
+									, juce::Time(queryList.getColumn("last_synced").getInt64())
+									);
 							break;
 						}
 					}
@@ -1243,7 +1243,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in addPatchToList: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in addPatchToList: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1276,7 +1276,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in addPatchToList: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in addPatchToList: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1293,7 +1293,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in removePatchFromList: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in removePatchFromList: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1350,7 +1350,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in putPatchList: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in putPatchList: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1364,7 +1364,7 @@ namespace midikraft {
 				deleteIt.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatchlist: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in deletePatchlist: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1375,7 +1375,7 @@ namespace midikraft {
 				cleanupPatchLists.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in removeAllOrphansFromPatchLists: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in removeAllOrphansFromPatchLists: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1533,7 +1533,7 @@ namespace midikraft {
 		bool success = impl->getPatches(filter, result, faultyIndexedPatches, skip, limit);
 		if (success) {
 			if (!faultyIndexedPatches.empty()) {
-				SimpleLogger::instance()->postMessage((boost::format("Found %d patches with inconsistent MD5 - please run the Edit... Reindex Patches command for this synth") % faultyIndexedPatches.size()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("Found {} patches with inconsistent MD5 - please run the Edit... Reindex Patches command for this synth", faultyIndexedPatches.size()));
 			}
 			return result;
 		}

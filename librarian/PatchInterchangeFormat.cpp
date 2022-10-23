@@ -23,7 +23,7 @@
 #pragma GCC diagnostic pop
 #pragma warning(pop)
 
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 #include "RapidjsonHelper.h"
 #include "JsonSerialization.h"
@@ -149,7 +149,7 @@ namespace midikraft {
 					}
 					const char* synthname = (*item)[kSynth].GetString();
 					if (activeSynths.find(synthname) == activeSynths.end()) {
-						SimpleLogger::instance()->postMessage((boost::format("Skipping patch which is for synth %s and not for any present in the list given") % synthname).str());
+						SimpleLogger::instance()->postMessage(fmt::format("Skipping patch which is for synth {} and not for any present in the list given", synthname));
 						continue;
 					}
 					auto activeSynth = activeSynths[synthname];
@@ -159,7 +159,7 @@ namespace midikraft {
 					}
 					std::string patchName = (*item)[kName].GetString(); //TODO this is not robust, as it might have a non-string type
 					if (!item->HasMember(kSysex)) {
-						SimpleLogger::instance()->postMessage((boost::format("Skipping patch %s which has no 'Sysex' field") % patchName).str());
+						SimpleLogger::instance()->postMessage(fmt::format("Skipping patch {} which has no 'Sysex' field", patchName));
 						continue;
 					}
 
@@ -176,7 +176,7 @@ namespace midikraft {
 								fav = Favorite(favorite);
 							}
 							catch (std::invalid_argument &) {
-								SimpleLogger::instance()->postMessage((boost::format("Ignoring favorite information for patch %s because %s does not convert to an integer") % patchName % favoriteStr).str());
+								SimpleLogger::instance()->postMessage(fmt::format("Ignoring favorite information for patch {} because {} does not convert to an integer", patchName, favoriteStr));
 							}
 						}
 					}
@@ -194,7 +194,7 @@ namespace midikraft {
 								bank = MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(activeSynth, bankInt));
 							}
 							catch (std::invalid_argument &) {
-								SimpleLogger::instance()->postMessage((boost::format("Ignoring MIDI bank information for patch %s because %s does not convert to an integer") % patchName % bankStr).str());
+								SimpleLogger::instance()->postMessage(fmt::format("Ignoring MIDI bank information for patch {} because {} does not convert to an integer", patchName, bankStr));
 							}
 						}
 					}
@@ -220,7 +220,7 @@ namespace midikraft {
 							}
 							}
 							catch (std::invalid_argument &) {
-								SimpleLogger::instance()->postMessage((boost::format("Ignoring MIDI place information for patch %s because %s does not convert to an integer") % patchName % placeStr).str());
+								SimpleLogger::instance()->postMessage(fmt::format("Ignoring MIDI place information for patch {} because {} does not convert to an integer", patchName, placeStr));
 							}
 						}
 					}
@@ -234,7 +234,7 @@ namespace midikraft {
 								categories.push_back(category);
 							}
 							else {
-								SimpleLogger::instance()->postMessage((boost::format("Ignoring category %s of patch %s because it is not part of our standard categories!") % cat->GetString() % patchName).str());
+								SimpleLogger::instance()->postMessage(fmt::format("Ignoring category {} of patch {} because it is not part of our standard categories!", cat->GetString(), patchName));
 							}
 						}
 					}
@@ -248,7 +248,7 @@ namespace midikraft {
 								nonCategories.push_back(category);
 							}
 							else {
-								SimpleLogger::instance()->postMessage((boost::format("Ignoring non-category %s of patch %s because it is not part of our standard categories!") % cat->GetString() % patchName).str());
+								SimpleLogger::instance()->postMessage(fmt::format("Ignoring non-category {} of patch {} because it is not part of our standard categories!", cat->GetString(), patchName));
 							}
 						}
 					}
@@ -377,7 +377,7 @@ namespace midikraft {
 #if WIN32
 		FILE* fp;
 		if (fopen_s(&fp, toFilename.c_str(), "wb") != 0) {
-			SimpleLogger::instance()->postMessage((boost::format("Failure to open file %s to write patch interchange format to") % toFilename).str());
+			SimpleLogger::instance()->postMessage(fmt::format("Failure to open file {} to write patch interchange format to", toFilename));
 	}
 #else
 		FILE* fp = fopen(toFilename.c_str(), "w");

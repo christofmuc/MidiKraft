@@ -23,7 +23,6 @@
 #include "MidiHelpers.h"
 #include "FileHelpers.h"
 
-#include <boost/format.hpp>
 #include "fmt/format.h"
 #include <set>
 #include "Settings.h"
@@ -48,12 +47,12 @@ namespace midikraft {
 				}
 				else {
 					if (!progressHandler->shouldAbort()) {
-						progressHandler->setMessage((boost::format("Importing %s from %s...") % SynthBank::friendlyBankName(synth, bankNo[downloadBankNumber_]) % synth->getName()).str());
+						progressHandler->setMessage(fmt::format("Importing {} from {}...", SynthBank::friendlyBankName(synth, bankNo[downloadBankNumber_]), synth->getName()));
 						startDownloadingAllPatches(midiOutput, synth, bankNo[downloadBankNumber_], progressHandler, nextBankHandler_);
 					}
 				}
 			};
-			progressHandler->setMessage((boost::format("Importing %s from %s...") % SynthBank::friendlyBankName(synth, bankNo[0]) % synth->getName()).str());
+			progressHandler->setMessage(fmt::format("Importing {} from {}...", SynthBank::friendlyBankName(synth, bankNo[0]), synth->getName()));
 			startDownloadingAllPatches(midiOutput, synth, bankNo[0], progressHandler, nextBankHandler_);
 		}
 	}
@@ -661,21 +660,21 @@ namespace midikraft {
 			case MANY_FILES:
 				// Nothing todo, just display success
 				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
-					(boost::format("All %d patches selected have been exported into the following directory:\n\n%s\n\nThese files can be re-imported into another KnobKraft Orm instance or else\n"
-						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
+					fmt::format("All {} patches selected have been exported into the following directory:\n\n{}\n\nThese files can be re-imported into another KnobKraft Orm instance or else\n"
+						"the patches can be sent into the synth with a sysex tool", patches.size(), destination.getFullPathName().toStdString()));
 				break;
 			case ZIPPED_FILES: {
 				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
-					(boost::format("All %d patches selected have been exported into the following: ZIP file:\n\n%s\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
-						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
+					fmt::format("All {} patches selected have been exported into the following: ZIP file:\n\n{}\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
+						"the patches can be sent into the synth with a sysex tool", patches.size(), destination.getFullPathName().toStdString()));
 				break;
 			}
 			case MID_FILE:
 			case ONE_FILE:
 			{
 				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
-					(boost::format("All %d patches selected have been exported into the following file:\n\n%s\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
-						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
+					fmt::format("All {} patches selected have been exported into the following file:\n\n{}\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
+						"the patches can be sent into the synth with a sysex tool", patches.size(), destination.getFullPathName().toStdString()));
 				break;
 			}
 			}

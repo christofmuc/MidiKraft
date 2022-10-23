@@ -46,8 +46,8 @@ set_source_files_properties(
 
 # Setup library
 add_library(midikraft-librarian ${Sources})
-target_include_directories(midikraft-librarian PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${boost_SOURCE_DIR} ${MANUALLY_RAPID_JSON})
-target_link_libraries(midikraft-librarian juce-utils midikraft-base ${APPLE_BOOST} nlohmann_json::nlohmann_json fmt::fmt)
+target_include_directories(midikraft-librarian PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${MANUALLY_RAPID_JSON})
+target_link_libraries(midikraft-librarian juce-utils midikraft-base nlohmann_json::nlohmann_json fmt::fmt)
 
 # Pedantic about warnings
 if (MSVC)

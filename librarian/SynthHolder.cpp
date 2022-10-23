@@ -11,12 +11,12 @@
 #include "SimpleDiscoverableDevice.h"
 #include "SoundExpanderCapability.h"
 
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 namespace midikraft {
 
 	std::string colorSynthKey(std::shared_ptr<DiscoverableDevice> synth) {
-		return (boost::format("%s-color") % synth->getName()).str();
+		return fmt::format("{}-color",  synth->getName());
 	}
 
 	SynthHolder::SynthHolder(std::shared_ptr<SimpleDiscoverableDevice> synth, Colour const &color) : device_(synth)

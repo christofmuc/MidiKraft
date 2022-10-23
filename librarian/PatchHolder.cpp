@@ -15,7 +15,7 @@
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 #include "RapidjsonHelper.h"
 #include "nlohmann/json.hpp"
@@ -380,7 +380,7 @@ namespace midikraft {
 					bank = " " + banks[bankNo_.toZeroBased()].name;
 				}
 				else {
-					bank = (boost::format(" bank %d") % bankNo_.toOneBased()).str();
+					bank = fmt::format(" bank {}", bankNo_.toOneBased());
 				}
 			}
 			else {
@@ -389,7 +389,7 @@ namespace midikraft {
 					bank = " " + bankCapa->friendlyBankName(bankNo_);
 				}
 				else {
-					bank = (boost::format(" bank %d") % bankNo_.toOneBased()).str();;
+					bank = fmt::format(" bank {}", bankNo_.toOneBased());;
 				}
 			}
 		}
@@ -398,11 +398,11 @@ namespace midikraft {
 		}
 		if (timestamp_.toMilliseconds() != 0) {
 			// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
-			return (boost::format("Imported from synth%s on %s") % bank % timestamp_.formatted("%x at %X").toStdString()).str();
+			return fmt::format("Imported from synth{} on {}", bank, timestamp_.formatted("%x at %X").toStdString());
 		}
 		else {
 			// Legacy import, no timestamp was recorded.
-			return (boost::format("Imported from synth%s") % bank).str();
+			return fmt::format("Imported from synth{}", bank);
 		}
 	}
 
@@ -463,7 +463,7 @@ namespace midikraft {
 	std::string FromFileSource::toDisplayString(Synth *, bool shortVersion) const
 	{
 		ignoreUnused(shortVersion);
-		return (boost::format("Imported from file %s") % filename_).str();
+		return fmt::format("Imported from file {}", filename_);
 	}
 
 	std::shared_ptr<FromFileSource> FromFileSource::fromString(std::string const &jsonString)
@@ -507,7 +507,7 @@ namespace midikraft {
 	std::string FromBulkImportSource::md5(Synth *synth) const
 	{
 		ignoreUnused(synth);
-		String uuid((boost::format("Bulk import %s") % timestamp_.formatted("%x at %X")).str());
+		String uuid(fmt::format("Bulk import {}", timestamp_.formatted("%x at %X").toStdString()));
 		return MD5(uuid.toUTF8()).toHexString().toStdString();
 	}
 
@@ -516,11 +516,11 @@ namespace midikraft {
 		if (timestamp_.toMilliseconds() != 0) {
 			if (shortVersion || !individualInfo_) {
 				// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
-				return (boost::format("Bulk import (%s)") % timestamp_.formatted("%x at %X").toStdString()).str();
+				return fmt::format("Bulk import ({})", timestamp_.formatted("%x at %X").toStdString());
 			}
 			else {
 				// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
-				return (boost::format("Bulk import %s (%s)") % timestamp_.formatted("%x at %X").toStdString() % individualInfo_->toDisplayString(synth, true)).str();
+				return fmt::format("Bulk import {} ({})", timestamp_.formatted("%x at %X").toStdString(), individualInfo_->toDisplayString(synth, true));
 			}
 		}
 		return "Bulk file import";

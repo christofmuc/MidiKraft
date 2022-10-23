@@ -14,14 +14,14 @@
 #include "BinaryResources.h"
 #include "RapidjsonHelper.h"
 
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 namespace midikraft {
 
 	AutomaticCategory::AutomaticCategory(std::vector<Category> existingCats)
 	{
 		if (autoCategoryFileExists()) {
-			SimpleLogger::instance()->postMessageOncePerRun((boost::format("Overriding built-in automatic category rules with file %s") % getAutoCategoryFile().getFullPathName().toStdString()).str());
+			SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding built-in automatic category rules with file {}", getAutoCategoryFile().getFullPathName().toStdString()));
 			loadFromFile(existingCats, getAutoCategoryFile().getFullPathName().toStdString());
 		}
 		else {
@@ -29,7 +29,7 @@ namespace midikraft {
 		}
 
 		if (autoCategoryMappingFileExists()) {
-			SimpleLogger::instance()->postMessageOncePerRun((boost::format("Overriding built-in import category rules with file %s") % getAutoCategoryMappingFile().getFullPathName().toStdString()).str());
+			SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding built-in import category rules with file {}", getAutoCategoryMappingFile().getFullPathName().toStdString()));
 			auto fileContent = getAutoCategoryMappingFile().loadFileAsString();
 			loadMappingFromString(fileContent.toStdString());
 		}
@@ -69,16 +69,16 @@ namespace midikraft {
 								}
 							}
 							if (!found) {
-								SimpleLogger::instance()->postMessage((boost::format("Warning: Invalid mapping for Synth %s and stored category %s. Maps to invalid category %s. Use Categories... Edit mappings... to fix.") % synthname % tag.name() % categoryName).str());
+								SimpleLogger::instance()->postMessage(fmt::format("Warning: Invalid mapping for Synth {} and stored category {}. Maps to invalid category {}. Use Categories... Edit mappings... to fix.", synthname, tag.name(),  categoryName));
 							}
 						}
 					}
 					else {
-						SimpleLogger::instance()->postMessage((boost::format("Warning: Synth %s has no mapping defined for stored category %s. Use Categories... Edit mappings... to fix.") % synthname % tag.name()).str());
+						SimpleLogger::instance()->postMessage(fmt::format("Warning: Synth {} has no mapping defined for stored category {}. Use Categories... Edit mappings... to fix.", synthname, tag.name()));
 					}
 				}
 				else {
-					SimpleLogger::instance()->postMessage((boost::format("Warning: Synth %s has no mapping defined for stored categories. Use Categories... Edit mappings... to fix.") % synthname).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Warning: Synth {} has no mapping defined for stored categories. Use Categories... Edit mappings... to fix.", synthname));
 				}
 			}
 		}
@@ -179,7 +179,7 @@ namespace midikraft {
 					}
 				}
 				if (!found) {
-					SimpleLogger::instance()->postMessage((boost::format("Ignoring rules for category %s, because that name is not found in the database") % categoryName).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Ignoring rules for category {}, because that name is not found in the database", categoryName));
 				}
 			}
 		}

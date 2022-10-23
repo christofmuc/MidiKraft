@@ -10,7 +10,7 @@
 #include "RapidjsonHelper.h"
 #include "Synth.h"
 
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 namespace midikraft {
 
@@ -61,7 +61,7 @@ namespace midikraft {
 		ignoreUnused(synth);
 		jassert(synth->getName() == patch->synthName_);
 		std::string patchHash = patch->patchHolder_.md5();
-		std::string toBeHashed = (boost::format("%s-%s-%s") % patch->session_.name_ % patch->synthName_ % patchHash).str();
+		std::string toBeHashed = fmt::format("{}-{}-{}", patch->session_.name_, patch->synthName_, patchHash);
 		MD5 hash(toBeHashed.data(), toBeHashed.size());
 		return hash.toHexString().toStdString();
 	}

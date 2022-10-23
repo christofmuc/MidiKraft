@@ -1147,6 +1147,27 @@ namespace midikraft {
 			return categorizer;
 		}
 
+		std::vector<ListInfo> allUserBanks(std::shared_ptr<Synth> synth)
+		{
+			try {
+				SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth = :SYN");
+				query.bind(":SYN", synth->getName());
+				std::vector<ListInfo> result;
+				while (query.executeStep()) {
+					std::string bankId(query.getColumn("id").getText());
+					if (bankId.find(synth->getName()) != 0) {
+						result.push_back({ bankId, query.getColumn("name").getText() });
+					}
+				}
+				return result;
+			}
+			catch (SQLite::Exception& e) {
+				std::string message = fmt::format("Database error when retrieving lists of user banks: {}", e.what());
+				SimpleLogger::instance()->postMessage(message);
+				return {};
+			}
+		}
+
 		std::vector<ListInfo> allPatchLists()
 		{
 			try {
@@ -1191,10 +1212,20 @@ namespace midikraft {
 						auto s = synth.second.lock();
 						if (s->getName() == synthName) {
 							int bankInt = queryList.getColumn("midi_bank_number").getInt();
-							list = std::make_shared<SynthBank>(s
+							if (info.id.find(synthName) != 0) {
+								// This is a stored user bank
+								list = std::make_shared<SynthBank>(queryList.getColumn("name").getText(),
+									s
+									, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
+									);
+							}
+							else {
+								// This is an active bank
+								list = std::make_shared<ActiveSynthBank>(s
 									, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
 									, juce::Time(queryList.getColumn("last_synced").getInt64())
 									);
+							}
 							break;
 						}
 					}
@@ -1316,7 +1347,12 @@ namespace midikraft {
 						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM, last_synced = :LSY WHERE id = :ID");
 						update.bind(":ID", patchList->id());
 						update.bind(":NAM", patchList->name());
-						update.bind(":LSY", isSynthBank->lastSynced().toMilliseconds());
+						if (auto activeBank = std::dynamic_pointer_cast<midikraft::ActiveSynthBank>(patchList)) {
+							update.bind(":LSY", activeBank->lastSynced().toMilliseconds());
+						}
+						else {
+							update.bind(":LSY", 0);
+						}
 						update.exec();
 					}
 					// Delete the previous list content, this operation overwrites the list!
@@ -1331,7 +1367,12 @@ namespace midikraft {
 					if (isSynthBank) {
 						insert.bind(":SYN", isSynthBank->synth()->getName());
 						insert.bind(":BNK", isSynthBank->bankNumber().toZeroBased());
-						insert.bind(":LSY", isSynthBank->lastSynced().toMilliseconds()); // Storing UNIX epoch here
+						if (auto activeBank = std::dynamic_pointer_cast<midikraft::ActiveSynthBank>(patchList)) {
+							insert.bind(":LSY", activeBank->lastSynced().toMilliseconds()); // Storing UNIX epoch here
+						}
+						else {
+							insert.bind(":LSY", 0);
+						}
 					}
 					else {
 						// Insert NULLs for those three columns
@@ -1475,6 +1516,11 @@ namespace midikraft {
 	std::vector<ListInfo> PatchDatabase::allPatchLists()
 	{
 		return impl->allPatchLists();
+	}
+
+	std::vector<ListInfo> PatchDatabase::allUserBanks(std::shared_ptr<Synth> synth)
+	{
+		return impl->allUserBanks(synth);
 	}
 
 	bool PatchDatabase::doesListExist(std::string listId) {

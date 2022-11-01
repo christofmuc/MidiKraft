@@ -14,10 +14,15 @@ namespace midikraft {
 
 	class EditBufferCapability {
 	public:
+		struct HandshakeReply {
+			bool isPartOfEditBufferDump;
+			std::vector<MidiMessage> handshakeReply;
+		};
+
 		virtual std::vector<MidiMessage> requestEditBufferDump() const = 0;
 		virtual bool isEditBufferDump(const std::vector<MidiMessage> & message) const = 0;
-		virtual bool isMessagePartOfEditBuffer(const MidiMessage& message) const {
-			return isEditBufferDump({ message });
+		virtual HandshakeReply isMessagePartOfEditBuffer(const MidiMessage& message) const {
+			return { isEditBufferDump({ message }), {} };
 		}
 
 		virtual std::shared_ptr<DataFile> patchFromSysex(const std::vector<MidiMessage>& message) const = 0;

@@ -68,7 +68,7 @@ namespace midikraft {
 			// The other Synth types load message by message
 			std::vector<MidiMessage> currentStreak;
 			for (auto message : sysexMessages) {
-				if (editBufferSynth && editBufferSynth->isMessagePartOfEditBuffer(message)) {
+				if (editBufferSynth && editBufferSynth->isMessagePartOfEditBuffer(message).isPartOfEditBufferDump) {
 					currentStreak.push_back(message);
 					if (editBufferSynth->isEditBufferDump(currentStreak)) {
 						auto patch = editBufferSynth->patchFromSysex(currentStreak);
@@ -82,7 +82,7 @@ namespace midikraft {
 						patchNo++;
 					}
 				}
-				else if (programDumpSynth && programDumpSynth->isMessagePartOfProgramDump(message)) {
+				else if (programDumpSynth && programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
 					currentStreak.push_back(message);
 					if (programDumpSynth->isSingleProgramDump(currentStreak)) {
 						auto patch = programDumpSynth->patchFromProgramDumpSysex(currentStreak);

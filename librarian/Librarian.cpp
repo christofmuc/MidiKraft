@@ -803,27 +803,34 @@ namespace midikraft {
 	void Librarian::handleNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo) {
 		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
 		// This message might be a part of a multi-message program dump?
-		if (editBufferCapability && editBufferCapability->isMessagePartOfEditBuffer(editBuffer)) {
-			currentEditBuffer_.push_back(editBuffer);
-			if (editBufferCapability->isEditBufferDump(currentEditBuffer_)) {
-				// Ok, that worked, save it and continue!
-				std::copy(currentEditBuffer_.begin(), currentEditBuffer_.end(), std::back_inserter(currentDownload_));
+		if (editBufferCapability) {
+			auto handshake = editBufferCapability->isMessagePartOfEditBuffer(editBuffer);
+			if (handshake.isPartOfEditBufferDump) {
+				// See if we should send a reply (ACK)
+				if (!handshake.handshakeReply.empty()) {
+					synth->sendBlockOfMessagesToSynth(midiOutput->name(), handshake.handshakeReply);
+				}
+				currentEditBuffer_.push_back(editBuffer);
+				if (editBufferCapability->isEditBufferDump(currentEditBuffer_)) {
+					// Ok, that worked, save it and continue!
+					std::copy(currentEditBuffer_.begin(), currentEditBuffer_.end(), std::back_inserter(currentDownload_));
 
-				// Finished?
-				if (downloadNumber_ >= endDownloadNumber_-1) {
-					clearHandlers();
-					auto patches = synth->loadSysex(currentDownload_);
-					onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
-					if (progressHandler) progressHandler->onSuccess();
-				}
-				else if (progressHandler->shouldAbort()) {
-					clearHandlers();
-					if (progressHandler) progressHandler->onCancel();
-				}
-				else {
-					downloadNumber_++;
-					startDownloadNextEditBuffer(midiOutput, synth, true); // To continue with more than one download makes only sense if we send program change commands
-					if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)(endDownloadNumber_ - startDownloadNumber_));
+					// Finished?
+					if (downloadNumber_ >= endDownloadNumber_ - 1) {
+						clearHandlers();
+						auto patches = synth->loadSysex(currentDownload_);
+						onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
+						if (progressHandler) progressHandler->onSuccess();
+					}
+					else if (progressHandler->shouldAbort()) {
+						clearHandlers();
+						if (progressHandler) progressHandler->onCancel();
+					}
+					else {
+						downloadNumber_++;
+						startDownloadNextEditBuffer(midiOutput, synth, true); // To continue with more than one download makes only sense if we send program change commands
+						if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)(endDownloadNumber_ - startDownloadNumber_));
+					}
 				}
 			}
 		}
@@ -835,27 +842,34 @@ namespace midikraft {
 	void Librarian::handleNextProgramBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& editBuffer, MidiBankNumber bankNo) {
 		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
 		// This message might be a part of a multi-message program dump?
-		if (programDumpCapability && programDumpCapability->isMessagePartOfProgramDump(editBuffer)) {
-			currentProgramDump_.push_back(editBuffer);
-			if (programDumpCapability->isSingleProgramDump(currentProgramDump_)) {
-				// Ok, that worked, save it and continue!
-				std::copy(currentProgramDump_.begin(), currentProgramDump_.end(), std::back_inserter(currentDownload_));
+		if (programDumpCapability) {
+			auto handshake = programDumpCapability->isMessagePartOfProgramDump(editBuffer);
+			if (handshake.isPartOfProgramDump) {
+				currentProgramDump_.push_back(editBuffer);
+				// See if we should send a reply (ACK)
+				if (!handshake.handshakeReply.empty()) {
+					synth->sendBlockOfMessagesToSynth(midiOutput->name(), handshake.handshakeReply);
+				}
+				if (programDumpCapability->isSingleProgramDump(currentProgramDump_)) {
+					// Ok, that worked, save it and continue!
+					std::copy(currentProgramDump_.begin(), currentProgramDump_.end(), std::back_inserter(currentDownload_));
 
-				// Finished?
-				if (downloadNumber_ >= endDownloadNumber_ - 1) {
-					clearHandlers();
-					auto patches = synth->loadSysex(currentDownload_);
-					onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
-					if (progressHandler) progressHandler->onSuccess();
-				}
-				else if (progressHandler->shouldAbort()) {
-					clearHandlers();
-					if (progressHandler) progressHandler->onCancel();
-				}
-				else {
-					downloadNumber_++;
-					startDownloadNextPatch(midiOutput, synth);
-					if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)(endDownloadNumber_ - startDownloadNumber_));
+					// Finished?
+					if (downloadNumber_ >= endDownloadNumber_ - 1) {
+						clearHandlers();
+						auto patches = synth->loadSysex(currentDownload_);
+						onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
+						if (progressHandler) progressHandler->onSuccess();
+					}
+					else if (progressHandler->shouldAbort()) {
+						clearHandlers();
+						if (progressHandler) progressHandler->onCancel();
+					}
+					else {
+						downloadNumber_++;
+						startDownloadNextPatch(midiOutput, synth);
+						if (progressHandler) progressHandler->setProgressPercentage((downloadNumber_ - startDownloadNumber_) / (double)(endDownloadNumber_ - startDownloadNumber_));
+					}
 				}
 			}
 		}

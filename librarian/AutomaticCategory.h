@@ -21,16 +21,16 @@ namespace midikraft {
 	class AutoCategoryRule {
 	public:
 		AutoCategoryRule(Category category, std::vector<std::string> const &regexes);
-		AutoCategoryRule(Category category, std::vector<std::regex> const &regexes);
+		AutoCategoryRule(Category category, std::map<std::string, std::regex> const &regexes);
 		Category category() const;
 
-		std::vector<std::regex> patchNameMatchers() const;
+		std::map<std::string, std::regex> patchNameMatchers() const;
 
 	private:
 		friend class AutomaticCategory; // Refactoring help
 
 		Category category_;
-		std::vector<std::regex> patchNameMatchers_;
+		std::map<std::string, std::regex> patchNameMatchers_;
 	};
 
 	class AutomaticCategory {
@@ -58,7 +58,7 @@ namespace midikraft {
 		std::string defaultJson();
 		std::string defaultJsonMapping();
 
-		std::vector<AutoCategoryRule> predefinedCategories_;
+		std::map<std::string, AutoCategoryRule> predefinedCategories_;
 		std::map<std::string, std::map<std::string, std::string>> importMappings_;
 	};
 

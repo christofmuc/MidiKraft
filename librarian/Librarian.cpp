@@ -808,7 +808,7 @@ namespace midikraft {
 			if (handshake.isPartOfEditBufferDump) {
 				// See if we should send a reply (ACK)
 				if (!handshake.handshakeReply.empty()) {
-					synth->sendBlockOfMessagesToSynth(midiOutput->name(), handshake.handshakeReply);
+					synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), handshake.handshakeReply);
 				}
 				currentEditBuffer_.push_back(editBuffer);
 				if (editBufferCapability->isEditBufferDump(currentEditBuffer_)) {
@@ -848,7 +848,7 @@ namespace midikraft {
 				currentProgramDump_.push_back(editBuffer);
 				// See if we should send a reply (ACK)
 				if (!handshake.handshakeReply.empty()) {
-					synth->sendBlockOfMessagesToSynth(midiOutput->name(), handshake.handshakeReply);
+					synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), handshake.handshakeReply);
 				}
 				if (programDumpCapability->isSingleProgramDump(currentProgramDump_)) {
 					// Ok, that worked, save it and continue!

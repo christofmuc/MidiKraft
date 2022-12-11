@@ -60,15 +60,12 @@ namespace midikraft {
 					if (mappings[synthname].find(tag.name()) != mappings[synthname].end()) {
 						std::string categoryName = mappings[synthname][tag.name()];
 						if (categoryName != "None") {
-							bool found = false;
-							for (auto cat : predefinedCategories_) {
-								if (cat.category().category() == categoryName) {
-									// That's us!
-									result.insert(cat.category());
-									found = true;
-								}
+							auto found = predefinedCategories_.find(categoryName);
+							if (found != predefinedCategories_.end()) {
+								// That's us!
+								result.insert(found->second.category());
 							}
-							if (!found) {
+							else {
 								SimpleLogger::instance()->postMessage((boost::format("Warning: Invalid mapping for Synth %s and stored category %s. Maps to invalid category %s. Use Categories... Edit mappings... to fix.") % synthname % tag.name() % categoryName).str());
 							}
 						}
@@ -86,10 +83,10 @@ namespace midikraft {
 		if (result.empty()) {
 			// Second step, if we have no category yet, try to detect the category from the name using the regex rule set stored in the file automatic_categories.jsonc
 			for (auto autoCat : predefinedCategories_) {
-				for (auto matcher : autoCat.patchNameMatchers_) {
-					bool found = std::regex_search(patch.name(), matcher);
+				for (auto matcher : autoCat.second.patchNameMatchers_) {
+					bool found = std::regex_search(patch.name(), matcher.second);
 					if (found) {
-						result.insert(autoCat.category_);
+						result.insert(autoCat.second.category_);
 					}
 				}
 			}
@@ -101,11 +98,11 @@ namespace midikraft {
 		category_(category)
 	{
 		for (auto regex : regexes) {
-			patchNameMatchers_.push_back(std::regex(regex, std::regex::icase));
+			patchNameMatchers_[regex] = (std::regex(regex, std::regex::icase));
 		}
 	}
 
-	AutoCategoryRule::AutoCategoryRule(Category category, std::vector<std::regex> const &regexes) :
+	AutoCategoryRule::AutoCategoryRule(Category category, std::map<std::string, std::regex> const &regexes) :
 		category_(category), patchNameMatchers_(regexes)
 	{
 	}
@@ -115,7 +112,7 @@ namespace midikraft {
 		return category_;
 	}
 
-	std::vector<std::regex> AutoCategoryRule::patchNameMatchers() const
+	std::map<std::string, std::regex> AutoCategoryRule::patchNameMatchers() const
 	{
 		return patchNameMatchers_;
 	}
@@ -135,20 +132,17 @@ namespace midikraft {
 		rapidjson::Document doc;
 		doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.c_str());
 		if (doc.IsObject()) {
-			// Replace the hard-coded values with those read from the JSON file
-			predefinedCategories_.clear();
-
 			auto obj = doc.GetObject();
 			for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
 				auto categoryName = member->name.GetString();
-				std::vector<std::regex> regexes;
+				std::map<std::string, std::regex> regexes;
 				if (member->value.IsArray()) {
 					auto a = member->value.GetArray();
 					for (auto s = a.Begin(); s != a.End(); s++) {
 
 						if (s->IsString()) {
 							// Simple Regex
-							regexes.push_back(std::regex(s->GetString(), std::regex::icase));
+							regexes[s->GetString()] = std::regex(s->GetString(), std::regex::icase);
 						}
 						else if (s->IsObject()) {
 							bool case_sensitive = false;
@@ -162,7 +156,7 @@ namespace midikraft {
 							if (s->HasMember("regex")) {
 								auto regex = s->FindMember("regex");
 								if (regex->value.IsString()) {
-									regexes.push_back(std::regex(s->GetString(), case_sensitive ? std::regex_constants::ECMAScript : (std::regex::icase)));
+									regexes[s->GetString()] = std::regex(s->GetString(), case_sensitive ? std::regex_constants::ECMAScript : (std::regex::icase));
 								}
 							}
 						}
@@ -172,8 +166,7 @@ namespace midikraft {
 				bool found = false;
 				for (auto existing : existingCats) {
 					if (existing.category() == categoryName) {
-						AutoCategoryRule cat(existing, regexes);
-						predefinedCategories_.push_back(cat);
+						addAutoCategory({ existing, regexes });
 						found = true;
 						break;
 					}
@@ -187,7 +180,11 @@ namespace midikraft {
 
 	std::vector<midikraft::AutoCategoryRule> AutomaticCategory::loadedRules() const
 	{
-		return predefinedCategories_;
+		std::vector<midikraft::AutoCategoryRule> result;
+		for (auto const& rule : predefinedCategories_) {
+			result.push_back(rule.second);
+		}
+		return result;
 	}
 
 	void AutomaticCategory::loadMappingFromString(std::string const fileContent) {
@@ -267,7 +264,17 @@ namespace midikraft {
 
 	void AutomaticCategory::addAutoCategory(AutoCategoryRule const &autoCat)
 	{
-		predefinedCategories_.push_back(autoCat);
+		auto found = predefinedCategories_.find(autoCat.category_.category());
+		if (found == predefinedCategories_.end()) {
+			// First time
+			predefinedCategories_.emplace(autoCat.category_.category(), autoCat);
+		}
+		else
+		{
+			// Already exists, need to update. Take over category definition and merge rules
+			found->second.category_ = autoCat.category_;
+			found->second.patchNameMatchers_.insert(autoCat.patchNameMatchers_.cbegin(), autoCat.patchNameMatchers_.cend());
+		}
 	}
 
 	std::string AutomaticCategory::defaultJson()

@@ -62,7 +62,7 @@ namespace midikraft {
 		void clearHandlers();
 
 	private:
-		void startDownloadNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth);
+		void startDownloadNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, bool sendProgramChange);
 		void startDownloadNextPatch(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth);
 		void startDownloadNextDataItem(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier);
 		void handleNextStreamPart(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &message, StreamLoadCapability::StreamType streamType);
@@ -86,6 +86,7 @@ namespace midikraft {
 		int downloadNumber_;
 		int startDownloadNumber_;
 		int endDownloadNumber_;
+		int expectedDownloadNumber_;
 
 		// To download multiple banks. This needs to go into its own context object
 		TFinishedHandler nextBankHandler_;

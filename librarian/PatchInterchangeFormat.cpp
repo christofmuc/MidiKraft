@@ -28,19 +28,23 @@
 
 #include <cstdio>
 
-const char *kSynth = "Synth";
-const char *kName = "Name";
-const char *kSysex = "Sysex";
-const char *kFavorite = "Favorite";
-const char *kPlace = "Place";
-const char *kCategories = "Categories";
-const char *kNonCategories = "NonCategories";
-const char *kSourceInfo = "SourceInfo";
-const char *kLibrary = "Library";
-const char *kHeader = "Header";
-const char *kFileFormat = "FileFormat";
-const char *kPIF = "PatchInterchangeFormat";
-const char *kVersion = "Version";
+namespace {
+
+const char* kSynth = "Synth";
+const char* kName = "Name";
+const char* kSysex = "Sysex";
+const char* kFavorite = "Favorite";
+const char* kPlace = "Place";
+const char* kCategories = "Categories";
+const char* kNonCategories = "NonCategories";
+const char* kSourceInfo = "SourceInfo";
+const char* kLibrary = "Library";
+const char* kHeader = "Header";
+const char* kFileFormat = "FileFormat";
+const char* kPIF = "PatchInterchangeFormat";
+const char* kVersion = "Version";
+
+}
 
 namespace midikraft {
 

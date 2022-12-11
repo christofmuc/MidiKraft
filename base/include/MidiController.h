@@ -85,6 +85,9 @@ namespace midikraft {
         MidiDeviceInfo getMidiInputByIdentifier(String const &identifier);
         MidiDeviceInfo getMidiOutputByIdentifier(String const &identifier);
 
+        MidiDeviceInfo getMidiInputByName(String const &name);
+        MidiDeviceInfo getMidiOutputByName(String const &name);
+
 		std::set<juce::MidiDeviceInfo> currentInputs(bool withHistory);
 		std::set<juce::MidiDeviceInfo> currentOutputs(bool withHistory);
 

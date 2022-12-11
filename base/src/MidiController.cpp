@@ -354,6 +354,30 @@ namespace midikraft {
         return MidiDeviceInfo();
     }
 
+	juce::MidiDeviceInfo MidiController::getMidiOutputByName(const String &name)
+	{
+		for (auto const& output : currentOutputs(true))
+		{
+			if (output.name == name)
+			{
+				return output;
+			}
+		}
+		return MidiDeviceInfo();
+	}
+
+	juce::MidiDeviceInfo MidiController::getMidiInputByName(const String &name)
+	{
+		for (auto const& output : currentInputs(true))
+		{
+			if (output.name == name)
+			{
+				return output;
+			}
+		}
+		return MidiDeviceInfo();
+	}
+
 	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler) {
 		ScopedLock lock(messageHandlerList_);
 		messageHandlers_.insert(std::make_pair(handle, handler));

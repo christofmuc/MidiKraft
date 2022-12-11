@@ -15,10 +15,15 @@ namespace midikraft {
 
 	class ProgramDumpCabability {
 	public:
+		struct HandshakeReply {
+			bool isPartOfProgramDump;
+			std::vector<MidiMessage> handshakeReply;
+		};
+
 		virtual std::vector<MidiMessage> requestPatch(int patchNo) const = 0;
 		virtual bool isSingleProgramDump(const std::vector<MidiMessage>& messages) const = 0;
-		virtual bool isMessagePartOfProgramDump(const MidiMessage& message) const {
-			return isSingleProgramDump({ message });
+		virtual HandshakeReply isMessagePartOfProgramDump(const MidiMessage& message) const {
+			return { isSingleProgramDump({ message }), {} };
 		}
 		virtual MidiProgramNumber getProgramNumber(const std::vector<MidiMessage> &message) const = 0;
 		virtual std::shared_ptr<DataFile> patchFromProgramDumpSysex(const std::vector<MidiMessage>& message) const = 0;

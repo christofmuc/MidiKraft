@@ -14,8 +14,6 @@ namespace midikraft {
 
 	class StoredTagCapability {
 	public:
-		virtual int getNumTagsStored() const = 0;
-
 		virtual bool setTags(std::set<Tag> const &tags) = 0;
 		virtual std::set<Tag> tags() const = 0;
 	};

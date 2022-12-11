@@ -12,6 +12,7 @@
 #include "MidiHelpers.h"
 #include "Logger.h"
 
+#include "HasBanksCapability.h"
 #include "EditBufferCapability.h"
 #include "ProgramDumpCapability.h"
 #include "BankDumpCapability.h"
@@ -67,7 +68,7 @@ namespace midikraft {
 			// The other Synth types load message by message
 			std::vector<MidiMessage> currentStreak;
 			for (auto message : sysexMessages) {
-				if (editBufferSynth && editBufferSynth->isMessagePartOfEditBuffer(message)) {
+				if (editBufferSynth && editBufferSynth->isMessagePartOfEditBuffer(message).isPartOfEditBufferDump) {
 					currentStreak.push_back(message);
 					if (editBufferSynth->isEditBufferDump(currentStreak)) {
 						auto patch = editBufferSynth->patchFromSysex(currentStreak);
@@ -81,7 +82,7 @@ namespace midikraft {
 						patchNo++;
 					}
 				}
-				else if (programDumpSynth && programDumpSynth->isMessagePartOfProgramDump(message)) {
+				else if (programDumpSynth && programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
 					currentStreak.push_back(message);
 					if (programDumpSynth->isSingleProgramDump(currentStreak)) {
 						auto patch = programDumpSynth->patchFromProgramDumpSysex(currentStreak);
@@ -151,7 +152,16 @@ namespace midikraft {
 				}
 				else {
 					// Well, where should it go? I'd say last patch of first bank is a good compromise
-					place = MidiProgramNumber::fromZeroBase(numberOfPatches() - 1);
+					auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(this);
+					if (descriptors) {
+						place = MidiProgramNumber::fromZeroBase(descriptors->bankDescriptors()[0].size - 1);
+					}
+					else {
+						auto banks = Capability::hasCapability<HasBanksCapability>(this);
+						if (banks) {
+							place = MidiProgramNumber::fromZeroBase(banks->numberOfPatches() - 1);
+						}
+					}
 					SimpleLogger::instance()->postMessageOncePerRun((boost::format("%s has no edit buffer, using program %s instead") % getName() % friendlyProgramName(place)).str());
 				}
 				messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);

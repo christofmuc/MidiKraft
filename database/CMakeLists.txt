@@ -21,8 +21,8 @@ set(SQLITE_CPP_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/../third_party/SQLiteCpp/inclu
 
 # Setup library
 add_library(midikraft-database ${Sources})
-target_include_directories(midikraft-database PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${JUCE_INCLUDES} ${boost_SOURCE_DIR} ${MANUALLY_RAPID_JSON} ${SQLITE_CPP_INCLUDE})
-target_link_libraries(midikraft-database juce-utils midikraft-base midikraft-librarian ${APPLE_BOOST})
+target_include_directories(midikraft-database PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${JUCE_INCLUDES} ${MANUALLY_RAPID_JSON} ${SQLITE_CPP_INCLUDE})
+target_link_libraries(midikraft-database juce-utils midikraft-base midikraft-librarian)
 
 # Pedantic about warnings
 if (MSVC)

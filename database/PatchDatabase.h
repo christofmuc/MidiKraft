@@ -89,9 +89,11 @@ namespace midikraft {
 		int getNextBitindex();
 		void updateCategories(std::vector<CategoryDefinition> const &newdefs);
 
+		std::vector<ListInfo> allUserBanks(std::shared_ptr<Synth> synth);
 		std::vector<ListInfo> allPatchLists();
-		PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths);
-		void putPatchList(PatchList patchList);
+		bool doesListExist(std::string listId);
+		std::shared_ptr<PatchList> getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths);
+		void putPatchList(std::shared_ptr<PatchList> patchList);
 		void deletePatchlist(ListInfo info);
 		void addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex);
 		void movePatchInList(ListInfo info, PatchHolder const& patch, int previousIndex, int newIndex);

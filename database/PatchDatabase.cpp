@@ -10,6 +10,7 @@
 #include "Patch.h"
 #include "Logger.h"
 #include "PatchHolder.h"
+#include "SynthBank.h"
 #include "StoredPatchNameCapability.h"
 
 #include "JsonSchema.h"
@@ -20,7 +21,7 @@
 #include "FileHelpers.h"
 
 #include <iostream>
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 #include "SQLiteCpp/Database.h"
 #include "SQLiteCpp/Statement.h"
@@ -33,7 +34,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 7;
+	const int SCHEMA_VERSION = 8;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -42,6 +43,7 @@ namespace midikraft {
 	/* 5 - adding bank number column for better sorting of multi-imports */
 	/* 6 - adding the table categories to track which bit index is used for which tag */
 	/* 7 - adding the table lists to allow storing lists of patches */
+	/* 8 - adding synth name, timestamp and banknumber to patch list to allow store synth banks */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -120,7 +122,7 @@ namespace midikraft {
 				}
 			}
 			if (backupSize != keptBackupSize) {
-				SimpleLogger::instance()->postMessage((boost::format("Removing all but %d backup files reducing disk space used from %d to %d bytes") % numKept % backupSize % keptBackupSize).str());
+				SimpleLogger::instance()->postMessage(fmt::format("Removing all but {} backup files reducing disk space used from {} to {} bytes", numKept, backupSize, keptBackupSize));
 			}
 		}
 
@@ -181,6 +183,15 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 7");
 				transaction.commit();
 			}
+			if (currentVersion < 8) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				//db_.exec("ALTER TABLE lists ADD COLUMN synth TEXT");
+				//db_.exec("ALTER TABLE lists ADD COLUMN midi_bank_number INTEGER");
+				//db_.exec("ALTER TABLE lists ADD COLUMN last_synced INTEGER");
+				//TODO db_.exec("UPDATE schema_version SET number = 7");
+				transaction.commit();
+			}
 		}
 
 		void insertDefaultCategories() {
@@ -219,7 +230,7 @@ namespace midikraft {
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
 			}
 			if (!db_.tableExists("lists")) {
-				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL)");
+				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL, synth TEXT, midi_bank_number INTEGER, last_synced INTEGER)");
 			}
 			if (!db_.tableExists("patch_in_list")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL)");
@@ -238,7 +249,7 @@ namespace midikraft {
 					}
 					catch (SQLite::Exception& e) {
 						if (mode_ == OpenMode::READ_WRITE) {
-							std::string message = (boost::format("Cannot open database file %s - Cannot upgrade to latest version, schema version found is %d. Error: %s") % db_.getFilename() % version % e.what()).str();
+							std::string message = fmt::format("Cannot open database file {} - Cannot upgrade to latest version, schema version found is {}. Error: {}", db_.getFilename(), version, e.what());
 							AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Failure to open database", message);
 						}
 						if (e.getErrorCode() == SQLITE_READONLY) {
@@ -251,7 +262,7 @@ namespace midikraft {
 				}
 				else if (version > SCHEMA_VERSION) {
 					// This is a database from the future, can't open!
-					std::string message = (boost::format("Cannot open database file %s - this was produced with a newer version of KnobKraft Orm, schema version is %d.") % db_.getFilename() % version).str();
+					std::string message = fmt::format("Cannot open database file {} - this was produced with a newer version of KnobKraft Orm, schema version is {}.", db_.getFilename(), version);
 					if (mode_ == OpenMode::READ_WRITE) {
 						AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Database Error", message);
 					}
@@ -287,14 +298,14 @@ namespace midikraft {
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
 				sql.bind(":BNK", patch.bankNumber().isValid() ? patch.bankNumber().toZeroBased() : 0);
-				sql.bind(":PRG", patch.patchNumber().toZeroBased());
+				sql.bind(":PRG", patch.patchNumber().toZeroBasedWithBank());
 				sql.bind(":CAT", bitfield.categorySetAsBitfield(patch.categories()));
 				sql.bind(":CUD", bitfield.categorySetAsBitfield(patch.userDecisionSet()));
 
 				sql.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in putPatch: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in putPatch: SQL Exception {}", ex.what()));
 			}
 			return true;
 		}
@@ -322,16 +333,16 @@ namespace midikraft {
 					return true;
 				}
 				else if (rowsModified == 0) {
-					SimpleLogger::instance()->postMessage((boost::format("Failed to update import - not found with ID %s") % importID).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Failed to update import - not found with ID {}", importID));
 					return false;
 				}
 				else {
-					SimpleLogger::instance()->postMessage((boost::format("Failed to update import, abort - more than one row found with ID %s") % importID).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Failed to update import, abort - more than one row found with ID {}", importID));
 					return false;
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in renameImport: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in renameImport: SQL Exception {}", ex.what()));
 				return false;
 			}
 		}
@@ -373,13 +384,14 @@ namespace midikraft {
 				where += " AND categories == 0";
 			}
 			else if (!filter.categories.empty()) {
-					// Empty category filter set will of course return everything
-					//TODO this has bad query performance as it will force a table scan, but for now I cannot see this becoming a problem as long as the database is not multi-tenant
-					// The correct way to do this would be to create a many to many relationship and run an "exists" query or join/unique the category table. Returning the list of categories also requires 
-					// a concat on sub-query, so we're running into more complex SQL territory here.
+				// Empty category filter set will of course return everything
+				//TODO this has bad query performance as it will force a table scan, but for now I cannot see this becoming a problem as long as the database is not multi-tenant
+				// The correct way to do this would be to create a many to many relationship and run an "exists" query or join/unique the category table. Returning the list of categories also requires 
+				// a concat on sub-query, so we're running into more complex SQL territory here.
 				if (!filter.andCategories) {
 					where += " AND (categories & :CAT != 0)";
-				} else {
+				}
+				else {
 					where += " AND (categories & :CAT == :CAT)";
 				}
 			}
@@ -390,12 +402,15 @@ namespace midikraft {
 		}
 
 		std::string buildOrderClause(PatchFilter filter) {
-			std::string orderByClause = "";
-			if (filter.onlyDuplicateNames) {
-				orderByClause = " ORDER BY name, midiBankNo, midiProgramNo ";
-			}
-			else {
-				orderByClause = " ORDER BY sourceID, midiBankNo, midiProgramNo ";
+			std::string orderByClause;
+			switch (filter.orderBy) {
+			case PatchOrdering::No_ordering: orderByClause = ""; break;
+			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY sourceID, midiBankNo, midiProgramNo ";; break;
+			case PatchOrdering::Order_by_Name: orderByClause = " ORDER BY name, midiBankNo, midiProgramNo "; break;
+			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY order_num"; break;
+			default:
+				jassertfalse;
+				SimpleLogger::instance()->postMessage("Program error - encountered invalid ordering field in buildOrderClause");
 			}
 			return orderByClause;
 		}
@@ -417,7 +432,7 @@ namespace midikraft {
 
 		std::string synthVariable(int no) {
 			// Calculate a variable name to bind the synth name to. This will blow up if you query for more than 99 synths.
-			return (boost::format(":S%02d") % no).str();
+			return fmt::format(":S{:02d}", no);
 		}
 
 		void bindWhereClause(SQLite::Statement& query, PatchFilter filter) {
@@ -438,8 +453,8 @@ namespace midikraft {
 				query.bind(":TYP", filter.typeID);
 			}
 			if (!filter.onlyUntagged && !filter.categories.empty()) {
-					query.bind(":CAT", bitfield.categorySetAsBitfield(filter.categories));
-				}
+				query.bind(":CAT", bitfield.categorySetAsBitfield(filter.categories));
+			}
 		}
 
 		int getPatchesCount(PatchFilter filter) {
@@ -453,7 +468,7 @@ namespace midikraft {
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in getPatchesCount: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in getPatchesCount: SQL Exception {}", ex.what()));
 			}
 			return 0;
 		}
@@ -545,7 +560,22 @@ namespace midikraft {
 				categoryDefinitions_ = getCategories();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in updateCategories: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in updateCategories: SQL Exception {}", ex.what()));
+			}
+		}
+
+		void loadBankAndProgram(std::shared_ptr<Synth> synth, SQLite::Statement& query, MidiBankNumber& outBank, MidiProgramNumber& outProgram)
+		{
+			// Determine Bank (if stored) and Program 
+			auto bankCol = query.getColumn("midiBankNo");
+			int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
+			if (bankCol.isNull()) {
+				outBank = MidiBankNumber::invalid();
+				outProgram = MidiProgramNumber::fromZeroBase(midiProgramNumber);
+			}
+			else {
+				outBank = MidiBankNumber::fromZeroBase(bankCol.getInt(), SynthBank::numberOfPatchesInBank(synth, bankCol.getInt()));
+				outProgram = MidiProgramNumber::fromZeroBaseWithBank(outBank, midiProgramNumber);
 			}
 		}
 
@@ -557,20 +587,24 @@ namespace midikraft {
 			// Create the patch itself, from the BLOB stored
 			auto dataColumn = query.getColumn("data");
 
+
+			MidiProgramNumber program;
+			MidiBankNumber bank = MidiBankNumber::invalid();
+			loadBankAndProgram(synth, query, bank, program);
+
+			// Load the BLOB
 			if (dataColumn.isBlob()) {
 				std::vector<uint8> patchData((uint8*)dataColumn.getBlob(), ((uint8*)dataColumn.getBlob()) + dataColumn.getBytes());
 				//TODO I should not need the midiProgramNumber here
-				int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-				newPatch = synth->patchFromPatchData(patchData, MidiProgramNumber::fromZeroBase(midiProgramNumber));
+				newPatch = synth->patchFromPatchData(patchData, program);
 			}
+
 			// We need the current categories
 			categoryDefinitions_ = getCategories();
 			if (newPatch) {
 				auto sourceColumn = query.getColumn("sourceInfo");
 				if (sourceColumn.isText()) {
-					int midiBankNumber = query.getColumn("midiBankNo").getInt();
-					int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, MidiBankNumber::fromZeroBase(midiBankNumber), MidiProgramNumber::fromZeroBase(midiProgramNumber));
+					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, bank, program);
 
 					std::string patchName = query.getColumn("name").getString();
 					holder.setName(patchName);
@@ -618,7 +652,7 @@ namespace midikraft {
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in getSinglePatch: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in getSinglePatch: SQL Exception {}", ex.what()));
 			}
 			return false;
 		}
@@ -641,7 +675,7 @@ namespace midikraft {
 					// Find the synth this patch is for
 					auto synthName = query.getColumn("synth");
 					if (filter.synths.find(synthName) == filter.synths.end()) {
-						SimpleLogger::instance()->postMessage((boost::format("Program error, query returned patch for synth %s which was not part of the filter") % synthName).str());
+						SimpleLogger::instance()->postMessage(fmt::format("Program error, query returned patch for synth {} which was not part of the filter", synthName));
 						continue;
 					}
 					auto thisSynth = filter.synths[synthName].lock();
@@ -657,7 +691,7 @@ namespace midikraft {
 				return true;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in getPatches: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in getPatches: SQL Exception {}", ex.what()));
 			}
 			return false;
 		}
@@ -677,16 +711,17 @@ namespace midikraft {
 					query.bind(":SYN", ph.synth()->getName());
 					query.bind(":MD5", md5);
 					if (query.executeStep()) {
-						int midiBankNumber = query.getColumn("midiBankNo").getInt();
-						int midiProgramNumber = query.getColumn("midiProgramNo").getInt();
-						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, MidiBankNumber::fromZeroBase(midiBankNumber), MidiProgramNumber::fromZeroBase(midiProgramNumber));
+						MidiProgramNumber program;
+						MidiBankNumber bank = MidiBankNumber::invalid();
+						loadBankAndProgram(ph.smartSynth(), query, bank, program);
+						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, bank, program);
 						std::string name = query.getColumn("name");
 						existingPatch.setName(name);
 						result.emplace(md5, existingPatch);
 					}
 				}
 				catch (SQLite::Exception& ex) {
-					SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in bulkGetPatches: SQL Exception %s") % ex.what()).str());
+					SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in bulkGetPatches: SQL Exception {}", ex.what()));
 				}
 				if (progress) progress->setProgressPercentage(checkedForExistance++ / (double)patches.size());
 			}
@@ -775,7 +810,7 @@ namespace midikraft {
 					}
 				}
 				catch (SQLite::Exception& ex) {
-					SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in updatePatch: SQL Exception %s") % ex.what()).str());
+					SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in updatePatch: SQL Exception {}", ex.what()));
 				}
 			}
 		}
@@ -810,7 +845,7 @@ namespace midikraft {
 				return true;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in insertImportInfo: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in insertImportInfo: SQL Exception {}", ex.what()));
 			}
 			return false;
 		}
@@ -839,7 +874,7 @@ namespace midikraft {
 					}
 					if ((onlyUpdateThis & UPDATE_NAME) && (patch.name() != knownPatches[md5_key].name())) {
 						updatedNames++;
-						SimpleLogger::instance()->postMessage((boost::format("Renaming %s with better name %s") % knownPatches[md5_key].name() % patch.name()).str());
+						SimpleLogger::instance()->postMessage(fmt::format("Renaming {} with better name {}", knownPatches[md5_key].name(), patch.name()));
 					}
 
 					// Update the database with the new info. If more than the name should be updated, we first need to load the full existing patch (the bulkGetPatches only is a projection with the name loaded only)
@@ -866,7 +901,7 @@ namespace midikraft {
 
 			// Did we find better names? Then log it
 			if (updatedNames > 0) {
-				SimpleLogger::instance()->postMessage((boost::format("Updated %d patches in the database with new names") % updatedNames).str());
+				SimpleLogger::instance()->postMessage(fmt::format("Updated {} patches in the database with new names", updatedNames));
 			}
 
 			// Check if all new patches are editBuffer patches (aka have an invalid MidiBank)
@@ -948,7 +983,7 @@ namespace midikraft {
 				std::string deleteStatement;
 				if (filter.listID.empty()) {
 					deleteStatement = "DELETE FROM patches " + buildWhereClause(filter, false);
-				} 
+				}
 				else {
 					// https://stackoverflow.com/questions/24511153/how-delete-table-inner-join-with-other-table-in-sqlite
 					// This wouldn't work for buildWhereClause during delete
@@ -967,7 +1002,7 @@ namespace midikraft {
 				return rowsDeleted;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatches via filter: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in deletePatches via filter: SQL Exception {}", ex.what()));
 			}
 			return 0;
 		}
@@ -991,7 +1026,7 @@ namespace midikraft {
 				return rowsDeleted;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatches via md5s: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in deletePatches via md5s: SQL Exception {}", ex.what()));
 			}
 			return 0;
 		}
@@ -1112,19 +1147,96 @@ namespace midikraft {
 			return categorizer;
 		}
 
-		std::vector<ListInfo> allPatchLists()
+		std::vector<ListInfo> allUserBanks(std::shared_ptr<Synth> synth)
 		{
-			SQLite::Statement query(db_, "SELECT * from lists");
-			std::vector<ListInfo> result;
-			while (query.executeStep()) {
-				result.push_back({ query.getColumn("id").getText(), query.getColumn("name").getText() });
+			try {
+				SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth = :SYN");
+				query.bind(":SYN", synth->getName());
+				std::vector<ListInfo> result;
+				while (query.executeStep()) {
+					std::string bankId(query.getColumn("id").getText());
+					if (bankId.find(synth->getName()) != 0) {
+						result.push_back({ bankId, query.getColumn("name").getText() });
+					}
+				}
+				return result;
 			}
-			return result;
+			catch (SQLite::Exception& e) {
+				std::string message = fmt::format("Database error when retrieving lists of user banks: {}", e.what());
+				SimpleLogger::instance()->postMessage(message);
+				return {};
+			}
 		}
 
-		midikraft::PatchList getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
+		std::vector<ListInfo> allPatchLists()
 		{
-			PatchList list(info.id, info.name);
+			try {
+				SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth is null");
+				std::vector<ListInfo> result;
+				while (query.executeStep()) {
+					result.push_back({ query.getColumn("id").getText(), query.getColumn("name").getText() });
+				}
+				return result;
+			}
+			catch (SQLite::Exception& e) {
+				std::string message = fmt::format("Database error when retrieving lists of patches: {}", e.what());
+				SimpleLogger::instance()->postMessage(message);
+				return {};
+			}
+		}
+
+		bool doesListExist(std::string listId) {
+			SQLite::Statement query(db_, "SELECT count(*) as num_lists FROM lists WHERE id = :ID");
+			query.bind(":ID", listId);
+			if (query.executeStep()) {
+				auto result = query.getColumn("num_lists");
+				return result.getInt() != 0;
+			}
+			return false;
+		}
+
+		std::shared_ptr<midikraft::PatchList> getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
+		{
+			// First load the list
+			SQLite::Statement queryList(db_, "SELECT * FROM lists WHERE id = :ID");
+			queryList.bind(":ID", info.id);
+			std::shared_ptr<midikraft::PatchList> list;
+			if (queryList.executeStep()) {
+				if (queryList.getColumn("synth").isNull()) {
+					list = std::make_shared<midikraft::PatchList>(info.id, queryList.getColumn("name").getText());
+				}
+				else {
+					// Find synth
+					auto synthName = queryList.getColumn("synth").getText();
+					for (auto synth : synths) {
+						auto s = synth.second.lock();
+						if (s->getName() == synthName) {
+							int bankInt = queryList.getColumn("midi_bank_number").getInt();
+							if (info.id.find(synthName) != 0) {
+								// This is a stored user bank
+								list = std::make_shared<SynthBank>(queryList.getColumn("name").getText(),
+									s
+									, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
+									);
+							}
+							else {
+								// This is an active bank
+								list = std::make_shared<ActiveSynthBank>(s
+									, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
+									, juce::Time(queryList.getColumn("last_synced").getInt64())
+									);
+							}
+							break;
+						}
+					}
+					if (!list) {
+						SimpleLogger::instance()->postMessage("Can't load list of synth that is not configured!");
+						return nullptr;
+					}
+				}
+			}
+
+			// Now load the patches in this list
 			SQLite::Statement query(db_, "SELECT * from patch_in_list where id=:ID order by order_num");
 			query.bind(":ID", info.id.c_str());
 			std::vector<std::pair<std::string, std::string>> md5s;
@@ -1137,8 +1249,17 @@ namespace midikraft {
 					getSinglePatch(synths[md5.first].lock(), md5.second, result);
 				}
 			}
-			list.setPatches(result);
+			list->setPatches(result);
 			return list;
+		}
+
+		void addPatchToListInternal(std::string const& listId, std::string const& synthName, std::string const& md5, int insertIndex) {
+			SQLite::Statement insert(db_, "INSERT INTO patch_in_list (id, synth, md5, order_num) VALUES (:ID, :SYN, :MD5, :ONO)");
+			insert.bind(":ID", listId);
+			insert.bind(":SYN", synthName);
+			insert.bind(":MD5", md5);
+			insert.bind(":ONO", insertIndex);
+			insert.exec();
 		}
 
 		void addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex) {
@@ -1149,16 +1270,11 @@ namespace midikraft {
 				update.bind(":ID", info.id);
 				update.bind(":ONO", insertIndex);
 				update.exec();
-				SQLite::Statement insert(db_, "INSERT INTO patch_in_list (id, synth, md5, order_num) VALUES (:ID, :SYN, :MD5, :ONO)");
-				insert.bind(":ID", info.id);
-				insert.bind(":SYN", patch.smartSynth()->getName());
-				insert.bind(":MD5", patch.md5());
-				insert.bind(":ONO", insertIndex);
-				insert.exec();
+				addPatchToListInternal(info.id, patch.synth()->getName(), patch.md5(), insertIndex);
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in addPatchToList: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in addPatchToList: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1183,7 +1299,7 @@ namespace midikraft {
 				update2.bind(":ID", info.id);
 				update2.bind(":SYN", patch.smartSynth()->getName());
 				update2.bind(":MD5", patch.md5());
-				update2.bind(":INC", newIndex > previousIndex ? previousIndex : previousIndex+1);
+				update2.bind(":INC", newIndex > previousIndex ? previousIndex : previousIndex + 1);
 				update2.bind(":ONO", newIndex);
 				update2.exec();
 				// Then we may have created a gap in the list, so just renum the whole list
@@ -1191,7 +1307,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in addPatchToList: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in addPatchToList: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1208,31 +1324,74 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in removePatchFromList: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in removePatchFromList: SQL Exception {}", ex.what()));
 			}
 		}
 
-		void putPatchList(PatchList patchList)
+		void putPatchList(std::shared_ptr<PatchList> patchList)
 		{
 			try {
 				// Check if it exists
+				SQLite::Transaction transaction(db_);
 				SQLite::Statement search(db_, "SELECT * FROM lists WHERE id = :ID");
-				search.bind(":ID", patchList.id());
+				search.bind(":ID", patchList->id());
+				auto isSynthBank = std::dynamic_pointer_cast<SynthBank>(patchList);
 				if (search.executeStep()) {
-					SQLite::Statement update(db_, "UPDATE lists SET name = :NAM WHERE id = :ID");
-					update.bind(":ID", patchList.id());
-					update.bind(":NAM", patchList.name());
-					update.exec();
+					if (!isSynthBank) {
+						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM WHERE id = :ID");
+						update.bind(":ID", patchList->id());
+						update.bind(":NAM", patchList->name());
+						update.exec();
+					}
+					else {
+						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM, last_synced = :LSY WHERE id = :ID");
+						update.bind(":ID", patchList->id());
+						update.bind(":NAM", patchList->name());
+						if (auto activeBank = std::dynamic_pointer_cast<midikraft::ActiveSynthBank>(patchList)) {
+							update.bind(":LSY", activeBank->lastSynced().toMilliseconds());
+						}
+						else {
+							update.bind(":LSY", 0);
+						}
+						update.exec();
+					}
+					// Delete the previous list content, this operation overwrites the list!
+					SQLite::Statement removeEntries(db_, "DELETE FROM patch_in_list WHERE id = :ID");
+					removeEntries.bind(":ID", patchList->id());
+					removeEntries.exec();
 				}
 				else {
-					SQLite::Statement insert(db_, "INSERT INTO lists (id, name) VALUES (:ID, :NAM)");
-					insert.bind(":ID", patchList.id());
-					insert.bind(":NAM", patchList.name());
+					SQLite::Statement insert(db_, "INSERT INTO lists (id, name, synth, midi_bank_number, last_synced) VALUES (:ID, :NAM, :SYN, :BNK, :LSY)");
+					insert.bind(":ID", patchList->id());
+					insert.bind(":NAM", patchList->name());
+					if (isSynthBank) {
+						insert.bind(":SYN", isSynthBank->synth()->getName());
+						insert.bind(":BNK", isSynthBank->bankNumber().toZeroBased());
+						if (auto activeBank = std::dynamic_pointer_cast<midikraft::ActiveSynthBank>(patchList)) {
+							insert.bind(":LSY", activeBank->lastSynced().toMilliseconds()); // Storing UNIX epoch here
+						}
+						else {
+							insert.bind(":LSY", 0);
+						}
+					}
+					else {
+						// Insert NULLs for those three columns
+						insert.bind(":SYN");
+						insert.bind(":BNK");
+						insert.bind(":LSY");
+					}
 					insert.exec();
 				}
+				// If this list already has a list of patches, make sure to add them into the patch list as well!
+				int i = 0;
+				for (auto patch : patchList->patches()) {
+					addPatchToListInternal(patchList->id(), patch.synth()->getName(), patch.md5(), i++);
+				}
+
+				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in putPatchList: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in putPatchList: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1246,18 +1405,18 @@ namespace midikraft {
 				deleteIt.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in deletePatchlist: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in deletePatchlist: SQL Exception {}", ex.what()));
 			}
 		}
 
 		void removeAllOrphansFromPatchLists() {
 			try {
-				SQLite::Statement cleanupPatchLists(db_, 
+				SQLite::Statement cleanupPatchLists(db_,
 					"delete from patch_in_list as pil where not exists(select * from patches as p where p.md5 = pil.md5 and p.synth = pil.synth)");
 				cleanupPatchLists.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage((boost::format("DATABASE ERROR in removeAllOrphansFromPatchLists: SQL Exception %s") % ex.what()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in removeAllOrphansFromPatchLists: SQL Exception {}", ex.what()));
 			}
 		}
 
@@ -1359,12 +1518,21 @@ namespace midikraft {
 		return impl->allPatchLists();
 	}
 
-	midikraft::PatchList PatchDatabase::getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
+	std::vector<ListInfo> PatchDatabase::allUserBanks(std::shared_ptr<Synth> synth)
+	{
+		return impl->allUserBanks(synth);
+	}
+
+	bool PatchDatabase::doesListExist(std::string listId) {
+		return impl->doesListExist(listId);
+	}
+
+	std::shared_ptr<midikraft::PatchList> PatchDatabase::getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
 	{
 		return impl->getPatchList(info, synths);
 	}
 
-	void PatchDatabase::putPatchList(PatchList patchList)
+	void PatchDatabase::putPatchList(std::shared_ptr<PatchList> patchList)
 	{
 		impl->putPatchList(patchList);
 	}
@@ -1411,7 +1579,7 @@ namespace midikraft {
 		bool success = impl->getPatches(filter, result, faultyIndexedPatches, skip, limit);
 		if (success) {
 			if (!faultyIndexedPatches.empty()) {
-				SimpleLogger::instance()->postMessage((boost::format("Found %d patches with inconsistent MD5 - please run the Edit... Reindex Patches command for this synth") % faultyIndexedPatches.size()).str());
+				SimpleLogger::instance()->postMessage(fmt::format("Found {} patches with inconsistent MD5 - please run the Edit... Reindex Patches command for this synth", faultyIndexedPatches.size()));
 			}
 			return result;
 		}
@@ -1426,8 +1594,8 @@ namespace midikraft {
 			auto result = getPatches(filter, skip, limit);
 			MessageManager::callAsync([filter, finished, result]() {
 				finished(filter, result);
+				});
 			});
-		});
 	}
 
 	size_t PatchDatabase::mergePatchesIntoDatabase(std::vector<PatchHolder>& patches, std::vector<PatchHolder>& outNewPatches, ProgressHandler* progress, unsigned updateChoice)
@@ -1477,12 +1645,13 @@ namespace midikraft {
 	PatchFilter PatchDatabase::allForSynth(std::shared_ptr<Synth> synth)
 	{
 		PatchFilter filter;
+		filter.orderBy = PatchOrdering::Order_by_Import_id;
 		filter.onlyFaves = false;
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;
 		filter.showHidden = false;
-        if (synth)
-		    filter.synths.emplace(synth->getName(), synth);
+		if (synth)
+			filter.synths.emplace(synth->getName(), synth);
 		filter.onlyDuplicateNames = false;
 		filter.andCategories = false;
 		return filter;
@@ -1491,6 +1660,7 @@ namespace midikraft {
 	PatchFilter PatchDatabase::allPatchesFilter(std::vector<std::shared_ptr<Synth>> synths)
 	{
 		PatchFilter filter;
+		filter.orderBy = PatchOrdering::Order_by_Import_id;
 		filter.onlyFaves = false;
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;
@@ -1501,6 +1671,6 @@ namespace midikraft {
 		filter.onlyDuplicateNames = false;
 		filter.andCategories = false;
 		return filter;
-	}	
+	}
 }
 

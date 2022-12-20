@@ -516,7 +516,7 @@ namespace midikraft {
 			}
 
 			// Create a temporary directory to build the result
-			TemporaryDirectory tempDir;
+			TemporaryDirectory tempDir("KnobKraftOrm", "sysex_export_tmp");
 
 			// Now, iterate over the list of patches and pack them one by one into the zip file!		
 			ZipFile::Builder builder;

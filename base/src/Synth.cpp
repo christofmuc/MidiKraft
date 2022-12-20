@@ -27,7 +27,30 @@ namespace midikraft {
 	std::string Synth::friendlyProgramName(MidiProgramNumber programNo) const
 	{
 		// The default implementation is just that you see something
-		return (boost::format("%02d") % programNo.toZeroBased()).str();
+		if (programNo.isBankKnown()) {
+			return (boost::format("%02d-%02d") % programNo.bank().toZeroBased() % programNo.toZeroBased()).str();
+		}
+		else {
+			return (boost::format("%02d") % programNo.toZeroBased()).str();
+		}
+	}
+
+	std::string Synth::friendlyProgramAndBankName(MidiBankNumber bankNo, MidiProgramNumber programNo) const
+	{
+		if (!programNo.isBankKnown()) {
+			// Default implementation is the old logic that the program numbers are just continuous
+			// from one bank to the next
+			int program = programNo.toZeroBased();
+			return friendlyProgramName(MidiProgramNumber::fromZeroBaseWithBank(bankNo, program));
+		}
+		else {
+			// This could be inconsistent - obviously the programNo contains the bank, but you supplied a bank as well!?
+			if (bankNo.toZeroBased() != programNo.bank().toZeroBased())
+			{
+				SimpleLogger::instance()->postMessageOncePerRun("Implementation error - called friendlyProgramAndBankName with inconsistent bank info!");
+			}
+			return friendlyProgramName(programNo);
+		}
 	}
 
 	Synth::PatchData Synth::filterVoiceRelevantData(std::shared_ptr<DataFile> unfilteredData) const

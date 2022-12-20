@@ -153,7 +153,7 @@ namespace midikraft {
 			expectedDownloadNumber_ = numberOfPatchesInBank(synth, bankNo);
 			if (expectedDownloadNumber_ > 0) {
 				auto messages = streamLoading->requestStreamElement(bankNo.toZeroBased(), StreamLoadCapability::StreamType::BANK_DUMP);
-				synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+				synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 			}
 		}
 		else if (handshakeLoadingRequired) {
@@ -169,7 +169,7 @@ namespace midikraft {
 					}
 					// Send an answer if the handshake handler constructed one
 					if (!answer.empty()) {
-						synth->sendBlockOfMessagesToSynth(midiOutput->name(), answer);
+						synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), answer);
 					}
 					// Update progress handler
 					progressHandler->setProgressPercentage(state->progress());
@@ -199,7 +199,7 @@ namespace midikraft {
 			// This is a mixture - you send one message (bank request), and then you get either one message back (like Kawai K3) or a stream of messages with
 			// one message per patch (e.g. Access Virus or Matrix1000)
 			auto buffer = bankCapableSynth->requestBankDump(bankNo);
-			std::string outname = midiOutput->name();
+			auto outname = midiOutput->deviceInfo();
 			RunWithRetry::start([this, synth, outname, buffer, bankNo]() {
 					expectedDownloadNumber_ = numberOfPatchesInBank(synth, bankNo);
 					synth->sendBlockOfMessagesToSynth(outname, buffer);
@@ -275,7 +275,7 @@ namespace midikraft {
 			handles_.push(handle);
 			currentDownload_.clear();
 			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP);
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		} else if (editBufferCapability) {
 			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
@@ -289,7 +289,7 @@ namespace midikraft {
 		}
 		else if (programDumpCapability && programChangeCapability) {
 			auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		}
 		else {
 			SimpleLogger::instance()->postMessage("The " + synth->getName() + " has no way to request the edit buffer or program place");
@@ -516,7 +516,7 @@ namespace midikraft {
 			}
 
 			// Create a temporary directory to build the result
-			TemporaryDirectory tempDir;
+			TemporaryDirectory tempDir("KnobKraftOrm", "sysex_export_tmp");
 
 			// Now, iterate over the list of patches and pack them one by one into the zip file!		
 			ZipFile::Builder builder;
@@ -731,7 +731,7 @@ namespace midikraft {
 
 		// Send messages
 		if (!messages.empty()) {
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		}
 	}
 
@@ -750,7 +750,7 @@ namespace midikraft {
 
 		// Send messages
 		if (!messages.empty()) {
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		}
 	}
 
@@ -759,7 +759,7 @@ namespace midikraft {
 		// If this is a synth, it has a throttled send method
 		auto synth = dynamic_cast<Synth *>(sequencer);
 		if (synth) {
-			synth->sendBlockOfMessagesToSynth(midiOutput->name(), request);
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), request);
 		}
 		else {
 			// This is not a synth... fall back to old behavior
@@ -790,7 +790,7 @@ namespace midikraft {
 				else if (streamLoading->shouldStreamAdvance(currentDownload_, streamType)) {
 					downloadNumber_++;
 					auto messages = streamLoading->requestStreamElement(downloadNumber_, streamType);
-					synth->sendBlockOfMessagesToSynth(midiOutput->name(), messages);
+					synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 					if (progressTotal == -1 && progressHandler) progressHandler->setProgressPercentage(downloadNumber_ / (double)expectedDownloadNumber_);
 				}
 			}
@@ -808,7 +808,7 @@ namespace midikraft {
 			if (handshake.isPartOfEditBufferDump) {
 				// See if we should send a reply (ACK)
 				if (!handshake.handshakeReply.empty()) {
-					synth->sendBlockOfMessagesToSynth(midiOutput->name(), handshake.handshakeReply);
+					synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), handshake.handshakeReply);
 				}
 				currentEditBuffer_.push_back(editBuffer);
 				if (editBufferCapability->isEditBufferDump(currentEditBuffer_)) {
@@ -848,7 +848,7 @@ namespace midikraft {
 				currentProgramDump_.push_back(editBuffer);
 				// See if we should send a reply (ACK)
 				if (!handshake.handshakeReply.empty()) {
-					synth->sendBlockOfMessagesToSynth(midiOutput->name(), handshake.handshakeReply);
+					synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), handshake.handshakeReply);
 				}
 				if (programDumpCapability->isSingleProgramDump(currentProgramDump_)) {
 					// Ok, that worked, save it and continue!

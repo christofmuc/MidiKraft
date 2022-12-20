@@ -81,7 +81,6 @@ namespace midikraft {
 		std::shared_ptr<SafeMidiOutput> getMidiOutput(juce::MidiDeviceInfo const &name);
 		bool enableMidiInput(juce::MidiDeviceInfo const &newInput);
 		void disableMidiInput(juce::MidiDeviceInfo const &input);
-
         MidiDeviceInfo getMidiInputByIdentifier(String const &identifier);
         MidiDeviceInfo getMidiOutputByIdentifier(String const &identifier);
 
@@ -105,9 +104,9 @@ namespace midikraft {
 
 		std::set<juce::MidiDeviceInfo> knownInputs_, historyOfAllInputs_;
 		std::set<juce::MidiDeviceInfo> knownOutputs_, historyOfAllOutpus_;
-		std::map< juce::MidiDeviceInfo, std::unique_ptr<MidiOutput>> outputsOpen_;
-		std::map< juce::MidiDeviceInfo, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
-		std::map< juce::MidiDeviceInfo, std::unique_ptr<MidiInput>> inputsOpen_;
+		std::map<String, std::unique_ptr<MidiOutput>> outputsOpen_;
+		std::map<String, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
+		std::map<String, std::unique_ptr<MidiInput>> inputsOpen_;
 		std::function<void(const MidiMessage& message, const String& source, bool)> midiLogFunction_;
 	};
 	

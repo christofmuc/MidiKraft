@@ -25,6 +25,7 @@ set(Sources
 	include/DynamicPlugin.h
 	include/EditBufferCapability.h
 	include/FindSynthOnMidiNetwork.h src/FindSynthOnMidiNetwork.cpp
+	include/JuceHeader.h
 	include/GlobalSettingsCapability.h	
 	include/HandshakeLoadingCapability.h
 	include/HasBanksCapability.h

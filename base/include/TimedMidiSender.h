@@ -25,7 +25,8 @@ namespace midikraft {
 		int sampleRate_;
 		int previousSampleNumber_;
 		double startTime_;
-		std::map<juce::MidiDeviceInfo, MidiBuffer> midiBuffer_;
+		std::map<String, MidiBuffer> midiBuffer_;
+		std::map<String, MidiDeviceInfo> midiDevices_;
 	};
 
 }

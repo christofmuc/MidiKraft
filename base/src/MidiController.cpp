@@ -111,6 +111,7 @@ namespace midikraft {
 	void MidiController::shutdown()
 	{
 		delete instance_;
+		instance_ = nullptr;
 	}
 
 	void MidiController::logMidiMessage(const MidiMessage& message, const String& source, bool isOut) {

@@ -8,8 +8,6 @@
 
 #include "SynthParameterDefinition.h"
 
-#include <boost/format.hpp>
-
 namespace midikraft {
 
 	DataFile::DataFile(int dataTypeID) : dataTypeID_(dataTypeID)

@@ -116,7 +116,7 @@ namespace midikraft {
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
 				SimpleLogger::instance()->postMessage(fmt::format("Found {} on channel {} replying on device {} when sending to {} on channel {}",
-					synth->getName(), (loc.midiChannel.toOneBasedInt()),  loc.inputName, loc.outputName, loc.midiChannel.toOneBasedInt()));
+					synth->getName(), (loc.midiChannel.toOneBasedInt()),  loc.input.name.toStdString(), loc.output.name.toStdString(), loc.midiChannel.toOneBasedInt()));
 			}
 
 			// Select the last location (the first one might be the "All" devices which we don't want to address the devices individually)

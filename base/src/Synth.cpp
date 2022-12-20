@@ -20,7 +20,7 @@
 #include "DataFileSendCapability.h"
 #include "StreamLoadCapability.h"
 
-#include <boost/format.hpp>
+#include <fmt/format.h>
 
 namespace midikraft {
 
@@ -28,10 +28,10 @@ namespace midikraft {
 	{
 		// The default implementation is just that you see something
 		if (programNo.isBankKnown()) {
-			return (boost::format("%02d-%02d") % programNo.bank().toZeroBased() % programNo.toZeroBased()).str();
+			return fmt::format("{:02d}-{:02d}", programNo.bank().toZeroBased(),  programNo.toZeroBased());
 		}
 		else {
-			return (boost::format("%02d") % programNo.toZeroBased()).str();
+			return fmt::format("{:02d}", programNo.toZeroBased());
 		}
 	}
 
@@ -100,7 +100,7 @@ namespace midikraft {
 							result.push_back(patch);
 						}
 						else {
-							SimpleLogger::instance()->postMessage((boost::format("Error decoding edit buffer dump for patch %d, skipping it") % patchNo).str());
+							SimpleLogger::instance()->postMessage(fmt::format("Error decoding edit buffer dump for patch {}, skipping it", patchNo));
 						}
 						patchNo++;
 					}
@@ -114,14 +114,14 @@ namespace midikraft {
 							result.push_back(patch);
 						}
 						else {
-							SimpleLogger::instance()->postMessage((boost::format("Error decoding program dump for patch %d, skipping it") % patchNo).str());
+							SimpleLogger::instance()->postMessage(fmt::format("Error decoding program dump for patch {}, skipping it",  patchNo));
 						}
 						patchNo++;
 					}
 				}
 				else if (bankDumpSynth && bankDumpSynth->isBankDump(message)) {
 					auto morePatches = bankDumpSynth->patchesFromSysexBank(message);
-					SimpleLogger::instance()->postMessage((boost::format("Loaded bank dump with %d patches") % morePatches.size()).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Loaded bank dump with {} patches", morePatches.size()));
 					std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
 				}
 				else if (dataFileLoadSynth) {
@@ -185,7 +185,7 @@ namespace midikraft {
 							place = MidiProgramNumber::fromZeroBase(banks->numberOfPatches() - 1);
 						}
 					}
-					SimpleLogger::instance()->postMessageOncePerRun((boost::format("%s has no edit buffer, using program %s instead") % getName() % friendlyProgramName(place)).str());
+					SimpleLogger::instance()->postMessageOncePerRun(fmt::format("{} has no edit buffer, using program {} instead", getName(), friendlyProgramName(place)));
 				}
 				messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);
 				auto location = Capability::hasCapability<MidiLocationCapability>(this);
@@ -214,12 +214,12 @@ namespace midikraft {
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
 			if (midiLocation && !messages.empty()) {
 				if (midiLocation->channel().isValid()) {
-					SimpleLogger::instance()->postMessage((boost::format("Sending patch %s to %s") % dataFile->name() % getName()).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Sending patch {} to {}", dataFile->name(), getName()));
 					MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
 					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
 				}
 				else {
-					SimpleLogger::instance()->postMessage((boost::format("Synth %s has no valid channel and output defined, don't know where to send!") % getName()).str());
+					SimpleLogger::instance()->postMessage(fmt::format("Synth {} has no valid channel and output defined, don't know where to send!", getName()));
 				}
 			}
 		}

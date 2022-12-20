@@ -16,6 +16,7 @@
 #include "PatchHolder.h"
 #include "DataFileLoadCapability.h"
 #include "StreamLoadCapability.h"
+#include "SynthBank.h"
 
 #include <stack>
 
@@ -28,7 +29,7 @@ namespace midikraft {
 		typedef std::function<void(std::vector<PatchHolder>)> TFinishedHandler;
 		typedef std::function<void(std::vector<std::shared_ptr<DataFile>>)> TStepSequencerFinishedHandler;
 
-		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), currentDownloadBank_(MidiBankNumber::fromZeroBase(0)), downloadNumber_(0), startDownloadNumber_(0), endDownloadNumber_(0) {}
+		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), currentDownloadBank_(MidiBankNumber::invalid()), downloadNumber_(0), startDownloadNumber_(0), endDownloadNumber_(0) {}
 
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
@@ -41,6 +42,8 @@ namespace midikraft {
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::shared_ptr<AutomaticCategory> automaticCategories);
 		std::vector<PatchHolder> loadSysexPatchesFromDisk(std::shared_ptr<Synth> synth, std::string const &fullpath, std::string const &filename, std::shared_ptr<AutomaticCategory> automaticCategories);
 		std::vector<PatchHolder> loadSysexPatchesManualDump(std::shared_ptr<Synth> synth, std::vector<MidiMessage> const &messages, std::shared_ptr<AutomaticCategory> automaticCategories);
+
+		void sendBankToSynth(SynthBank const& synthBank, bool fullBank, ProgressHandler *progressHandler, std::function<void(bool completed)> finishedHandler);
 
 		enum ExportFormatOption {
 			PROGRAM_DUMPS = 0,

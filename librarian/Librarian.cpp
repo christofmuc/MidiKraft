@@ -23,79 +23,12 @@
 #include "MidiHelpers.h"
 #include "FileHelpers.h"
 
-#include <boost/format.hpp>
+#include "fmt/format.h"
 #include <set>
 #include "Settings.h"
 
 namespace midikraft {
 
-	std::string friendlyBankName(std::shared_ptr<Synth> synth, MidiBankNumber bankNo)
-	{
-		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth);
-		if (descriptors) {
-			auto banks = descriptors->bankDescriptors();
-			if (bankNo.toZeroBased() < banks.size()) {
-				return banks[bankNo.toZeroBased()].name;
-			}
-			else {
-				return (boost::format("out of range bank %d") % bankNo.toZeroBased()).str();
-			}
-		}
-		auto banks = midikraft::Capability::hasCapability<midikraft::HasBanksCapability>(synth);
-		if (banks) {
-			return banks->friendlyBankName(bankNo);
-		}
-		return (boost::format("invalid bank %d") % bankNo.toZeroBased()).str();
-	}
-
-	int numberOfPatchesInBank(std::shared_ptr<Synth> synth, MidiBankNumber bankNo)
-	{
-		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth);
-		if (descriptors) {
-			auto banks = descriptors->bankDescriptors();
-			if (bankNo.toZeroBased() < banks.size()) {
-				return banks[bankNo.toZeroBased()].size;
-			}
-			else {
-				jassertfalse;
-				SimpleLogger::instance()->postMessage("Program error: Bank number out of range in numberOfPatchesInBank in Librarian");
-				return 0;
-			}
-		}
-		auto banks = midikraft::Capability::hasCapability<midikraft::HasBanksCapability>(synth);
-		if (banks) {
-			return banks->numberOfPatches();
-		}
-		jassertfalse;
-		SimpleLogger::instance()->postMessage("Program error: Trying to determine number of patches for synth without HasBanksCapability");
-		return 0;
-	}
-
-	int startIndexInBank(std::shared_ptr<Synth> synth, MidiBankNumber bankNo)
-	{
-		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth);
-		if (descriptors) {
-			auto banks = descriptors->bankDescriptors();
-			if (bankNo.toZeroBased() < banks.size()) {
-				int index = 0;
-				for (int b = 0; b < bankNo.toZeroBased(); b++)
-					index += banks[bankNo.toZeroBased()].size;
-				return index;
-			}
-			else {
-				jassertfalse;
-				SimpleLogger::instance()->postMessage("Program error: Bank number out of range in numberOfPatchesInBank in Librarian");
-				return 0;
-			}
-		}
-		auto banks = midikraft::Capability::hasCapability<midikraft::HasBanksCapability>(synth);
-		if (banks) {
-			return bankNo.toZeroBased() * banks->numberOfPatches();
-		}
-		jassertfalse;
-		SimpleLogger::instance()->postMessage("Program error: Trying to determine number of patches for synth without HasBanksCapability");
-		return 0;
-	}
 
 	void Librarian::startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo,
 		ProgressHandler *progressHandler, TFinishedHandler onFinished) {
@@ -114,12 +47,12 @@ namespace midikraft {
 				}
 				else {
 					if (!progressHandler->shouldAbort()) {
-						progressHandler->setMessage((boost::format("Importing %s from %s...") % friendlyBankName(synth, bankNo[downloadBankNumber_]) % synth->getName()).str());
+						progressHandler->setMessage(fmt::format("Importing {} from {}...", SynthBank::friendlyBankName(synth, bankNo[downloadBankNumber_]), synth->getName()));
 						startDownloadingAllPatches(midiOutput, synth, bankNo[downloadBankNumber_], progressHandler, nextBankHandler_);
 					}
 				}
 			};
-			progressHandler->setMessage((boost::format("Importing %s from %s...") % friendlyBankName(synth, bankNo[0]) % synth->getName()).str());
+			progressHandler->setMessage(fmt::format("Importing {} from {}...", SynthBank::friendlyBankName(synth, bankNo[0]), synth->getName()));
 			startDownloadingAllPatches(midiOutput, synth, bankNo[0], progressHandler, nextBankHandler_);
 		}
 	}
@@ -150,7 +83,7 @@ namespace midikraft {
 			});
 			handles_.push(handle);
 			currentDownloadBank_ = bankNo;
-			expectedDownloadNumber_ = numberOfPatchesInBank(synth, bankNo);
+			expectedDownloadNumber_ = SynthBank::numberOfPatchesInBank(synth, bankNo);
 			if (expectedDownloadNumber_ > 0) {
 				auto messages = streamLoading->requestStreamElement(bankNo.toZeroBased(), StreamLoadCapability::StreamType::BANK_DUMP);
 				synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
@@ -201,7 +134,7 @@ namespace midikraft {
 			auto buffer = bankCapableSynth->requestBankDump(bankNo);
 			auto outname = midiOutput->deviceInfo();
 			RunWithRetry::start([this, synth, outname, buffer, bankNo]() {
-					expectedDownloadNumber_ = numberOfPatchesInBank(synth, bankNo);
+					expectedDownloadNumber_ = SynthBank::numberOfPatchesInBank(synth, bankNo);
 					synth->sendBlockOfMessagesToSynth(outname, buffer);
 					}, 
 				[this]() {
@@ -228,9 +161,9 @@ namespace midikraft {
 					this->handleNextProgramBuffer(midiOutput, synth, progressHandler, editBuffer, bankNo);
 				});
 				handles_.push(handle);
-				downloadNumber_ = startIndexInBank(synth, bankNo);
+				downloadNumber_ = SynthBank::startIndexInBank(synth, bankNo);
 				startDownloadNumber_ = downloadNumber_;
-				endDownloadNumber_ = downloadNumber_ + numberOfPatchesInBank(synth, bankNo);
+				endDownloadNumber_ = downloadNumber_ + SynthBank::numberOfPatchesInBank(synth, bankNo);
 				startDownloadNextPatch(midiOutput, synth);
 			}
 			else if (editBufferCapability) {
@@ -239,9 +172,9 @@ namespace midikraft {
 					this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, bankNo);
 				});
 				handles_.push(handle);
-				downloadNumber_ = startIndexInBank(synth, bankNo);
+				downloadNumber_ = SynthBank::startIndexInBank(synth, bankNo);
 				startDownloadNumber_ = downloadNumber_;
-				endDownloadNumber_ = downloadNumber_ + numberOfPatchesInBank(synth, bankNo);
+				endDownloadNumber_ = downloadNumber_ + SynthBank::numberOfPatchesInBank(synth, bankNo);
 				startDownloadNextEditBuffer(midiOutput, synth, true);
 			}
 			else {
@@ -279,7 +212,7 @@ namespace midikraft {
 		} else if (editBufferCapability) {
 			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
 				ignoreUnused(source);
-				this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0));
+				this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0, SynthBank::numberOfPatchesInBank(synth, 0)));
 			});
 			handles_.push(handle);
 			// Special case - load only a single patch. In this case we're interested in the edit buffer only!
@@ -474,8 +407,8 @@ namespace midikraft {
 		std::vector<PatchHolder> result;
 		int i = 0;
 		for (auto patch : patches) {
-			result.push_back(PatchHolder(synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch, 
-				MidiBankNumber::fromZeroBase(0), MidiProgramNumber::fromZeroBase(i), automaticCategories));
+			result.push_back(PatchHolder(synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch,
+				MidiBankNumber::fromZeroBase(0, SynthBank::numberOfPatchesInBank(synth, 0)), MidiProgramNumber::fromZeroBase(i), automaticCategories));
 			i++;
 		}
 		return result;
@@ -492,10 +425,62 @@ namespace midikraft {
 		Time now;
 		for (auto patch : patches) {
 			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, MidiBankNumber::invalid()), patch,
-				MidiBankNumber::fromZeroBase(0), MidiProgramNumber::fromZeroBase(i), automaticCategories));
+				MidiBankNumber::invalid(), MidiProgramNumber::fromZeroBase(i), automaticCategories));
 			i++;
 		}
 		return result;
+	}
+
+	void Librarian::sendBankToSynth(SynthBank const& synthBank, bool fullBank, ProgressHandler* progressHandler, std::function<void(bool completed)> finishedHandler)
+	{
+		auto synth = synthBank.synth();
+		if (!synth) {
+			return;
+		}
+
+		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
+		if (programDumpCapability) {
+			// Count how many to send first
+			int count = 0;
+			int i = 0;
+			for (auto const& patch : synthBank.patches()) {
+				ignoreUnused(patch);
+				if (fullBank || synthBank.isPositionDirty(i++)) {
+					count++;
+				}
+			}
+
+			auto location = midikraft::Capability::hasCapability<midikraft::MidiLocationCapability>(synth);
+			if (!location || !location->channel().isValid() /* || !synth->wasDetected()*/) {
+				SimpleLogger::instance()->postMessage(fmt::format("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName()));
+				return;
+			}
+
+			// Now to send and update the progressHandler
+			int sent = 0;
+			i = 0;
+			for (auto const& patch : synthBank.patches()) {
+				if (progressHandler) progressHandler->setMessage(fmt::format("Sending patch {} to {}", patch.name(), synth->friendlyProgramName(patch.patchNumber())));
+				if (fullBank || synthBank.isPositionDirty(i++)) {
+					auto messages = programDumpCapability->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
+					synth->sendBlockOfMessagesToSynth(location->midiOutput(), messages);
+				}
+				if (progressHandler) progressHandler->setProgressPercentage(++sent / (double) count);
+				if (progressHandler && progressHandler->shouldAbort()) {
+					SimpleLogger::instance()->postMessage("Canceled bank upload in mid-flight!");
+					if (finishedHandler) {
+						finishedHandler(false);
+					}
+					return;
+				}
+			}
+			if (finishedHandler) {
+				finishedHandler(true);
+			}
+		}
+		else {
+			SimpleLogger::instance()->postMessage(fmt::format("Sending banks to {} is not implemented yet", synth->getName()));
+		}
 	}
 
 	class ExportSysexFilesInBackground: public ThreadWithProgressWindow {
@@ -675,21 +660,21 @@ namespace midikraft {
 			case MANY_FILES:
 				// Nothing todo, just display success
 				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
-					(boost::format("All %d patches selected have been exported into the following directory:\n\n%s\n\nThese files can be re-imported into another KnobKraft Orm instance or else\n"
-						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
+					fmt::format("All {} patches selected have been exported into the following directory:\n\n{}\n\nThese files can be re-imported into another KnobKraft Orm instance or else\n"
+						"the patches can be sent into the synth with a sysex tool", patches.size(), destination.getFullPathName().toStdString()));
 				break;
 			case ZIPPED_FILES: {
 				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
-					(boost::format("All %d patches selected have been exported into the following: ZIP file:\n\n%s\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
-						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
+					fmt::format("All {} patches selected have been exported into the following: ZIP file:\n\n{}\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
+						"the patches can be sent into the synth with a sysex tool", patches.size(), destination.getFullPathName().toStdString()));
 				break;
 			}
 			case MID_FILE:
 			case ONE_FILE:
 			{
 				AlertWindow::showMessageBox(AlertWindow::InfoIcon, "Patches exported",
-					(boost::format("All %d patches selected have been exported into the following file:\n\n%s\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
-						"the patches can be sent into the synth with a sysex tool") % patches.size() % destination.getFullPathName().toStdString()).str());
+					fmt::format("All {} patches selected have been exported into the following file:\n\n{}\n\nThis file can be re-imported into another KnobKraft Orm instance or else\n"
+						"the patches can be sent into the synth with a sysex tool", patches.size(), destination.getFullPathName().toStdString()));
 				break;
 			}
 			}

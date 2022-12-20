@@ -74,8 +74,22 @@ namespace midikraft {
 		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const override;
 		static std::shared_ptr<FromFileSource> fromString(std::string const &jsonString);
 
+		std::string filename() const {
+			return filename_;
+		}
+
+		std::string fullpath() const {
+			return fullpath_;
+		}
+
+		MidiProgramNumber programNumber() const {
+			return program_;
+		}
+
 	private:
 		const std::string filename_;
+		const std::string fullpath_;
+		MidiProgramNumber program_;
 	};
 
 	class FromBulkImportSource : public SourceInfo {
@@ -140,6 +154,10 @@ namespace midikraft {
 		std::string md5() const;
 		std::string createDragInfoString() const;
 		static nlohmann::json dragInfoFromString(std::string s);
+
+		// Some helpers for our drag and drop operatios
+		static bool dragItemIsPatch(nlohmann::json const& dragInfo);
+		static bool dragItemIsList(nlohmann::json const& dragInfo);
 
 	private:
 		std::shared_ptr<DataFile> patch_;

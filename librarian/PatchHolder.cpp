@@ -15,7 +15,7 @@
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 
-#include <boost/format.hpp>
+#include "fmt/format.h"
 
 #include "RapidjsonHelper.h"
 #include "nlohmann/json.hpp"
@@ -43,9 +43,29 @@ namespace midikraft {
 				categories_ = detector->determineAutomaticCategories(*this);
 			}
 		}
+		/*if (sourceInfo && !bankNumber_.isValid() && patchNumber_.toZeroBased() == 0) {
+			// Bug fix for old data - the bank/program columns might contain nothing while the file source actually has the correct data.
+			// Apply this
+			auto filesource = std::dynamic_pointer_cast<FromFileSource>(sourceInfo);
+			if (filesource) {
+				patchNumber_ = filesource->programNumber();
+				if (patchNumber_.bank().isValid()) {
+					bankNumber_ = patchNumber_.bank();
+				}
+			}
+			else if (auto bulksource = std::dynamic_pointer_cast<FromBulkImportSource>(sourceInfo)) {
+				filesource = std::dynamic_pointer_cast<FromFileSource>(bulksource->individualInfo());
+				if (filesource) {
+					patchNumber_ = filesource->programNumber();
+					if (patchNumber_.bank().isValid()) {
+						bankNumber_ = patchNumber_.bank();
+					}
+				}
+			}
+		}*/
 	}
 
-	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), bankNumber_(MidiBankNumber::fromZeroBase(0)), patchNumber_(MidiProgramNumber::fromZeroBase(0))
+	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::fromZeroBase(0))
 	{
 	}
 
@@ -244,6 +264,16 @@ namespace midikraft {
 		}
 	}
 
+	bool PatchHolder::dragItemIsPatch(nlohmann::json const& infos)
+	{
+		return infos.contains("drag_type") && (infos["drag_type"] == "PATCH" || infos["drag_type"] == "PATCH_IN_LIST");
+	}
+
+	bool PatchHolder::dragItemIsList(nlohmann::json const& infos)
+	{
+		return infos.contains("drag_type") && infos["drag_type"] == "LIST";
+	}
+
 	void PatchHolder::setUserDecision(Category const& clicked)
 	{
 		userDecisions_.insert(clicked);
@@ -350,7 +380,7 @@ namespace midikraft {
 					bank = " " + banks[bankNo_.toZeroBased()].name;
 				}
 				else {
-					bank = (boost::format(" bank %d") % bankNo_.toOneBased()).str();
+					bank = fmt::format(" bank {}", bankNo_.toOneBased());
 				}
 			}
 			else {
@@ -359,7 +389,7 @@ namespace midikraft {
 					bank = " " + bankCapa->friendlyBankName(bankNo_);
 				}
 				else {
-					bank = (boost::format(" bank %d") % bankNo_.toOneBased()).str();;
+					bank = fmt::format(" bank {}", bankNo_.toOneBased());;
 				}
 			}
 		}
@@ -368,11 +398,11 @@ namespace midikraft {
 		}
 		if (timestamp_.toMilliseconds() != 0) {
 			// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
-			return (boost::format("Imported from synth%s on %s") % bank % timestamp_.formatted("%x at %X").toStdString()).str();
+			return fmt::format("Imported from synth{} on {}", bank, timestamp_.formatted("%x at %X").toStdString());
 		}
 		else {
 			// Legacy import, no timestamp was recorded.
-			return (boost::format("Imported from synth%s") % bank).str();
+			return fmt::format("Imported from synth{}", bank);
 		}
 	}
 
@@ -390,7 +420,9 @@ namespace midikraft {
 				}
 				MidiBankNumber bankNo = MidiBankNumber::invalid();
 				if (obj.HasMember(kBankNumber)) {
-					bankNo = MidiBankNumber::fromZeroBase(obj.FindMember(kBankNumber).operator*().value.GetInt());
+					//TODO - a bank size of -1 seems to ask for trouble
+					//jassertfalse;
+					bankNo = MidiBankNumber::fromZeroBase(obj.FindMember(kBankNumber).operator*().value.GetInt(), -1);
 				}
 				return std::make_shared<FromSynthSource>(timestamp, bankNo);
 			}
@@ -403,14 +435,21 @@ namespace midikraft {
 		return bankNo_;
 	}
 
-	FromFileSource::FromFileSource(std::string const &filename, std::string const &fullpath, MidiProgramNumber program) : filename_(filename)
+	FromFileSource::FromFileSource(std::string const &filename, std::string const &fullpath, MidiProgramNumber program) : filename_(filename), fullpath_(fullpath), program_(program)
 	{
 		rapidjson::Document doc;
 		doc.SetObject();
 		doc.AddMember(rapidjson::StringRef(kFileSource), true, doc.GetAllocator());
 		doc.AddMember(rapidjson::StringRef(kFileName), rapidjson::Value(filename.c_str(), (rapidjson::SizeType)  filename.size()), doc.GetAllocator());
 		doc.AddMember(rapidjson::StringRef(kFullPath), rapidjson::Value(fullpath.c_str(), (rapidjson::SizeType) fullpath.size()), doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kProgramNo), program.toZeroBased(), doc.GetAllocator());
+		if (program.bank().isValid()) {
+			doc.AddMember(rapidjson::StringRef(kBankNumber), program.bank().toZeroBased(), doc.GetAllocator());
+			doc.AddMember(rapidjson::StringRef(kProgramNo), program.toZeroBasedWithBank(), doc.GetAllocator());
+		}
+		else
+		{
+			doc.AddMember(rapidjson::StringRef(kProgramNo), program.toZeroBased(), doc.GetAllocator());
+		}
 		jsonRep_ = renderToJson(doc);
 
 	}
@@ -424,7 +463,7 @@ namespace midikraft {
 	std::string FromFileSource::toDisplayString(Synth *, bool shortVersion) const
 	{
 		ignoreUnused(shortVersion);
-		return (boost::format("Imported from file %s") % filename_).str();
+		return fmt::format("Imported from file {}", filename_);
 	}
 
 	std::shared_ptr<FromFileSource> FromFileSource::fromString(std::string const &jsonString)
@@ -436,7 +475,15 @@ namespace midikraft {
 			if (obj.HasMember(kFileSource)) {
 				std::string filename = obj.FindMember(kFileName).operator*().value.GetString();
 				std::string fullpath = obj.FindMember(kFullPath).operator*().value.GetString();
-				MidiProgramNumber program = MidiProgramNumber::fromZeroBase(obj.FindMember(kProgramNo).operator*().value.GetInt());
+				MidiProgramNumber program = MidiProgramNumber::fromZeroBase(0);
+				if (obj.HasMember(kBankNumber)) {
+					jassertfalse;
+					MidiBankNumber bank = MidiBankNumber::fromZeroBase(obj.FindMember(kBankNumber).operator*().value.GetInt(), -1);
+					program = MidiProgramNumber::fromZeroBaseWithBank(bank, obj.FindMember(kProgramNo).operator*().value.GetInt());
+				}
+				else {
+					program = MidiProgramNumber::fromZeroBase(obj.FindMember(kProgramNo).operator*().value.GetInt());
+				}
 				return std::make_shared<FromFileSource>(filename, fullpath, program);
 			}
 		}
@@ -460,7 +507,7 @@ namespace midikraft {
 	std::string FromBulkImportSource::md5(Synth *synth) const
 	{
 		ignoreUnused(synth);
-		String uuid((boost::format("Bulk import %s") % timestamp_.formatted("%x at %X")).str());
+		String uuid(fmt::format("Bulk import {}", timestamp_.formatted("%x at %X").toStdString()));
 		return MD5(uuid.toUTF8()).toHexString().toStdString();
 	}
 
@@ -469,11 +516,11 @@ namespace midikraft {
 		if (timestamp_.toMilliseconds() != 0) {
 			if (shortVersion || !individualInfo_) {
 				// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
-				return (boost::format("Bulk import (%s)") % timestamp_.formatted("%x at %X").toStdString()).str();
+				return fmt::format("Bulk import ({})", timestamp_.formatted("%x at %X").toStdString());
 			}
 			else {
 				// https://docs.juce.com/master/classTime.html#afe9d0c7308b6e75fbb5e5d7b76262825
-				return (boost::format("Bulk import %s (%s)") % timestamp_.formatted("%x at %X").toStdString() % individualInfo_->toDisplayString(synth, true)).str();
+				return fmt::format("Bulk import {} ({})", timestamp_.formatted("%x at %X").toStdString(), individualInfo_->toDisplayString(synth, true));
 			}
 		}
 		return "Bulk file import";

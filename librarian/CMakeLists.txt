@@ -34,8 +34,6 @@ set(Sources
 	Session.h
 	SynthBank.cpp SynthBank.h
 	SynthHolder.cpp SynthHolder.h
-	README.md
-	LICENSE.md
 	${RESOURCE_FILES}
 )
 

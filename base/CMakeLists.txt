@@ -55,8 +55,6 @@ set(Sources
 	include/SysexDataSerializationCapability.h
 	include/Tag.h src/Tag.cpp
 	include/TimedMidiSender.h src/TimedMidiSender.cpp 
-	README.md
-	LICENSE.md
 )
 
 # Setup library

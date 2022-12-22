@@ -13,8 +13,6 @@ set(Sources
 	CategoryBitfield.cpp CategoryBitfield.h
 	PatchDatabase.cpp PatchDatabase.h
 	PatchFilter.cpp PatchFilter.h
-	README.md
-	LICENSE.md
 )
 
 set(SQLITE_CPP_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/../third_party/SQLiteCpp/include")

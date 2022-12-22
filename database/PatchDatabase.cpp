@@ -675,7 +675,7 @@ namespace midikraft {
 					// Find the synth this patch is for
 					auto synthName = query.getColumn("synth");
 					if (filter.synths.find(synthName) == filter.synths.end()) {
-						SimpleLogger::instance()->postMessage(fmt::format("Program error, query returned patch for synth {} which was not part of the filter", synthName));
+						SimpleLogger::instance()->postMessage(fmt::format("Program error, query returned patch for synth {} which was not part of the filter", synthName.getString()));
 						continue;
 					}
 					auto thisSynth = filter.synths[synthName].lock();

@@ -1,0 +1,35 @@
+// This document is read by the KnobKraft ORM Sysex Librarian
+// 
+// It contains the category/tag mapping from the database to the synth and vice versa
+// 
+// The syntax is JSON, extended by C-style comments
+// The content are regular expressions
+// 
+// Word of warning: The categories used for the database need to match those in the automatic_categories.jsonc file,
+// else you'll see error logs.
+//
+// Map to "None" in case the category should be ignored when reading from the synth
+//
+{
+	"Access Virus B": {
+		"synthToDatabase": {
+			"Off": "None", 
+			"Lead": "Lead", 
+			"Bass": "Bass", 
+			"Pad": "Pad", 
+			"Decay": "Ambient", 
+			"Pluck": "Pluck", 
+			"Acid": "Drone", 
+			"Classic": "None", 
+			"Arpeggiator": "Arp", 
+			"Effects": "SFX", 
+			"Drums": "Drum", 
+			"Percussion": "Drum", 
+			"Input": "Voice", 
+			"Vocoder": "Voice", 
+			"Favourite1": "None", 
+			"Favourite2": "None", 
+			"Favourite3": "None"
+		}
+	}
+}

@@ -9,8 +9,6 @@
 #include "PatchHolder.h"
 #include "Session.h"
 
-#include <rapidjson/document.h>
-
 namespace midikraft {
 
 	class Synth;

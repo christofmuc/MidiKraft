@@ -30,7 +30,6 @@ set(Sources
 	PatchHolder.cpp PatchHolder.h
 	PatchInterchangeFormat.cpp PatchInterchangeFormat.h
 	PatchList.cpp PatchList.h
-	RapidjsonHelper.cpp RapidjsonHelper.h
 	Session.h
 	SynthBank.cpp SynthBank.h
 	SynthHolder.cpp SynthHolder.h

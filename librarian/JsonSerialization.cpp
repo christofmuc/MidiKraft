@@ -7,32 +7,33 @@
 #include "JsonSerialization.h"
 
 #include "JsonSchema.h"
-#include "RapidjsonHelper.h"
 #include "Synth.h"
 
 #include "fmt/format.h"
 
+#include <nlohmann/json.hpp>
+
 namespace midikraft {
 
-	bool getStringIfSet(rapidjson::Value &dbresult, const char *key, std::string &outString) {
-		if (dbresult.HasMember(key) && dbresult[key].IsString()) {
-			outString = dbresult[key].GetString();
+	bool getStringIfSet(nlohmann::json &dbresult, const char *key, std::string &outString) {
+		if (dbresult.contains(key) && dbresult[key].is_string()) {
+			outString = dbresult[key].get<std::string>();
 			return true;
 		}
 		return false;
 	}
 
-	bool getBufferIfSet(rapidjson::Value &dbresult, const char *key, std::vector<uint8> &outBuffer) {
-		if (dbresult.HasMember(key)) {
-			outBuffer = JsonSerialization::stringToData(dbresult[key].GetString());
+	bool getBufferIfSet(nlohmann::json &dbresult, const char *key, std::vector<uint8> &outBuffer) {
+		if (dbresult.contains(key)) {
+			outBuffer = JsonSerialization::stringToData(dbresult[key].get<std::string>());
 			return true;
 		}
 		return false;
 	}
 
-	bool getNumberIfSet(rapidjson::Value &dbresult, const char *key, int &out) {
-		if (dbresult.HasMember(key) && dbresult.IsInt()) {
-			out = dbresult[key].GetInt();
+	bool getNumberIfSet(nlohmann::json &dbresult, const char *key, int &out) {
+		if (dbresult.contains(key) && dbresult.is_number_integer()) {
+			out = dbresult[key].get<int>();
 			return true;
 		}
 		return false;

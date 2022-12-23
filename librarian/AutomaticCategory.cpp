@@ -12,7 +12,6 @@
 #include "StoredTagCapability.h"
 
 #include "BinaryResources.h"
-#include "RapidjsonHelper.h"
 
 #include "fmt/format.h"
 
@@ -31,7 +30,12 @@ namespace midikraft {
 		if (autoCategoryMappingFileExists()) {
 			SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding built-in import category rules with file {}", getAutoCategoryMappingFile().getFullPathName().toStdString()));
 			auto fileContent = getAutoCategoryMappingFile().loadFileAsString();
-			loadMappingFromString(fileContent.toStdString());
+			try {
+				loadMappingFromString(fileContent.toStdString());
+			}
+			catch (nlohmann::json::exception const& e) {
+				SimpleLogger::instance()->postMessage(fmt::format("JSON error loading category import mapping definitions from file {}, file will be ignored: {}", getAutoCategoryMappingFile().getFullPathName().toStdString(), e.what()));
+			}
 		}
 		else {
 			loadMappingFromString(defaultJsonMapping());
@@ -123,40 +127,44 @@ namespace midikraft {
 		File jsonFile(fullPathToJson);
 		if (jsonFile.exists()) {
 			auto fileContent = jsonFile.loadFileAsString();
-			loadFromString(existingCats, fileContent.toStdString());
+			try {
+				loadFromString(existingCats, fileContent.toStdString());
+			}
+			catch (nlohmann::json::exception const& e) {
+				SimpleLogger::instance()->postMessage(fmt::format("JSON error loading category definitions from file {}, file will be ignored: {}", fullPathToJson, e.what()));
+			}
 		}
 	}
 
 	void AutomaticCategory::loadFromString(std::vector<Category> existingCats, std::string const fileContent) {
-		// Parse as JSON
-		rapidjson::Document doc;
-		doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.c_str());
-		if (doc.IsObject()) {
-			auto obj = doc.GetObject();
-			for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
-				auto categoryName = member->name.GetString();
+		// Parse as JSON, allowing comments in the file
+		auto doc = nlohmann::json::parse(fileContent, nullptr, true, true);
+		if (doc.is_object()) {
+			for (auto const& member : doc.items()) {
+				auto categoryName = member.key();
 				std::map<std::string, std::regex> regexes;
-				if (member->value.IsArray()) {
-					auto a = member->value.GetArray();
-					for (auto s = a.Begin(); s != a.End(); s++) {
+				if (member.value().is_array()) {
+					auto a = member.value();
+					for (auto s = a.cbegin(); s != a.cend(); s++) {
 
-						if (s->IsString()) {
+						if (s->is_string()) {
 							// Simple Regex
-							regexes[s->GetString()] = std::regex(s->GetString(), std::regex::icase);
+							regexes[s->get<std::string>()] = std::regex(s->get<std::string>(), std::regex::icase);
 						}
-						else if (s->IsObject()) {
+						else if (s->is_object()) {
 							bool case_sensitive = false;
 							// Regex specifying options
-							if (s->HasMember("case-sensitive")) {
-								auto caseness = s->FindMember("case-sensitive");
-								if (caseness->value.IsBool()) {
-									case_sensitive = caseness->value.GetBool();
+							if (s->contains("case-sensitive")) {
+								auto caseness = (*s)["case-sensitive"];
+								if (caseness.is_boolean()) {
+									case_sensitive = caseness.get<bool>();
 								}
 							}
-							if (s->HasMember("regex")) {
-								auto regex = s->FindMember("regex");
-								if (regex->value.IsString()) {
-									regexes[s->GetString()] = std::regex(s->GetString(), case_sensitive ? std::regex_constants::ECMAScript : (std::regex::icase));
+							if (s->contains("regex")) {
+								auto regex = (*s)["regex"];
+								if (regex.is_string()) {
+									auto value = regex.get<std::string>();
+									regexes[value] = std::regex(value, case_sensitive ? std::regex_constants::ECMAScript : (std::regex::icase));
 								}
 							}
 						}
@@ -189,23 +197,21 @@ namespace midikraft {
 
 	void AutomaticCategory::loadMappingFromString(std::string const fileContent) {
 		// Parse as JSON
-		rapidjson::Document doc;
-		doc.Parse<rapidjson::kParseCommentsFlag>(fileContent.c_str());
-		if (doc.IsObject()) {
+		auto doc = nlohmann::json::parse(fileContent, nullptr, true, true);
+		if (doc.is_object()) {
 			// Replace the hard-coded values with those read from the JSON file
 			importMappings_.clear();
 
-			auto obj = doc.GetObject();
-			for (auto member = obj.MemberBegin(); member != obj.MemberEnd(); member++) {
-				std::string synth = member->name.GetString();
-				if (member->value.HasMember("synthToDatabase")) {
+			for (auto member : doc.items()) {
+				std::string synth = member.key();
+				if (member.value().contains("synthToDatabase")) {
 					std::map<std::string, std::string> mapping;
-					auto importMap = member->value.FindMember("synthToDatabase");
-					if (importMap->value.IsObject()) {
-						for (auto s = importMap->value.MemberBegin(); s != importMap->value.MemberEnd(); s++) {
-							if (s->name.IsString() && s->value.IsString()) {
-								std::string input = s->name.GetString();
-								std::string output = s->value.GetString();
+					auto importMap = member.value()["synthToDatabase"];
+					if (importMap.is_object()) {
+						for (auto s : importMap.items()) {
+							if (s.value().is_string()) {
+								std::string input = s.key();
+								std::string output = s.value();
 								mapping[input] = output;
 							}
 							else {

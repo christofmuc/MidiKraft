@@ -12,12 +12,8 @@
 #include "StoredPatchNameCapability.h"
 #include "HasBanksCapability.h"
 
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-
 #include "fmt/format.h"
 
-#include "RapidjsonHelper.h"
 #include "nlohmann/json.hpp"
 
 namespace midikraft {
@@ -322,19 +318,23 @@ namespace midikraft {
 
 	std::shared_ptr<SourceInfo> SourceInfo::fromString(std::string const &str)
 	{
-		rapidjson::Document doc;
-		doc.Parse(str.c_str());
-		if (doc.IsObject()) {
-			auto obj = doc.GetObject();
-			if (obj.HasMember(kFileSource)) {
-				return FromFileSource::fromString(str);
+		try {
+			auto doc = nlohmann::json::parse(str);
+			if (doc.is_object()) {
+				if (doc.contains(kFileSource)) {
+					return FromFileSource::fromString(str);
+				}
+				else if (doc.contains(kSynthSource)) {
+					return FromSynthSource::fromString(str);
+				}
+				else if (doc.contains(kBulkSource)) {
+					return FromBulkImportSource::fromString(str);
+				}
 			}
-			else if (obj.HasMember(kSynthSource)) {
-				return FromSynthSource::fromString(str);
-			}
-			else if (obj.HasMember(kBulkSource)) {
-				return FromBulkImportSource::fromString(str);
-			}
+			SimpleLogger::instance()->postMessage(fmt::format("Error: Json string does not contain correct source info type: %s", str));
+		}
+		catch (nlohmann::json::exception const& e) {
+			SimpleLogger::instance()->postMessage(fmt::format("JSON error parsing source information of patch: {}", e.what()));
 		}
 		return nullptr;
 	}
@@ -347,15 +347,14 @@ namespace midikraft {
 
 	FromSynthSource::FromSynthSource(Time timestamp, MidiBankNumber bankNo) : timestamp_(timestamp), bankNo_(bankNo)
 	{
-		rapidjson::Document doc;
-		doc.SetObject();
+		nlohmann::json doc;
 		std::string timestring = timestamp.toISO8601(true).toStdString();
-		doc.AddMember(rapidjson::StringRef(kSynthSource), true, doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kTimeStamp), rapidjson::Value(timestring.c_str(), (rapidjson::SizeType) timestring.size()), doc.GetAllocator());
+		doc[kSynthSource] = true;
+		doc[kTimeStamp] = timestring;
 		if (bankNo.isValid()) {
-			doc.AddMember(rapidjson::StringRef(kBankNumber), bankNo.toZeroBased(), doc.GetAllocator());
+			doc[kBankNumber] = bankNo.toZeroBased();
 		}
-		jsonRep_ = renderToJson(doc);
+		jsonRep_ = doc.dump();
 	}
 
 	FromSynthSource::FromSynthSource(Time timestamp) : FromSynthSource(timestamp, MidiBankNumber::invalid())
@@ -408,21 +407,19 @@ namespace midikraft {
 
 	std::shared_ptr<FromSynthSource> FromSynthSource::fromString(std::string const &jsonString)
 	{
-		rapidjson::Document doc;
-		doc.Parse(jsonString.c_str());
-		if (doc.IsObject()) {
-			auto obj = doc.GetObject();
-			if (obj.HasMember(kSynthSource)) {
+		auto doc = nlohmann::json::parse(jsonString);
+		if (doc.is_object()) {
+			if (doc.contains(kSynthSource)) {
 				Time timestamp;
-				if (obj.HasMember(kTimeStamp)) {
-					std::string timestring = obj.FindMember(kTimeStamp).operator*().value.GetString();
+				if (doc.contains(kTimeStamp)) {
+					std::string timestring = doc[kTimeStamp];
 					timestamp = Time::fromISO8601(timestring);
 				}
 				MidiBankNumber bankNo = MidiBankNumber::invalid();
-				if (obj.HasMember(kBankNumber)) {
+				if (doc.contains(kBankNumber)) {
 					//TODO - a bank size of -1 seems to ask for trouble
 					//jassertfalse;
-					bankNo = MidiBankNumber::fromZeroBase(obj.FindMember(kBankNumber).operator*().value.GetInt(), -1);
+					bankNo = MidiBankNumber::fromZeroBase(doc[kBankNumber].get<int>(), -1);
 				}
 				return std::make_shared<FromSynthSource>(timestamp, bankNo);
 			}
@@ -437,20 +434,19 @@ namespace midikraft {
 
 	FromFileSource::FromFileSource(std::string const &filename, std::string const &fullpath, MidiProgramNumber program) : filename_(filename), fullpath_(fullpath), program_(program)
 	{
-		rapidjson::Document doc;
-		doc.SetObject();
-		doc.AddMember(rapidjson::StringRef(kFileSource), true, doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kFileName), rapidjson::Value(filename.c_str(), (rapidjson::SizeType)  filename.size()), doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kFullPath), rapidjson::Value(fullpath.c_str(), (rapidjson::SizeType) fullpath.size()), doc.GetAllocator());
+		nlohmann::json doc;
+		doc[kFileSource] = true;
+		doc[kFileName] = filename;
+		doc[kFullPath] = fullpath;
 		if (program.bank().isValid()) {
-			doc.AddMember(rapidjson::StringRef(kBankNumber), program.bank().toZeroBased(), doc.GetAllocator());
-			doc.AddMember(rapidjson::StringRef(kProgramNo), program.toZeroBasedWithBank(), doc.GetAllocator());
+			doc[kBankNumber] = program.bank().toZeroBased();
+			doc[kProgramNo] = program.toZeroBasedWithBank();
 		}
 		else
 		{
-			doc.AddMember(rapidjson::StringRef(kProgramNo), program.toZeroBased(), doc.GetAllocator());
+			doc[kProgramNo] = program.toZeroBased();
 		}
-		jsonRep_ = renderToJson(doc);
+		jsonRep_ = doc.dump();
 
 	}
 
@@ -468,40 +464,35 @@ namespace midikraft {
 
 	std::shared_ptr<FromFileSource> FromFileSource::fromString(std::string const &jsonString)
 	{
-		rapidjson::Document doc;
-		doc.Parse(jsonString.c_str());
-		if (doc.IsObject()) {
-			auto obj = doc.GetObject();
-			if (obj.HasMember(kFileSource)) {
-				std::string filename = obj.FindMember(kFileName).operator*().value.GetString();
-				std::string fullpath = obj.FindMember(kFullPath).operator*().value.GetString();
-				MidiProgramNumber program = MidiProgramNumber::fromZeroBase(0);
-				if (obj.HasMember(kBankNumber)) {
-					jassertfalse;
-					MidiBankNumber bank = MidiBankNumber::fromZeroBase(obj.FindMember(kBankNumber).operator*().value.GetInt(), -1);
-					program = MidiProgramNumber::fromZeroBaseWithBank(bank, obj.FindMember(kProgramNo).operator*().value.GetInt());
-				}
-				else {
-					program = MidiProgramNumber::fromZeroBase(obj.FindMember(kProgramNo).operator*().value.GetInt());
-				}
-				return std::make_shared<FromFileSource>(filename, fullpath, program);
+		auto obj = nlohmann::json::parse(jsonString);
+		if (obj.contains(kFileSource)) {
+			std::string filename = obj[kFileName].get<std::string>();
+			std::string fullpath = obj[kFullPath].get<std::string>();
+			MidiProgramNumber program = MidiProgramNumber::fromZeroBase(0);
+			if (obj.contains(kBankNumber)) {
+				jassertfalse;
+				MidiBankNumber bank = MidiBankNumber::fromZeroBase(obj[kBankNumber].get<int>(), -1);
+				program = MidiProgramNumber::fromZeroBaseWithBank(bank, obj[kProgramNo].get<int>());
 			}
+			else {
+				program = MidiProgramNumber::fromZeroBase(obj[kProgramNo].get<int>());
+			}
+			return std::make_shared<FromFileSource>(filename, fullpath, program);
 		}
 		return nullptr;
 	}
 
 	FromBulkImportSource::FromBulkImportSource(Time timestamp, std::shared_ptr<SourceInfo> individualInfo) : timestamp_(timestamp), individualInfo_(individualInfo)
 	{
-		rapidjson::Document doc;
-		doc.SetObject();
+		nlohmann::json doc;
 		std::string timestring = timestamp.toISO8601(true).toStdString();
-		doc.AddMember(rapidjson::StringRef(kBulkSource), true, doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kTimeStamp), rapidjson::Value(timestring.c_str(), (rapidjson::SizeType) timestring.size()), doc.GetAllocator());
+		doc[kBulkSource] = true;
+		doc[kTimeStamp] = timestring;
 		if (individualInfo) {
 			std::string subinfo = individualInfo->toString();
-			doc.AddMember(rapidjson::StringRef(kFileInBulk), rapidjson::Value(subinfo.c_str(), (rapidjson::SizeType)subinfo.size()), doc.GetAllocator());
+			doc[kFileInBulk] = subinfo;
 		} 
-		jsonRep_ = renderToJson(doc);
+		jsonRep_ = doc.dump();
 	}
 
 	std::string FromBulkImportSource::md5(Synth *synth) const
@@ -528,29 +519,25 @@ namespace midikraft {
 
 	std::shared_ptr<FromBulkImportSource> FromBulkImportSource::fromString(std::string const &jsonString)
 	{
-		rapidjson::Document doc;
-		doc.Parse(jsonString.c_str());
-		if (doc.IsObject()) {
-			auto obj = doc.GetObject();
-			if (obj.HasMember(kBulkSource)) {
-				Time timestamp;
-				if (obj.HasMember(kTimeStamp)) {
-					std::string timestring = obj.FindMember(kTimeStamp).operator*().value.GetString();
-					timestamp = Time::fromISO8601(timestring);
-				}
-				std::shared_ptr<SourceInfo> individualInfo;
-				if (obj.HasMember(kFileInBulk)) {
-					auto &subinfoJson = obj.FindMember(kFileInBulk).operator*().value;
-					if (subinfoJson.IsString()) {
-						individualInfo = SourceInfo::fromString(subinfoJson.GetString());
-					}
-					else {
-						std::string subinfo = renderToJson(subinfoJson);
-						individualInfo = SourceInfo::fromString(subinfo);
-					}
-				}
-				return std::make_shared<FromBulkImportSource>(timestamp, individualInfo);
+		auto obj = nlohmann::json::parse(jsonString);
+		if (obj.contains(kBulkSource)) {
+			Time timestamp;
+			if (obj.contains(kTimeStamp)) {
+				std::string timestring = obj[kTimeStamp];
+				timestamp = Time::fromISO8601(timestring);
 			}
+			std::shared_ptr<SourceInfo> individualInfo;
+			if (obj.contains(kFileInBulk)) {
+				auto &subinfoJson = obj[kFileInBulk];
+				if (subinfoJson.is_string()) {
+					individualInfo = SourceInfo::fromString(subinfoJson);
+				}
+				else {
+					std::string subinfo = subinfoJson.dump();
+					individualInfo = SourceInfo::fromString(subinfo);
+				}
+			}
+			return std::make_shared<FromBulkImportSource>(timestamp, individualInfo);
 		}
 		return nullptr;
 	}

@@ -11,24 +11,12 @@
 #include "Logger.h"
 #include "Sysex.h"
 
-// Turn off warning on unknown pragmas for VC++
-#pragma warning(push)
-#pragma warning(disable: 4068)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
-#include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/prettywriter.h"
-#include "rapidjson/filewritestream.h"
-#pragma GCC diagnostic pop
-#pragma warning(pop)
-
 #include "fmt/format.h"
 
-#include "RapidjsonHelper.h"
 #include "JsonSerialization.h"
 
-#include <cstdio>
+#include <fstream>
+#include <ostream>
 
 namespace {
 
@@ -96,201 +84,208 @@ namespace midikraft {
 			String content = in.readEntireStreamAsString();
 
 			// Try to parse it!
-			rapidjson::Document jsonDoc;
-			jsonDoc.Parse(content.toStdString().c_str());
+			try {
+				auto jsonDoc = nlohmann::json::parse(content.toStdString());
 
-			int version = 0;
-			if (jsonDoc.IsObject()) {
-				if (!jsonDoc.HasMember(kHeader)) {
-					SimpleLogger::instance()->postMessage("This is not a PatchInterchangeFormat JSON file - no header defined. Aborting.");
-					return {};
+				int version = 0;
+				if (jsonDoc.is_object()) {
+					if (!jsonDoc.contains(kHeader)) {
+						SimpleLogger::instance()->postMessage("This is not a PatchInterchangeFormat JSON file - no header defined. Aborting.");
+						return {};
+					}
+					nlohmann::json header;
+					if (jsonDoc[kHeader].is_object()) {
+						// Proper format, use the header object, not the manually hacked header which was needed to get the files back into version 1.11.0
+						// Eventually, the header = jsonDoc special case should be removed again.
+						header = jsonDoc[kHeader];
+					}
+					if (!header.contains(kFileFormat) || !header[kFileFormat].is_string()) {
+						SimpleLogger::instance()->postMessage("File header block has no string member to define FileFormat. Aborting.");
+						return {};
+					}
+					if (header[kFileFormat] != kPIF) {
+						SimpleLogger::instance()->postMessage("File header defines different FileFormat than PatchInterchangeFormat. Aborting.");
+						return {};
+					}
+					if (!header.contains(kVersion) || !header[kVersion].is_number_integer()) {
+						SimpleLogger::instance()->postMessage("File header has no integer-values member defining file Version. Aborting.");
+						return {};
+					}
+					// Header all good, let's read the Version of the format
+					version = header[kVersion];
 				}
-				rapidjson::Value header;
-				if (jsonDoc[kHeader].IsObject()) {
-					// Proper format, use the header object, not the manually hacked header which was needed to get the files back into version 1.11.0
-					// Eventually, the header = jsonDoc special case should be removed again.
-					header = jsonDoc[kHeader].GetObject();
-				}
-				if (!header.HasMember(kFileFormat) || !header[kFileFormat].IsString()) {
-					SimpleLogger::instance()->postMessage("File header block has no string member to define FileFormat. Aborting.");
-					return {};
-				}
-				if (header[kFileFormat] != kPIF) {
-					SimpleLogger::instance()->postMessage("File header defines different FileFormat than PatchInterchangeFormat. Aborting.");
-					return {};
-				}
-				if (!header.HasMember(kVersion) || !header[kVersion].IsInt()) {
-					SimpleLogger::instance()->postMessage("File header has no integer-values member defining file Version. Aborting.");
-					return {};
-				}
-				// Header all good, let's read the Version of the format
-				version = header[kVersion].GetInt();
-			}
 
-			rapidjson::Value patchArray;
-			if (version == 0) {
-				// Original version had no header, whole file was an array of patches
-				if (!jsonDoc.IsArray()) {
+				nlohmann::json patchArray;
+				if (version == 0) {
+					// Original version had no header, whole file was an array of patches
+					if (!jsonDoc.is_array()) {
+					}
+					patchArray = jsonDoc;
 				}
-				patchArray = jsonDoc.GetArray();
-			}
-			else {
-				// From version 1 on, Patches are stored in a Member Field called "Library"
-				if (jsonDoc.HasMember(kLibrary) && jsonDoc[kLibrary].IsArray()) {
-					patchArray = jsonDoc[kLibrary].GetArray();
+				else {
+					// From version 1 on, Patches are stored in a Member Field called "Library"
+					if (jsonDoc.contains(kLibrary) && jsonDoc[kLibrary].is_array()) {
+						patchArray = jsonDoc[kLibrary];
+					}
 				}
-			}
 
-			if (patchArray.IsArray()) {
-				for (auto item = patchArray.Begin(); item != patchArray.End(); item++) {
-					if (!item->HasMember(kSynth)) {
-						SimpleLogger::instance()->postMessage("Skipping patch which has no 'Synth' field");
-						continue;
-					}
-					const char* synthname = (*item)[kSynth].GetString();
-					if (activeSynths.find(synthname) == activeSynths.end()) {
-						SimpleLogger::instance()->postMessage(fmt::format("Skipping patch which is for synth {} and not for any present in the list given", synthname));
-						continue;
-					}
-					auto activeSynth = activeSynths[synthname];
-					if (!item->HasMember(kName)) {
-						SimpleLogger::instance()->postMessage("Skipping patch which has no 'Name' field");
-						continue;
-					}
-					std::string patchName = (*item)[kName].GetString(); //TODO this is not robust, as it might have a non-string type
-					if (!item->HasMember(kSysex)) {
-						SimpleLogger::instance()->postMessage(fmt::format("Skipping patch {} which has no 'Sysex' field", patchName));
-						continue;
-					}
-
-					// Optional fields!
-					Favorite fav;
-					if (item->HasMember(kFavorite)) {
-						if ((*item)[kFavorite].IsInt()) {
-							fav = Favorite((*item)[kFavorite].GetInt() != 0);
+				if (patchArray.is_array()) {
+					for (auto item = patchArray.cbegin(); item != patchArray.cend(); item++) {
+						if (!item->contains(kSynth)) {
+							SimpleLogger::instance()->postMessage("Skipping patch which has no 'Synth' field");
+							continue;
 						}
-						else {
-							std::string favoriteStr = (*item)[kFavorite].GetString();
-							try {
-								bool favorite = std::stoi(favoriteStr) != 0;
-								fav = Favorite(favorite);
+						std::string synthname = (*item)[kSynth];
+						if (activeSynths.find(synthname) == activeSynths.end()) {
+							SimpleLogger::instance()->postMessage(fmt::format("Skipping patch which is for synth {} and not for any present in the list given", synthname));
+							continue;
+						}
+						auto activeSynth = activeSynths[synthname];
+						if (!item->contains(kName)) {
+							SimpleLogger::instance()->postMessage("Skipping patch which has no 'Name' field");
+							continue;
+						}
+						std::string patchName = (*item)[kName]; //TODO this is not robust, as it might have a non-string type
+						if (!item->contains(kSysex)) {
+							SimpleLogger::instance()->postMessage(fmt::format("Skipping patch {} which has no 'Sysex' field", patchName));
+							continue;
+						}
+
+						// Optional fields!
+						Favorite fav;
+						if (item->contains(kFavorite)) {
+							if ((*item)[kFavorite].is_number_integer()) {
+								fav = Favorite((*item)[kFavorite] != 0);
 							}
-							catch (std::invalid_argument &) {
-								SimpleLogger::instance()->postMessage(fmt::format("Ignoring favorite information for patch {} because {} does not convert to an integer", patchName, favoriteStr));
+							else {
+								std::string favoriteStr = (*item)[kFavorite];
+								try {
+									bool favorite = std::stoi(favoriteStr) != 0;
+									fav = Favorite(favorite);
+								}
+								catch (std::invalid_argument&) {
+									SimpleLogger::instance()->postMessage(fmt::format("Ignoring favorite information for patch {} because {} does not convert to an integer", patchName, favoriteStr));
+								}
 							}
 						}
-					}
 
-					MidiBankNumber bank = MidiBankNumber::invalid();
-					if (item->HasMember(kBank)) {
-						if ((*item)[kBank].IsInt()) {
-							int bankInt = (*item)[kBank].GetInt();
-							bank = MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(activeSynth, bankInt));
-						}
-						else {
-							std::string bankStr = (*item)[kBank].GetString();
-							try {
-								int bankInt = std::stoi(bankStr);
+						MidiBankNumber bank = MidiBankNumber::invalid();
+						if (item->contains(kBank)) {
+							if ((*item)[kBank].is_number_integer()) {
+								int bankInt = (*item)[kBank];
 								bank = MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(activeSynth, bankInt));
 							}
-							catch (std::invalid_argument &) {
-								SimpleLogger::instance()->postMessage(fmt::format("Ignoring MIDI bank information for patch {} because {} does not convert to an integer", patchName, bankStr));
-							}
-						}
-					}
-
-					MidiProgramNumber place = MidiProgramNumber::fromZeroBase(0);
-					if (item->HasMember(kPlace)) {
-						if ((*item)[kPlace].IsInt()) {
-							if (bank.isValid()) {
-								place = MidiProgramNumber::fromZeroBaseWithBank(bank, (*item)[kPlace].GetInt());
-							}
 							else {
-							place = MidiProgramNumber::fromZeroBase((*item)[kPlace].GetInt());
+								std::string bankStr = (*item)[kBank];
+								try {
+									int bankInt = std::stoi(bankStr);
+									bank = MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(activeSynth, bankInt));
+								}
+								catch (std::invalid_argument&) {
+									SimpleLogger::instance()->postMessage(fmt::format("Ignoring MIDI bank information for patch {} because {} does not convert to an integer", patchName, bankStr));
+								}
+							}
 						}
-						}
-						else {
-							std::string placeStr = (*item)[kPlace].GetString();
-							try {
+
+						MidiProgramNumber place = MidiProgramNumber::fromZeroBase(0);
+						if (item->contains(kPlace)) {
+							if ((*item)[kPlace].is_number_integer()) {
 								if (bank.isValid()) {
-									place = MidiProgramNumber::fromZeroBaseWithBank(bank, std::stoi(placeStr));
+									place = MidiProgramNumber::fromZeroBaseWithBank(bank, (*item)[kPlace]);
 								}
 								else {
-								place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
-							}
-							}
-							catch (std::invalid_argument &) {
-								SimpleLogger::instance()->postMessage(fmt::format("Ignoring MIDI place information for patch {} because {} does not convert to an integer", patchName, placeStr));
-							}
-						}
-					}
-
-					std::vector<Category> categories;
-					if (item->HasMember(kCategories)) {
-						auto cats = (*item)[kCategories].GetArray();
-						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
-							midikraft::Category category(nullptr);
-							if (findCategory(detector, cat->GetString(), category)) {
-								categories.push_back(category);
+									place = MidiProgramNumber::fromZeroBase((*item)[kPlace]);
+								}
 							}
 							else {
-								SimpleLogger::instance()->postMessage(fmt::format("Ignoring category {} of patch {} because it is not part of our standard categories!", cat->GetString(), patchName));
+								std::string placeStr = (*item)[kPlace];
+								try {
+									if (bank.isValid()) {
+										place = MidiProgramNumber::fromZeroBaseWithBank(bank, std::stoi(placeStr));
+									}
+									else {
+										place = MidiProgramNumber::fromZeroBase(std::stoi(placeStr));
+									}
+								}
+								catch (std::invalid_argument&) {
+									SimpleLogger::instance()->postMessage(fmt::format("Ignoring MIDI place information for patch {} because {} does not convert to an integer", patchName, placeStr));
+								}
 							}
 						}
-					}
 
-					std::vector<Category> nonCategories;
-					if (item->HasMember(kNonCategories)) {
-						auto cats = (*item)[kNonCategories].GetArray();
-						for (auto cat = cats.Begin(); cat != cats.End(); cat++) {
-							midikraft::Category category(nullptr);
-							if (findCategory(detector, cat->GetString(), category)) {
-								nonCategories.push_back(category);
-							}
-							else {
-								SimpleLogger::instance()->postMessage(fmt::format("Ignoring non-category {} of patch {} because it is not part of our standard categories!", cat->GetString(), patchName));
+						std::vector<Category> categories;
+						if (item->contains(kCategories) && (*item)[kCategories].is_array()) {
+							auto cats = (*item)[kCategories];
+							for (auto cat = cats.cbegin(); cat != cats.cend(); cat++) {
+								midikraft::Category category(nullptr);
+								if (findCategory(detector, cat->get<std::string>().c_str(), category)) {
+									categories.push_back(category);
+								}
+								else {
+									SimpleLogger::instance()->postMessage(fmt::format("Ignoring category {} of patch {} because it is not part of our standard categories!", cat->get<std::string>(), patchName));
+								}
 							}
 						}
-					}
 
-					std::shared_ptr<midikraft::SourceInfo> importInfo;
-					if (item->HasMember(kSourceInfo)) {
-						importInfo = SourceInfo::fromString(renderToJson((*item)[kSourceInfo]));
-					}
-
-					// All mandatory fields found, we can parse the data!
-					MemoryBlock sysexData;
-					MemoryOutputStream writeToBlock(sysexData, false);
-					String base64encoded = (*item)[kSysex].GetString();
-					if (Base64::convertFromBase64(writeToBlock, base64encoded)) {
-						writeToBlock.flush();
-						auto messages = Sysex::memoryBlockToMessages(sysexData);
-						auto patches = activeSynth->loadSysex(messages);
-						//jassert(patches.size() == 1);
-						if (patches.size() == 1) {
-							PatchHolder holder(activeSynth, fileSource, patches[0], bank, place, detector);
-							holder.setFavorite(fav);
-							holder.setName(patchName);
-							for (const auto& cat : categories) {
-								holder.setCategory(cat, true);
-								holder.setUserDecision(cat); // All Categories loaded via PatchInterchangeFormat are considered user decisions
+						std::vector<Category> nonCategories;
+						if (item->contains(kNonCategories) && item->at(kNonCategories).is_array()) {
+							auto cats = (*item)[kNonCategories];
+							for (auto cat = cats.cbegin(); cat != cats.cend(); cat++) {
+								midikraft::Category category(nullptr);
+								if (findCategory(detector, cat->get<std::string>().c_str(), category)) {
+									nonCategories.push_back(category);
+								}
+								else {
+									SimpleLogger::instance()->postMessage(fmt::format("Ignoring non-category {} of patch {} because it is not part of our standard categories!", cat->get<std::string>(), patchName));
+								}
 							}
-							for (const auto &noncat : nonCategories) {
-								holder.setUserDecision(noncat); // A Category mentioned here says it might not be present, but that is a user decision!
-							}
-							if (importInfo) {
-								holder.setSourceInfo(importInfo);
-							}
-							result.push_back(holder);
 						}
-					}
-					else {
-						SimpleLogger::instance()->postMessage("Skipping patch with invalid base64 encoded data!");
+
+						std::shared_ptr<midikraft::SourceInfo> importInfo;
+						if (item->contains(kSourceInfo)) {
+							if ((*item)[kSourceInfo].is_string())
+								importInfo = SourceInfo::fromString((*item)[kSourceInfo]);
+							else
+								importInfo = SourceInfo::fromString((*item)[kSourceInfo].dump());
+						}
+
+						// All mandatory fields found, we can parse the data!
+						MemoryBlock sysexData;
+						MemoryOutputStream writeToBlock(sysexData, false);
+						String base64encoded = (*item)[kSysex].get<std::string>();
+						if (Base64::convertFromBase64(writeToBlock, base64encoded)) {
+							writeToBlock.flush();
+							auto messages = Sysex::memoryBlockToMessages(sysexData);
+							auto patches = activeSynth->loadSysex(messages);
+							//jassert(patches.size() == 1);
+							if (patches.size() == 1) {
+								PatchHolder holder(activeSynth, fileSource, patches[0], bank, place, detector);
+								holder.setFavorite(fav);
+								holder.setName(patchName);
+								for (const auto& cat : categories) {
+									holder.setCategory(cat, true);
+									holder.setUserDecision(cat); // All Categories loaded via PatchInterchangeFormat are considered user decisions
+								}
+								for (const auto& noncat : nonCategories) {
+									holder.setUserDecision(noncat); // A Category mentioned here says it might not be present, but that is a user decision!
+								}
+								if (importInfo) {
+									holder.setSourceInfo(importInfo);
+								}
+								result.push_back(holder);
+							}
+						}
+						else {
+							SimpleLogger::instance()->postMessage("Skipping patch with invalid base64 encoded data!");
+						}
 					}
 				}
+				else {
+					SimpleLogger::instance()->postMessage("No Library patches defined in PatchInterchangeFormat, no patches loaded");
+				}
 			}
-			else {
-				SimpleLogger::instance()->postMessage("No Library patches defined in PatchInterchangeFormat, no patches loaded");
+			catch (nlohmann::json::exception const& e) {
+				SimpleLogger::instance()->postMessage(fmt::format("JSON error loading PIF file {}, import aborted: {}", filename, e.what()));
 			}
 		}
 		return result;
@@ -303,59 +298,46 @@ namespace midikraft {
 			outputFile.deleteFile();
 		}
 
-		rapidjson::Document doc;
-		doc.SetObject();
+		nlohmann::json doc;
 
-		rapidjson::Value header;
-		header.SetObject();
-		header.AddMember(rapidjson::StringRef(kFileFormat), rapidjson::StringRef(kPIF), doc.GetAllocator());
-		header.AddMember(rapidjson::StringRef(kVersion), 1, doc.GetAllocator());
-		doc.AddMember(rapidjson::StringRef(kHeader), header, doc.GetAllocator());
+		nlohmann::json header;
+		header[kFileFormat] = kPIF;
+		header[kVersion] = 1;
+		doc[kHeader] = header;
 
-		rapidjson::Value library;
-		library.SetArray();
+		auto library = nlohmann::json::array();
 		for (auto patch : patches) {
-			rapidjson::Value patchJson;
-			patchJson.SetObject();
-			addToJson(kSynth, patch.synth()->getName(), patchJson, doc);
-			addToJson(kName, patch.name(), patchJson, doc);
-			patchJson.AddMember(rapidjson::StringRef(kFavorite), patch.isFavorite() ? 1 : 0, doc.GetAllocator());
+			nlohmann::json patchJson;
+			patchJson[kSynth] = patch.synth()->getName();
+			patchJson[kName] = patch.name();
+			patchJson[kFavorite] = patch.isFavorite() ? 1 : 0;
 			if (patch.bankNumber().isValid()) {
-				patchJson.AddMember(rapidjson::StringRef(kBank), patch.bankNumber().toZeroBased(), doc.GetAllocator());
+				patchJson[kBank] = patch.bankNumber().toZeroBased();
 			}
-			patchJson.AddMember(rapidjson::StringRef(kPlace), patch.patchNumber().toZeroBased(), doc.GetAllocator());
+			patchJson[kPlace] = patch.patchNumber().toZeroBased();
  			auto categoriesSet = patch.categories();
 			auto userDecisions = patch.userDecisionSet();
 			auto userDefinedCategories = category_intersection(categoriesSet, userDecisions);
 			if (!userDefinedCategories.empty()) {
 				// Here is a list of categories to write
-				rapidjson::Value categoryList;
-				categoryList.SetArray();
+				auto categoryList = nlohmann::json::array();
 				for (auto cat : userDefinedCategories) {
-					rapidjson::Value catValue;
-					catValue.SetString(cat.category().c_str(), doc.GetAllocator());
-					categoryList.PushBack(catValue, doc.GetAllocator());
+					categoryList.emplace_back(cat.category());
 				}
-				patchJson.AddMember(rapidjson::StringRef(kCategories), categoryList, doc.GetAllocator());
+				patchJson[kCategories] = categoryList;
 			}
 			auto userDefinedNonCategories = category_difference(userDecisions, categoriesSet);
 			if (!userDefinedNonCategories.empty()) {
 				// Here is a list of non-categories to write
-				rapidjson::Value nonCategoryList;
-				nonCategoryList.SetArray();
+				auto nonCategoryList = nlohmann::json::array();
 				for (auto cat : userDefinedNonCategories) {
-					rapidjson::Value catValue;
-					catValue.SetString(cat.category().c_str(), doc.GetAllocator());
-					nonCategoryList.PushBack(catValue, doc.GetAllocator());
+					nonCategoryList.emplace_back(cat.category());
 				}
-				patchJson.AddMember(rapidjson::StringRef(kNonCategories), nonCategoryList, doc.GetAllocator());
+				patchJson[kNonCategories] = nonCategoryList;
 			}
 
 			if (patch.sourceInfo()) {
-				std::string jsonRep = patch.sourceInfo()->toString();
-				rapidjson::Document sourceInfoDoc(&doc.GetAllocator());
-				sourceInfoDoc.Parse(jsonRep.c_str());
-				patchJson.AddMember(rapidjson::StringRef(kSourceInfo), sourceInfoDoc, doc.GetAllocator());
+				patchJson[kSourceInfo] = nlohmann::json::parse(patch.sourceInfo()->toString());
 			}
 
 			// Now the fun part, pack the sysex for transport
@@ -366,27 +348,14 @@ namespace midikraft {
 				std::copy(m.getRawData(), m.getRawData() + m.getRawDataSize(), std::back_inserter(data));
 			}
 			std::string base64encoded = JsonSerialization::dataToString(data);
-			addToJson(kSysex, base64encoded, patchJson, doc);
+			patchJson[kSysex] = base64encoded;
 
-			library.PushBack(patchJson, doc.GetAllocator());
+			library.emplace_back(patchJson);
 		}
-		doc.AddMember(rapidjson::StringRef(kLibrary), library, doc.GetAllocator());
+		doc[kLibrary] = library;
 
-		// According to documentation of Rapid Json, this is the fastest way to write it to a stream
-		// I'll just believe it and use a nice old C file handle.
-#if WIN32
-		FILE* fp;
-		if (fopen_s(&fp, toFilename.c_str(), "wb") != 0) {
-			SimpleLogger::instance()->postMessage(fmt::format("Failure to open file {} to write patch interchange format to", toFilename));
-	}
-#else
-		FILE* fp = fopen(toFilename.c_str(), "w");
-#endif
-		char writeBuffer[65536];
-		rapidjson::FileWriteStream os(fp, writeBuffer, sizeof(writeBuffer));
-		rapidjson::PrettyWriter<rapidjson::FileWriteStream> writer(os);
-		doc.Accept(writer);
-		fclose(fp);
+		std::ofstream o(toFilename);
+		o << std::setw(4) << doc << std::endl;
 }
 
 }

@@ -15,7 +15,7 @@ set(Sources
 	PatchFilter.cpp PatchFilter.h
 )
 
-set(SQLITE_CPP_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/../third_party/SQLiteCpp/include")
+set(SQLITE_CPP_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/../../third_party/SQLiteCpp/include")
 
 # Setup library
 add_library(midikraft-database ${Sources})

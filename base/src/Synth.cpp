@@ -21,6 +21,8 @@
 #include "StreamLoadCapability.h"
 
 #include <fmt/format.h>
+#include <spdlog/spdlog.h>
+#include "SpdLogJuce.h"
 
 namespace midikraft {
 
@@ -100,7 +102,7 @@ namespace midikraft {
 							result.push_back(patch);
 						}
 						else {
-							SimpleLogger::instance()->postMessage(fmt::format("Error decoding edit buffer dump for patch {}, skipping it", patchNo));
+							spdlog::warn("Error decoding edit buffer dump for patch {}, skipping it", patchNo);
 						}
 						patchNo++;
 					}
@@ -114,14 +116,14 @@ namespace midikraft {
 							result.push_back(patch);
 						}
 						else {
-							SimpleLogger::instance()->postMessage(fmt::format("Error decoding program dump for patch {}, skipping it",  patchNo));
+							spdlog::warn("Error decoding program dump for patch {}, skipping it",  patchNo);
 						}
 						patchNo++;
 					}
 				}
 				else if (bankDumpSynth && bankDumpSynth->isBankDump(message)) {
 					auto morePatches = bankDumpSynth->patchesFromSysexBank(message);
-					SimpleLogger::instance()->postMessage(fmt::format("Loaded bank dump with {} patches", morePatches.size()));
+					spdlog::info("Loaded bank dump with {} patches", morePatches.size());
 					std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
 				}
 				else if (dataFileLoadSynth) {
@@ -137,7 +139,7 @@ namespace midikraft {
 				else {
 					// The way I ended up here was to load the ZIP of the Pro3 factory programs, and that includes the weird macOS resource fork
 					// with a syx extension, wrongly getting interpreted as a real sysex file.
-					SimpleLogger::instance()->postMessage("Ignoring sysex message found, not implemented: " + message.getDescription());
+					spdlog::warn("Ignoring sysex message found, not implemented: {}", message.getDescription());
 				}
 			}
 		}
@@ -185,7 +187,7 @@ namespace midikraft {
 							place = MidiProgramNumber::fromZeroBase(banks->numberOfPatches() - 1);
 						}
 					}
-					SimpleLogger::instance()->postMessageOncePerRun(fmt::format("{} has no edit buffer, using program {} instead", getName(), friendlyProgramName(place)));
+					spdlog::warn("{} has no edit buffer, using program {} instead", getName(), friendlyProgramName(place));
 				}
 				messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);
 				auto location = Capability::hasCapability<MidiLocationCapability>(this);
@@ -202,7 +204,7 @@ namespace midikraft {
 		}
 		if (messages.empty()) {
 			jassertfalse;
-			SimpleLogger::instance()->postMessage("Program error - unknown strategy to send patch out to synth");
+			spdlog::error("Program error - unknown strategy to send patch out to synth");
 		}
 		return messages;
 	}
@@ -214,12 +216,12 @@ namespace midikraft {
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
 			if (midiLocation && !messages.empty()) {
 				if (midiLocation->channel().isValid()) {
-					SimpleLogger::instance()->postMessage(fmt::format("Sending patch {} to {}", dataFile->name(), getName()));
+					spdlog::info("Sending patch {} to {}", dataFile->name(), getName());
 					MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
 					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
 				}
 				else {
-					SimpleLogger::instance()->postMessage(fmt::format("Synth {} has no valid channel and output defined, don't know where to send!", getName()));
+					spdlog::error("Synth {} has no valid channel and output defined, don't know where to send!", getName());
 				}
 			}
 		}

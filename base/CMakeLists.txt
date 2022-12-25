@@ -60,7 +60,7 @@ set(Sources
 # Setup library
 add_library(midikraft-base ${Sources})
 target_include_directories(midikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
-target_link_libraries(midikraft-base PUBLIC juce-utils fmt::fmt)
+target_link_libraries(midikraft-base PUBLIC juce-utils spdlog::spdlog)
 
 # Pedantic about warnings
 if (MSVC)

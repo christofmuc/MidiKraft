@@ -11,7 +11,8 @@
 
 #include "MidiHelpers.h"
 
-#define VERBOSE 1
+#include <spdlog/spdlog.h>
+#include "SpdLogJuce.h"
 
 namespace midikraft {
 
@@ -137,12 +138,10 @@ namespace midikraft {
 					if (newDevice) {
 						// Take responsibility for the lifetime of the returned output
 						newDevice.swap(outputsOpen_[newOutput.identifier]);
-#ifdef VERBOSE
-						SimpleLogger::instance()->postMessage("MIDI output " + newOutput.name + " opened with ID " + device.identifier);
-#endif
+						spdlog::trace("MIDI output {} opened with ID {}", newOutput.name, device.identifier);
 						return true;
 					}
-					SimpleLogger::instance()->postMessage("MIDI output " + newOutput.name + " could not be opened, maybe it is turned off or used by another software?");
+					spdlog::error("MIDI output {} could not be opened, maybe it is turned off or used by another software?", newOutput.name);
 					return false;
 				}
 			}
@@ -182,28 +181,24 @@ namespace midikraft {
 					inputsOpen_[toEnable.identifier] = juce::MidiInput::openDevice(device.identifier, this);
 					if (inputsOpen_[toEnable.identifier]) {
 						inputsOpen_[toEnable.identifier]->start();
-#ifdef VERBOSE
-						SimpleLogger::instance()->postMessage("MIDI input " + toEnable.name + " opened with ID " + device.identifier);
-#endif
+						spdlog::trace("MIDI input {} opened with ID {}", toEnable.name, device.identifier);
 						return true;
 					}
 					else {
 						inputsOpen_.erase(toEnable.identifier);
-						SimpleLogger::instance()->postMessage("MIDI input " + toEnable.name + " could not be opened, maybe it is locked by another software running?");
+						spdlog::error("MIDI input {} could not be opened, maybe it is locked by another software running?", toEnable.name);
 						return false;
 					}
 				}
 				else {
 					// Make sure it is still open and running. This could happen when e.g. a MIDI USB device is removed and inserted back in
 					inputsOpen_[toEnable.identifier]->start();
-#ifdef VERBOSE
-					SimpleLogger::instance()->postMessage("MIDI input device " + toEnable.name + " restarted");
-#endif
+					spdlog::trace("MIDI input device {} restarted", toEnable.name);
 					return true;
 				}
 			}
 		}
-		SimpleLogger::instance()->postMessage("MIDI input " + toEnable.name + " could not be opened, not found. Please plugin/turn on the device.");
+		spdlog::error("MIDI input {} could not be opened, not found. Please plugin/turn on the device.", toEnable.name);
 		return false;
 	}
 
@@ -212,14 +207,10 @@ namespace midikraft {
 
 		// Has this device ever been opened?
 		if (inputsOpen_.find(toDisable.identifier) == inputsOpen_.end()) {
-#ifdef VERBOSE
-			SimpleLogger::instance()->postMessage("MIDI input " + toDisable.name + " never was opened, can't disable! Program error?");
-#endif
+			spdlog::error("MIDI input {} never was opened, can't disable! Program error?", toDisable.name);
 		}
 		else {
-#ifdef VERBOSE
-			SimpleLogger::instance()->postMessage("MIDI input" + toDisable.name + " stopped");
-#endif
+			spdlog::trace("MIDI input" + toDisable.name + " stopped");
 			inputsOpen_[toDisable.identifier]->stop();
 		}
 	}
@@ -256,7 +247,7 @@ namespace midikraft {
 		for (auto input = inputsOpen_.begin(); input != inputsOpen_.end(); input++) {
 			if (std::none_of(inputDevices.cbegin(), inputDevices.cend(), [input](juce::MidiDeviceInfo const& info) { return info.identifier == input->first;  })) {
 				// Nope, that one is gone, closing it!
-				SimpleLogger::instance()->postMessage("MIDI Input " + input->second->getName() + " unplugged");
+				spdlog::info("MIDI Input unplugged", input->second->getName());
 				input->second.reset();
 				toDelete.push_back(input->first);
 				dirty = true;
@@ -271,7 +262,7 @@ namespace midikraft {
 		if (inputDevices != knownInputs_) {
 			for (auto input : inputDevices) {
 				if (knownInputs_.find(input) == knownInputs_.end()) {
-					SimpleLogger::instance()->postMessage("MIDI Input " + input.name + " connected");
+					spdlog::info("MIDI Input {} connected", input.name);
 					dirty = true;
 				}
 			}
@@ -284,7 +275,7 @@ namespace midikraft {
 		auto outputDevices = currentOutputs(false);
 		for (auto output = outputsOpen_.begin(); output != outputsOpen_.end(); output++) {
 			if (std::none_of(outputDevices.cbegin(), outputDevices.cend(), [output](juce::MidiDeviceInfo const& info) { return info.identifier == output->first;  })) {
-				SimpleLogger::instance()->postMessage("MIDI Output " + output->first + " unplugged");
+				spdlog::info("MIDI Output {} unplugged", output->first);
 				output->second.reset();
 				toDeleteOutput.push_back(output->first);
 				dirty = true;
@@ -300,7 +291,7 @@ namespace midikraft {
 		if (outputDevices!= knownOutputs_) {
 			for (auto output: outputDevices) {
 				if (knownOutputs_.find(output) == knownOutputs_.end()) {
-					SimpleLogger::instance()->postMessage("MIDI output " + output.name + " connected");
+					spdlog::info("MIDI output {} connected", output.name);
 					dirty = true;
 				}
 			}

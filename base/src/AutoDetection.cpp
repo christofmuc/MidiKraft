@@ -10,7 +10,7 @@
 #include "Settings.h"
 #include "MidiHelpers.h"
 
-#include "fmt/format.h"
+#include <spdlog/spdlog.h>
 
 namespace midikraft {
 
@@ -62,13 +62,13 @@ namespace midikraft {
 					continue;
 				}
 				if (!checkSynth(synth)) {
-					SimpleLogger::instance()->postMessage(
-						fmt::format("Lost communication with {} on channel {} of device {} - please rerun auto-detect synths!",
-							 synth->getName(), synth->channel().toOneBasedInt(), synth->midiOutput().name.toStdString()));
+					spdlog::warn(
+						"Lost communication with {} on channel {} of device {} - please rerun auto-detect synths!",
+							 synth->getName(), synth->channel().toOneBasedInt(), synth->midiOutput().name.toStdString());
 				}
 				else {
-					SimpleLogger::instance()->postMessage(fmt::format("Detected {} on channel {} of device {}",
-						synth->getName(), synth->channel().toOneBasedInt(), synth->midiOutput().name.toStdString()));
+					spdlog::info("Detected {} on channel {} of device {}",
+						synth->getName(), synth->channel().toOneBasedInt(), synth->midiOutput().name.toStdString());
 				}
 		}
 		}
@@ -115,8 +115,8 @@ namespace midikraft {
 		auto locations = FindSynthOnMidiNetwork::detectSynth(*synth, progressHandler);
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
-				SimpleLogger::instance()->postMessage(fmt::format("Found {} on channel {} replying on device {} when sending to {} on channel {}",
-					synth->getName(), (loc.midiChannel.toOneBasedInt()),  loc.input.name.toStdString(), loc.output.name.toStdString(), loc.midiChannel.toOneBasedInt()));
+				spdlog::info("Found {} on channel {} replying on device {} when sending to {} on channel {}",
+					synth->getName(), (loc.midiChannel.toOneBasedInt()),  loc.input.name.toStdString(), loc.output.name.toStdString(), loc.midiChannel.toOneBasedInt());
 			}
 
 			// Select the last location (the first one might be the "All" devices which we don't want to address the devices individually)
@@ -128,7 +128,7 @@ namespace midikraft {
 		}
 		else {
 			// Ups
-			SimpleLogger::instance()->postMessage(fmt::format("No {} could be detected - is it turned on?", synth->getName()));
+			spdlog::error("No {} could be detected - is it turned on?", synth->getName());
 		}
 	}
 

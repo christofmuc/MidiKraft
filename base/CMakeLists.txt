@@ -48,6 +48,7 @@ set(Sources
 	include/SoundExpanderCapability.h
 	include/StepSequencer.h
 	include/StoredPatchNameCapability.h
+	include/StoredPatchNumberCapability.h
 	include/StoredTagCapability.h
 	include/StreamLoadCapability.h
 	include/Synth.h src/Synth.cpp

@@ -21,8 +21,6 @@ namespace midikraft {
 
 		int dataTypeID() const;
 
-		virtual std::string name() const = 0;
-
 		// Direct byte access functions
 		void setData(Synth::PatchData const &data);
 		virtual void setDataFromSysex(MidiMessage const &message);

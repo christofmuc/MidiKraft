@@ -19,6 +19,8 @@
 #include "DataFileLoadCapability.h"
 #include "DataFileSendCapability.h"
 #include "StreamLoadCapability.h"
+#include "StoredPatchNameCapability.h"
+#include "StoredPatchNumberCapability.h"
 
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
@@ -214,6 +216,20 @@ namespace midikraft {
 		return messages;
 	}
 
+	std::string Synth::nameForPatch(std::shared_ptr<DataFile> dataFile) const {
+		// Check if it has a stored name
+		auto storedPatchName = Capability::hasCapability<StoredPatchNameCapability>(dataFile);
+		if (storedPatchName) {
+			return storedPatchName->name();
+		}
+		// No stored patch name, but we might have a stored number
+		auto storedPatchNumber = Capability::hasCapability<StoredPatchNumberCapability>(dataFile);
+		if (storedPatchNumber && storedPatchNumber->hasStoredPatchNumber()) {
+			return friendlyProgramName(storedPatchNumber->getStoredPatchNumber());
+		}
+		return "";
+	}
+
 	void Synth::sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
 		auto messages = dataFileToSysex(dataFile, target);
@@ -221,7 +237,7 @@ namespace midikraft {
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
 			if (midiLocation && !messages.empty()) {
 				if (midiLocation->channel().isValid()) {
-					spdlog::info("Sending patch {} to {}", dataFile->name(), getName());
+					spdlog::info("Sending patch {} to {}", nameForPatch(dataFile), getName());
 					MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
 					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
 				}

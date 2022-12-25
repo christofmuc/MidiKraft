@@ -12,6 +12,7 @@ namespace midikraft {
 
 	class StoredPatchNameCapability {
 	public:
+		virtual std::string name() const = 0;
 		virtual void setName(std::string const &name) = 0;
 	};
 

@@ -44,6 +44,8 @@ namespace midikraft {
 
 		virtual std::string friendlyProgramAndBankName(MidiBankNumber bankNo, MidiProgramNumber programNo) const;
 
+		virtual std::string nameForPatch(std::shared_ptr<DataFile> dataFile) const;
+
 		// Override this in case not all bytes contribute to the sound of the patch
 		virtual PatchData filterVoiceRelevantData(std::shared_ptr<DataFile> unfilteredData) const;
 

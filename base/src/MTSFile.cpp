@@ -8,6 +8,8 @@
 
 #include "MidiHelpers.h"
 
+#include <spdlog/spdlog.h>
+
 std::string midikraft::MTSFile::name() const
 {
 	MidiTuning result;
@@ -16,8 +18,15 @@ std::string midikraft::MTSFile::name() const
 		return result.name();
 	}
 	else {
-		return "Parse error in MTS file!";
+		spdlog::error("Parse error in MTS message!");
+		return "invalid MTS";
 	}
+}
+
+void midikraft::MTSFile::setName(std::string const& name)
+{
+	ignoreUnused(name);
+	spdlog::error("Error - renaming of Midi Tuning Files not implemented yet!");
 }
 
 std::vector<juce::MidiMessage> midikraft::MTSFile::createMidiMessagesFromDataFile(MidiProgramNumber placeToStore)

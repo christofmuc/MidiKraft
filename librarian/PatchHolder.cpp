@@ -34,7 +34,11 @@ namespace midikraft {
 		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false), synth_(activeSynth), bankNumber_(bank), patchNumber_(place)
 	{
 		if (patch) {
-			name_ = patch->name();
+			name_ = activeSynth->nameForPatch(patch);
+			if (name_.empty()) {
+				// No information on the patch name from the data. We need to make one up from the Program Place given to this Meta Data constructor
+				name_ = activeSynth->friendlyProgramAndBankName(bank, place);
+			}
 			if (detector) {
 				categories_ = detector->determineAutomaticCategories(*this);
 			}
@@ -91,7 +95,7 @@ namespace midikraft {
 		if (storedInPatch) {
 			// If the Patch can do it, poke the name into the patch, and then use the result (limited to the characters the synth can do) for the patch holder as well
 			storedInPatch->setName(newName);
-			name_ = patch()->name();
+			name_ = storedInPatch->name();
 		}
 		else {
 			// The name is only stored in the PatchHolder, and thus the database, anyway, so we just accept the string
@@ -244,7 +248,7 @@ namespace midikraft {
 			{ "drag_type", "PATCH"},
 			{ "synth", synth_->getName() },
 			{ "data_type", patch_->dataTypeID()},
-			{ "patch_name", patch_->name()},
+			{ "patch_name", name()},
 			{ "md5", md5() }
 		};
 		return dragInfo.dump(-1, ' ', true, nlohmann::detail::error_handler_t::replace); // Force ASCII, else we get UTF8 exceptions when using some old synths data. Like the MKS50...

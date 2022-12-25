@@ -78,7 +78,7 @@ namespace midikraft {
 
 		// Check if file exists
 		File pif(filename);
-		auto fileSource = std::make_shared<FromFileSource>(pif.getFileName().toStdString(), pif.getFullPathName().toStdString(), MidiProgramNumber::fromZeroBase(0));
+		auto fileSource = std::make_shared<FromFileSource>(pif.getFileName().toStdString(), pif.getFullPathName().toStdString(), MidiProgramNumber::invalidProgram());
 		if (pif.existsAsFile()) {
 			FileInputStream in(pif);
 			String content = in.readEntireStreamAsString();
@@ -187,7 +187,7 @@ namespace midikraft {
 							}
 						}
 
-						MidiProgramNumber place = MidiProgramNumber::fromZeroBase(0);
+						MidiProgramNumber place = MidiProgramNumber::invalidProgram();
 						if (item->contains(kPlace)) {
 							if ((*item)[kPlace].is_number_integer()) {
 								if (bank.isValid()) {

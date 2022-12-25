@@ -588,7 +588,7 @@ namespace midikraft {
 			auto dataColumn = query.getColumn("data");
 
 
-			MidiProgramNumber program;
+			MidiProgramNumber program = MidiProgramNumber::invalidProgram();
 			MidiBankNumber bank = MidiBankNumber::invalid();
 			loadBankAndProgram(synth, query, bank, program);
 
@@ -711,7 +711,7 @@ namespace midikraft {
 					query.bind(":SYN", ph.synth()->getName());
 					query.bind(":MD5", md5);
 					if (query.executeStep()) {
-						MidiProgramNumber program;
+						MidiProgramNumber program = MidiProgramNumber::invalidProgram();
 						MidiBankNumber bank = MidiBankNumber::invalid();
 						loadBankAndProgram(ph.smartSynth(), query, bank, program);
 						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, bank, program);

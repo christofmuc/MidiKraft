@@ -61,7 +61,7 @@ namespace midikraft {
 		}*/
 	}
 
-	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::fromZeroBase(0))
+	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())
 	{
 	}
 
@@ -468,7 +468,7 @@ namespace midikraft {
 		if (obj.contains(kFileSource)) {
 			std::string filename = obj[kFileName].get<std::string>();
 			std::string fullpath = obj[kFullPath].get<std::string>();
-			MidiProgramNumber program = MidiProgramNumber::fromZeroBase(0);
+			MidiProgramNumber program = MidiProgramNumber::invalidProgram();
 			if (obj.contains(kBankNumber)) {
 				jassertfalse;
 				MidiBankNumber bank = MidiBankNumber::fromZeroBase(obj[kBankNumber].get<int>(), -1);

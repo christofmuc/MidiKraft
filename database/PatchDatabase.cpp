@@ -21,13 +21,15 @@
 #include "FileHelpers.h"
 
 #include <iostream>
-#include "fmt/format.h"
+#include <fmt/format.h>
+#include <spdlog/spdlog.h>
+#include "SpdLogJuce.h"
 
-#include "SQLiteCpp/Database.h"
-#include "SQLiteCpp/Statement.h"
-#include "SQLiteCpp/Transaction.h"
+#include <SQLiteCpp/Database.h>
+#include <SQLiteCpp/Statement.h>
+#include <SQLiteCpp/Transaction.h>
 
-#include "SQLiteCpp/../../sqlite3/sqlite3.h" //TODO How to use the underlying site3 correctly?
+#include <SQLiteCpp/../../sqlite3/sqlite3.h> //TODO How to use the underlying site3 correctly?
 
 namespace midikraft {
 
@@ -113,7 +115,7 @@ namespace midikraft {
 				if (backupSize > 500000000 && numKept > 2) {
 					//SimpleLogger::instance()->postMessage("Removing database backup file to keep disk space used below 50 million bytes: " + file.getFullPathName());
 					if (!file.deleteFile()) {
-						SimpleLogger::instance()->postMessage("Error - failed to remove extra backup file, please check file permissions: " + file.getFullPathName());
+						spdlog::error("Error - failed to remove extra backup file, please check file permissions: {}", file.getFullPathName());
 					}
 				}
 				else {
@@ -122,7 +124,7 @@ namespace midikraft {
 				}
 			}
 			if (backupSize != keptBackupSize) {
-				SimpleLogger::instance()->postMessage(fmt::format("Removing all but {} backup files reducing disk space used from {} to {} bytes", numKept, backupSize, keptBackupSize));
+				spdlog::info("Removing all but {} backup files reducing disk space used from {} to {} bytes", numKept, backupSize, keptBackupSize);
 			}
 		}
 
@@ -305,7 +307,7 @@ namespace midikraft {
 				sql.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in putPatch: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in putPatch: SQL Exception {}", ex.what());
 			}
 			return true;
 		}
@@ -333,16 +335,16 @@ namespace midikraft {
 					return true;
 				}
 				else if (rowsModified == 0) {
-					SimpleLogger::instance()->postMessage(fmt::format("Failed to update import - not found with ID {}", importID));
+					spdlog::error("Failed to update import - not found with ID {}", importID);
 					return false;
 				}
 				else {
-					SimpleLogger::instance()->postMessage(fmt::format("Failed to update import, abort - more than one row found with ID {}", importID));
+					spdlog::error("Failed to update import, abort - more than one row found with ID {}", importID);
 					return false;
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in renameImport: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in renameImport: SQL Exception {}", ex.what());
 				return false;
 			}
 		}
@@ -410,7 +412,7 @@ namespace midikraft {
 			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY order_num"; break;
 			default:
 				jassertfalse;
-				SimpleLogger::instance()->postMessage("Program error - encountered invalid ordering field in buildOrderClause");
+				spdlog::error("Program error - encountered invalid ordering field in buildOrderClause");
 			}
 			return orderByClause;
 		}
@@ -468,7 +470,7 @@ namespace midikraft {
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in getPatchesCount: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in getPatchesCount: SQL Exception {}", ex.what());
 			}
 			return 0;
 		}
@@ -520,11 +522,11 @@ namespace midikraft {
 					return maxbitindex;
 				}
 				else {
-					SimpleLogger::instance()->postMessage("You have exhausted the 63 possible categories, it is no longer possible to create new ones in this database. Consider splitting the database via PatchInterchangeFormat files");
+					spdlog::warn("You have exhausted the 63 possible categories, it is no longer possible to create new ones in this database. Consider splitting the database via PatchInterchangeFormat files");
 					return -1;
 				}
 			}
-			SimpleLogger::instance()->postMessage("Unexpected program error determining the next bit index!");
+			spdlog::error("Unexpected program error determining the next bit index!");
 			return -1;
 		}
 
@@ -560,7 +562,7 @@ namespace midikraft {
 				categoryDefinitions_ = getCategories();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in updateCategories: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in updateCategories: SQL Exception {}", ex.what());
 			}
 		}
 
@@ -652,7 +654,7 @@ namespace midikraft {
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in getSinglePatch: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in getSinglePatch: SQL Exception {}", ex.what());
 			}
 			return false;
 		}
@@ -675,7 +677,7 @@ namespace midikraft {
 					// Find the synth this patch is for
 					auto synthName = query.getColumn("synth");
 					if (filter.synths.find(synthName) == filter.synths.end()) {
-						SimpleLogger::instance()->postMessage(fmt::format("Program error, query returned patch for synth {} which was not part of the filter", synthName.getString()));
+						spdlog::error("Program error, query returned patch for synth {} which was not part of the filter", synthName.getString());
 						continue;
 					}
 					auto thisSynth = filter.synths[synthName].lock();
@@ -691,7 +693,7 @@ namespace midikraft {
 				return true;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in getPatches: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in getPatches: SQL Exception {}", ex.what());
 			}
 			return false;
 		}
@@ -721,7 +723,7 @@ namespace midikraft {
 					}
 				}
 				catch (SQLite::Exception& ex) {
-					SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in bulkGetPatches: SQL Exception {}", ex.what()));
+					spdlog::error("DATABASE ERROR in bulkGetPatches: SQL Exception {}", ex.what());
 				}
 				if (progress) progress->setProgressPercentage(checkedForExistance++ / (double)patches.size());
 			}
@@ -810,7 +812,7 @@ namespace midikraft {
 					}
 				}
 				catch (SQLite::Exception& ex) {
-					SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in updatePatch: SQL Exception {}", ex.what()));
+					spdlog::error("DATABASE ERROR in updatePatch: SQL Exception {}", ex.what());
 				}
 			}
 		}
@@ -845,7 +847,7 @@ namespace midikraft {
 				return true;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in insertImportInfo: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in insertImportInfo: SQL Exception {}", ex.what());
 			}
 			return false;
 		}
@@ -874,7 +876,7 @@ namespace midikraft {
 					}
 					if ((onlyUpdateThis & UPDATE_NAME) && (patch.name() != knownPatches[md5_key].name())) {
 						updatedNames++;
-						SimpleLogger::instance()->postMessage(fmt::format("Renaming {} with better name {}", knownPatches[md5_key].name(), patch.name()));
+						spdlog::info("Renaming {} with better name {}", knownPatches[md5_key].name(), patch.name());
 					}
 
 					// Update the database with the new info. If more than the name should be updated, we first need to load the full existing patch (the bulkGetPatches only is a projection with the name loaded only)
@@ -901,7 +903,7 @@ namespace midikraft {
 
 			// Did we find better names? Then log it
 			if (updatedNames > 0) {
-				SimpleLogger::instance()->postMessage(fmt::format("Updated {} patches in the database with new names", updatedNames));
+				spdlog::info("Updated {} patches in the database with new names", updatedNames);
 			}
 
 			// Check if all new patches are editBuffer patches (aka have an invalid MidiBank)
@@ -943,10 +945,10 @@ namespace midikraft {
 					// The new one could have better name?
 					if (hasDefaultName(duplicate.patch().get(), duplicate.name()) && !hasDefaultName(newPatch.patch().get(), newPatch.name())) {
 						updatePatch(newPatch, duplicate, UPDATE_NAME);
-						SimpleLogger::instance()->postMessage("Updating patch name " + String(duplicate.name()) + " to better one: " + newPatch.name());
+						spdlog::info("Updating patch name {} to better one: {}", duplicate.name(), newPatch.name());
 					}
 					else {
-						SimpleLogger::instance()->postMessage("Skipping patch " + String(newPatch.name()) + " because it is a duplicate of " + duplicate.name());
+						spdlog::info("Skipping patch {} because it is a duplicate of {}", newPatch.name(),  duplicate.name());
 					}
 				}
 				else {
@@ -1002,7 +1004,7 @@ namespace midikraft {
 				return rowsDeleted;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in deletePatches via filter: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in deletePatches via filter: SQL Exception {}", ex.what());
 			}
 			return 0;
 		}
@@ -1026,7 +1028,7 @@ namespace midikraft {
 				return rowsDeleted;
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in deletePatches via md5s: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in deletePatches via md5s: SQL Exception {}", ex.what());
 			}
 			return 0;
 		}
@@ -1034,7 +1036,7 @@ namespace midikraft {
 		int reindexPatches(PatchFilter filter) {
 			// Give up if more than one synth is selected
 			if (filter.synths.size() > 1) {
-				SimpleLogger::instance()->postMessage("Aborting reindexing - please select only one synth at a time in the advanced filter dialog!");
+				spdlog::error("Aborting reindexing - please select only one synth at a time in the advanced filter dialog!");
 				return -1;
 			}
 
@@ -1056,7 +1058,7 @@ namespace midikraft {
 					// We got everything into the RAM - do we dare do delete them from the database now?
 					int deleted = deletePatches(filter.synths.begin()->second.lock()->getName(), toBeDeleted);
 					if (deleted != (int)toBeReindexed.size()) {
-						SimpleLogger::instance()->postMessage("Aborting reindexing - count of deleted patches does not match count of retrieved patches. Program Error.");
+						spdlog::error("Aborting reindexing - count of deleted patches does not match count of retrieved patches. Program Error.");
 						return -1;
 					}
 
@@ -1068,12 +1070,12 @@ namespace midikraft {
 					return getPatchesCount(filter);
 				}
 				else {
-					SimpleLogger::instance()->postMessage("None of the selected patches needed reindexing skipping!");
+					spdlog::info("None of the selected patches needed reindexing skipping!");
 					return getPatchesCount(filter);
 				}
 			}
 			else {
-				SimpleLogger::instance()->postMessage("Aborting reindexing - database error retrieving the filtered patches");
+				spdlog::error("Aborting reindexing - database error retrieving the filtered patches");
 				return -1;
 			}
 
@@ -1117,7 +1119,7 @@ namespace midikraft {
 					}
 					else {
 						jassert(false);
-						SimpleLogger::instance()->postMessage("FATAL ERROR - Can only deal with 64 different categories. Please remove some categories from the rules file!");
+						spdlog::error("FATAL ERROR - Can only deal with 64 different categories. Please remove some categories from the rules file!");
 						return categorizer;
 					}
 				}
@@ -1162,8 +1164,7 @@ namespace midikraft {
 				return result;
 			}
 			catch (SQLite::Exception& e) {
-				std::string message = fmt::format("Database error when retrieving lists of user banks: {}", e.what());
-				SimpleLogger::instance()->postMessage(message);
+				spdlog::error("Database error when retrieving lists of user banks: {}", e.what());
 				return {};
 			}
 		}
@@ -1179,8 +1180,7 @@ namespace midikraft {
 				return result;
 			}
 			catch (SQLite::Exception& e) {
-				std::string message = fmt::format("Database error when retrieving lists of patches: {}", e.what());
-				SimpleLogger::instance()->postMessage(message);
+				spdlog::error("Database error when retrieving lists of patches: {}", e.what());
 				return {};
 			}
 		}
@@ -1230,7 +1230,7 @@ namespace midikraft {
 						}
 					}
 					if (!list) {
-						SimpleLogger::instance()->postMessage("Can't load list of synth that is not configured!");
+						spdlog::error("Can't load list of synth that is not configured!");
 						return nullptr;
 					}
 				}
@@ -1274,7 +1274,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in addPatchToList: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in addPatchToList: SQL Exception {}", ex.what());
 			}
 		}
 
@@ -1307,7 +1307,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in addPatchToList: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in addPatchToList: SQL Exception {}", ex.what());
 			}
 		}
 
@@ -1324,7 +1324,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in removePatchFromList: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in removePatchFromList: SQL Exception {}", ex.what());
 			}
 		}
 
@@ -1391,7 +1391,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in putPatchList: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in putPatchList: SQL Exception {}", ex.what());
 			}
 		}
 
@@ -1405,7 +1405,7 @@ namespace midikraft {
 				deleteIt.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in deletePatchlist: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in deletePatchlist: SQL Exception {}", ex.what());
 			}
 		}
 
@@ -1416,7 +1416,7 @@ namespace midikraft {
 				cleanupPatchLists.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				SimpleLogger::instance()->postMessage(fmt::format("DATABASE ERROR in removeAllOrphansFromPatchLists: SQL Exception {}", ex.what()));
+				spdlog::error("DATABASE ERROR in removeAllOrphansFromPatchLists: SQL Exception {}", ex.what());
 			}
 		}
 
@@ -1469,7 +1469,7 @@ namespace midikraft {
 			return true;
 		}
 		catch (SQLite::Exception& ex) {
-			SimpleLogger::instance()->postMessage("Failed to open database: " + String(ex.what()));
+			spdlog::error("Failed to open database: {}", ex.what());
 		}
 		return false;
 	}
@@ -1579,7 +1579,7 @@ namespace midikraft {
 		bool success = impl->getPatches(filter, result, faultyIndexedPatches, skip, limit);
 		if (success) {
 			if (!faultyIndexedPatches.empty()) {
-				SimpleLogger::instance()->postMessage(fmt::format("Found {} patches with inconsistent MD5 - please run the Edit... Reindex Patches command for this synth", faultyIndexedPatches.size()));
+				spdlog::warn("Found {} patches with inconsistent MD5 - please run the Edit... Reindex Patches command for this synth", faultyIndexedPatches.size());
 			}
 			return result;
 		}

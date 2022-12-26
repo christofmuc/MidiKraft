@@ -11,7 +11,8 @@
 #include "Logger.h"
 #include "Sysex.h"
 
-#include "fmt/format.h"
+#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 #include "JsonSerialization.h"
 
@@ -90,7 +91,7 @@ namespace midikraft {
 				int version = 0;
 				if (jsonDoc.is_object()) {
 					if (!jsonDoc.contains(kHeader)) {
-						SimpleLogger::instance()->postMessage("This is not a PatchInterchangeFormat JSON file - no header defined. Aborting.");
+						spdlog::error("This is not a PatchInterchangeFormat JSON file - no header defined. Aborting.");
 						return {};
 					}
 					nlohmann::json header;
@@ -100,15 +101,15 @@ namespace midikraft {
 						header = jsonDoc[kHeader];
 					}
 					if (!header.contains(kFileFormat) || !header[kFileFormat].is_string()) {
-						SimpleLogger::instance()->postMessage("File header block has no string member to define FileFormat. Aborting.");
+						spdlog::error("File header block has no string member to define FileFormat. Aborting.");
 						return {};
 					}
 					if (header[kFileFormat] != kPIF) {
-						SimpleLogger::instance()->postMessage("File header defines different FileFormat than PatchInterchangeFormat. Aborting.");
+						spdlog::error("File header defines different FileFormat than PatchInterchangeFormat. Aborting.");
 						return {};
 					}
 					if (!header.contains(kVersion) || !header[kVersion].is_number_integer()) {
-						SimpleLogger::instance()->postMessage("File header has no integer-values member defining file Version. Aborting.");
+						spdlog::error("File header has no integer-values member defining file Version. Aborting.");
 						return {};
 					}
 					// Header all good, let's read the Version of the format
@@ -132,22 +133,22 @@ namespace midikraft {
 				if (patchArray.is_array()) {
 					for (auto item = patchArray.cbegin(); item != patchArray.cend(); item++) {
 						if (!item->contains(kSynth)) {
-							SimpleLogger::instance()->postMessage("Skipping patch which has no 'Synth' field");
+							spdlog::warn("Skipping patch which has no 'Synth' field");
 							continue;
 						}
 						std::string synthname = (*item)[kSynth];
 						if (activeSynths.find(synthname) == activeSynths.end()) {
-							SimpleLogger::instance()->postMessage(fmt::format("Skipping patch which is for synth {} and not for any present in the list given", synthname));
+							spdlog::warn("Skipping patch which is for synth {} and not for any present in the list given", synthname);
 							continue;
 						}
 						auto activeSynth = activeSynths[synthname];
 						if (!item->contains(kName)) {
-							SimpleLogger::instance()->postMessage("Skipping patch which has no 'Name' field");
+							spdlog::warn("Skipping patch which has no 'Name' field");
 							continue;
 						}
 						std::string patchName = (*item)[kName]; //TODO this is not robust, as it might have a non-string type
 						if (!item->contains(kSysex)) {
-							SimpleLogger::instance()->postMessage(fmt::format("Skipping patch {} which has no 'Sysex' field", patchName));
+							spdlog::warn("Skipping patch {} which has no 'Sysex' field", patchName);
 							continue;
 						}
 
@@ -164,7 +165,7 @@ namespace midikraft {
 									fav = Favorite(favorite);
 								}
 								catch (std::invalid_argument&) {
-									SimpleLogger::instance()->postMessage(fmt::format("Ignoring favorite information for patch {} because {} does not convert to an integer", patchName, favoriteStr));
+									spdlog::warn("Ignoring favorite information for patch {} because {} does not convert to an integer", patchName, favoriteStr);
 								}
 							}
 						}
@@ -182,7 +183,7 @@ namespace midikraft {
 									bank = MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(activeSynth, bankInt));
 								}
 								catch (std::invalid_argument&) {
-									SimpleLogger::instance()->postMessage(fmt::format("Ignoring MIDI bank information for patch {} because {} does not convert to an integer", patchName, bankStr));
+									spdlog::warn("Ignoring MIDI bank information for patch {} because {} does not convert to an integer", patchName, bankStr);
 								}
 							}
 						}
@@ -208,7 +209,7 @@ namespace midikraft {
 									}
 								}
 								catch (std::invalid_argument&) {
-									SimpleLogger::instance()->postMessage(fmt::format("Ignoring MIDI place information for patch {} because {} does not convert to an integer", patchName, placeStr));
+									spdlog::warn("Ignoring MIDI place information for patch {} because {} does not convert to an integer", patchName, placeStr);
 								}
 							}
 						}
@@ -222,7 +223,7 @@ namespace midikraft {
 									categories.push_back(category);
 								}
 								else {
-									SimpleLogger::instance()->postMessage(fmt::format("Ignoring category {} of patch {} because it is not part of our standard categories!", cat->get<std::string>(), patchName));
+									spdlog::warn("Ignoring category {} of patch {} because it is not part of our standard categories!", cat->get<std::string>(), patchName);
 								}
 							}
 						}
@@ -236,7 +237,7 @@ namespace midikraft {
 									nonCategories.push_back(category);
 								}
 								else {
-									SimpleLogger::instance()->postMessage(fmt::format("Ignoring non-category {} of patch {} because it is not part of our standard categories!", cat->get<std::string>(), patchName));
+									spdlog::warn("Ignoring non-category {} of patch {} because it is not part of our standard categories!", cat->get<std::string>(), patchName);
 								}
 							}
 						}
@@ -276,16 +277,16 @@ namespace midikraft {
 							}
 						}
 						else {
-							SimpleLogger::instance()->postMessage("Skipping patch with invalid base64 encoded data!");
+							spdlog::warn("Skipping patch with invalid base64 encoded data!");
 						}
 					}
 				}
 				else {
-					SimpleLogger::instance()->postMessage("No Library patches defined in PatchInterchangeFormat, no patches loaded");
+				spdlog::warn("No Library patches defined in PatchInterchangeFormat, no patches loaded");
 				}
 			}
 			catch (nlohmann::json::exception const& e) {
-				SimpleLogger::instance()->postMessage(fmt::format("JSON error loading PIF file {}, import aborted: {}", filename, e.what()));
+				spdlog::error("JSON error loading PIF file {}, import aborted: {}", filename, e.what());
 			}
 		}
 		return result;

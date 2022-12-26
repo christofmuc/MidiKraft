@@ -13,14 +13,15 @@
 
 #include "BinaryResources.h"
 
-#include "fmt/format.h"
+#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace midikraft {
 
 	AutomaticCategory::AutomaticCategory(std::vector<Category> existingCats)
 	{
 		if (autoCategoryFileExists()) {
-			SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding built-in automatic category rules with file {}", getAutoCategoryFile().getFullPathName().toStdString()));
+			spdlog::info("Overriding built-in automatic category rules with file {}", getAutoCategoryFile().getFullPathName().toStdString());
 			loadFromFile(existingCats, getAutoCategoryFile().getFullPathName().toStdString());
 		}
 		else {
@@ -28,13 +29,13 @@ namespace midikraft {
 		}
 
 		if (autoCategoryMappingFileExists()) {
-			SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding built-in import category rules with file {}", getAutoCategoryMappingFile().getFullPathName().toStdString()));
+			spdlog::info("Overriding built-in import category rules with file {}", getAutoCategoryMappingFile().getFullPathName().toStdString());
 			auto fileContent = getAutoCategoryMappingFile().loadFileAsString();
 			try {
 				loadMappingFromString(fileContent.toStdString());
 			}
 			catch (nlohmann::json::exception const& e) {
-				SimpleLogger::instance()->postMessage(fmt::format("JSON error loading category import mapping definitions from file {}, file will be ignored: {}", getAutoCategoryMappingFile().getFullPathName().toStdString(), e.what()));
+				spdlog::error("JSON error loading category import mapping definitions from file {}, file will be ignored: {}", getAutoCategoryMappingFile().getFullPathName().toStdString(), e.what());
 			}
 		}
 		else {
@@ -70,16 +71,16 @@ namespace midikraft {
 								result.insert(found->second.category());
 							}
 							else {
-								SimpleLogger::instance()->postMessage(fmt::format("Warning: Invalid mapping for Synth {} and stored category {}. Maps to invalid category {}. Use Categories... Edit mappings... to fix.", synthname, tag.name(),  categoryName));
+								spdlog::warn("Invalid mapping for Synth {} and stored category {}. Maps to invalid category {}. Use Categories... Edit mappings... to fix.", synthname, tag.name(),  categoryName);
 							}
 						}
 					}
 					else {
-						SimpleLogger::instance()->postMessage(fmt::format("Warning: Synth {} has no mapping defined for stored category {}. Use Categories... Edit mappings... to fix.", synthname, tag.name()));
+						spdlog::warn("Synth{} has no mapping defined for stored category{}. Use Categories... Edit mappings... to fix.", synthname, tag.name());
 					}
 				}
 				else {
-					SimpleLogger::instance()->postMessage(fmt::format("Warning: Synth {} has no mapping defined for stored categories. Use Categories... Edit mappings... to fix.", synthname));
+					spdlog::warn("Synth {} has no mapping defined for stored categories. Use Categories... Edit mappings... to fix.", synthname);
 				}
 			}
 		}
@@ -131,7 +132,7 @@ namespace midikraft {
 				loadFromString(existingCats, fileContent.toStdString());
 			}
 			catch (nlohmann::json::exception const& e) {
-				SimpleLogger::instance()->postMessage(fmt::format("JSON error loading category definitions from file {}, file will be ignored: {}", fullPathToJson, e.what()));
+				spdlog::error("JSON error loading category definitions from file {}, file will be ignored: {}", fullPathToJson, e.what());
 			}
 		}
 	}
@@ -180,7 +181,7 @@ namespace midikraft {
 					}
 				}
 				if (!found) {
-					SimpleLogger::instance()->postMessage(fmt::format("Ignoring rules for category {}, because that name is not found in the database", categoryName));
+					spdlog::warn("Ignoring rules for category {}, because that name is not found in the database", categoryName);
 				}
 			}
 		}
@@ -215,13 +216,13 @@ namespace midikraft {
 								mapping[input] = output;
 							}
 							else {
-								SimpleLogger::instance()->postMessage("Invalid JSON input - need to map strings to strings only");
+								spdlog::error("Invalid JSON input - need to map strings to strings only");
 							}
 						}
 						importMappings_[synth] =  mapping;
 					}
 					else {
-						SimpleLogger::instance()->postMessage("Invalid JSON input - need to supply map object");
+						spdlog::error("Invalid JSON input - need to supply map object");
 					}
 				}
 			}

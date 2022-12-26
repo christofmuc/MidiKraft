@@ -12,9 +12,10 @@
 #include "StoredPatchNameCapability.h"
 #include "HasBanksCapability.h"
 
-#include "fmt/format.h"
+#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 
 namespace midikraft {
 
@@ -259,7 +260,7 @@ namespace midikraft {
 			return nlohmann::json::parse(s);
 		}
 		catch (nlohmann::json::parse_error& e) {
-			SimpleLogger::instance()->postMessage("Error parsing drop target: " + String(e.what()));
+			spdlog::error("Error parsing drop target: {}", e.what());
 			return {};
 		}
 	}
@@ -335,10 +336,10 @@ namespace midikraft {
 					return FromBulkImportSource::fromString(str);
 				}
 			}
-			SimpleLogger::instance()->postMessage(fmt::format("Error: Json string does not contain correct source info type: %s", str));
+			spdlog::error("Json string does not contain correct source info type: {}", str);
 		}
 		catch (nlohmann::json::exception const& e) {
-			SimpleLogger::instance()->postMessage(fmt::format("JSON error parsing source information of patch: {}", e.what()));
+			spdlog::error("JSON error parsing source information of patch: {}", e.what());
 		}
 		return nullptr;
 	}

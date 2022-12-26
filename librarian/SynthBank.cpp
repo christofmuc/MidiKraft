@@ -10,7 +10,8 @@
 #include "Capability.h"
 #include "HasBanksCapability.h"
 
-#include "fmt/format.h"
+#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 
 namespace midikraft {
 
@@ -86,7 +87,7 @@ namespace midikraft {
 					dirtyPositions_.insert(write_pos++);
 				}
 				else {
-					SimpleLogger::instance()->postMessage(fmt::format("Skipping patch %s because it is for synth %s and cannot be put into the bank", listToCopy[read_pos].name(), listToCopy[read_pos].synth()->getName()));
+					spdlog::info("Skipping patch %s because it is for synth %s and cannot be put into the bank", listToCopy[read_pos].name(), listToCopy[read_pos].synth()->getName());
 					read_pos++;
 				}
 			}
@@ -100,15 +101,15 @@ namespace midikraft {
 	bool SynthBank::validatePatchInfo(PatchHolder patch) 
 	{
 		if (patch.smartSynth()->getName() != synth_->getName()) {
-			SimpleLogger::instance()->postMessage("program error - list contains patches not for the synth of this bank, aborting");
+			spdlog::error("program error - list contains patches not for the synth of this bank, aborting");
 			return false;
 		}
 		if (!patch.bankNumber().isValid() || (patch.bankNumber().toZeroBased() != bankNo_.toZeroBased())) {
-			SimpleLogger::instance()->postMessage("program error - list contains patches for a different bank, aborting");
+			spdlog::error("program error - list contains patches for a different bank, aborting");
 			return false;
 		}
 		if (patch.patchNumber().isBankKnown() && patch.patchNumber().bank().toZeroBased() != bankNo_.toZeroBased()) {
-			SimpleLogger::instance()->postMessage("program error - list contains patches with non normalized program position not matching current bank, aborting");
+			spdlog::error("program error - list contains patches with non normalized program position not matching current bank, aborting");
 			return false;
 		}
 		return true;
@@ -148,7 +149,7 @@ namespace midikraft {
 			}
 			else {
 				jassertfalse;
-				SimpleLogger::instance()->postMessage("Program error: Bank number out of range in numberOfPatchesInBank in Librarian");
+				spdlog::error("Program error: Bank number out of range in numberOfPatchesInBank in Librarian");
 				return 0;
 			}
 		}
@@ -157,7 +158,7 @@ namespace midikraft {
 			return banks->numberOfPatches();
 		}
 		jassertfalse;
-		SimpleLogger::instance()->postMessage("Program error: Trying to determine number of patches for synth without HasBanksCapability");
+		spdlog::error("Program error: Trying to determine number of patches for synth without HasBanksCapability");
 		return 0;
 	}
 
@@ -174,7 +175,7 @@ namespace midikraft {
 			}
 			else {
 				jassertfalse;
-				SimpleLogger::instance()->postMessage("Program error: Bank number out of range in numberOfPatchesInBank in Librarian");
+				spdlog::error("Program error: Bank number out of range in numberOfPatchesInBank in Librarian");
 				return 0;
 			}
 		}
@@ -183,7 +184,7 @@ namespace midikraft {
 			return bankNo.toZeroBased() * banks->numberOfPatches();
 		}
 		jassertfalse;
-		SimpleLogger::instance()->postMessage("Program error: Trying to determine number of patches for synth without HasBanksCapability");
+		spdlog::error("Program error: Trying to determine number of patches for synth without HasBanksCapability");
 		return 0;
 	}
 

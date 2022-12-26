@@ -20,7 +20,7 @@ set(SQLITE_CPP_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/../../third_party/SQLiteCpp/in
 # Setup library
 add_library(midikraft-database ${Sources})
 target_include_directories(midikraft-database PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${JUCE_INCLUDES} ${MANUALLY_RAPID_JSON} ${SQLITE_CPP_INCLUDE})
-target_link_libraries(midikraft-database juce-utils midikraft-base midikraft-librarian)
+target_link_libraries(midikraft-database juce-utils midikraft-base midikraft-librarian spdlog::spdlog)
 
 # Pedantic about warnings
 if (MSVC)

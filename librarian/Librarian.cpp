@@ -23,9 +23,11 @@
 #include "MidiHelpers.h"
 #include "FileHelpers.h"
 
-#include "fmt/format.h"
+#include <fmt/format.h>
+#include <spdlog/spdlog.h>
 #include <set>
 #include "Settings.h"
+#include "SpdLogJuce.h"
 
 namespace midikraft {
 
@@ -178,7 +180,7 @@ namespace midikraft {
 				startDownloadNextEditBuffer(midiOutput, synth, true);
 			}
 			else {
-				SimpleLogger::instance()->postMessage("Error: This synth has not implemented a single method to retrieve a bank. Please consult the documentation!");
+				spdlog::error("Error: This synth has not implemented a single method to retrieve a bank. Please consult the documentation!");
 			}
 		}
 	}
@@ -225,7 +227,7 @@ namespace midikraft {
 			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		}
 		else {
-			SimpleLogger::instance()->postMessage("The " + synth->getName() + " has no way to request the edit buffer or program place");
+			spdlog::error("The {} has no way to request the edit buffer or program place", synth->getName());
 		}
 	}
 
@@ -452,7 +454,7 @@ namespace midikraft {
 
 			auto location = midikraft::Capability::hasCapability<midikraft::MidiLocationCapability>(synth);
 			if (!location || !location->channel().isValid() /* || !synth->wasDetected()*/) {
-				SimpleLogger::instance()->postMessage(fmt::format("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName()));
+				spdlog::warn("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName());
 				return;
 			}
 
@@ -467,7 +469,7 @@ namespace midikraft {
 				}
 				if (progressHandler) progressHandler->setProgressPercentage(++sent / (double) count);
 				if (progressHandler && progressHandler->shouldAbort()) {
-					SimpleLogger::instance()->postMessage("Canceled bank upload in mid-flight!");
+					spdlog::warn("Canceled bank upload in mid-flight!");
 					if (finishedHandler) {
 						finishedHandler(false);
 					}
@@ -479,7 +481,7 @@ namespace midikraft {
 			}
 		}
 		else {
-			SimpleLogger::instance()->postMessage(fmt::format("Sending banks to {} is not implemented yet", synth->getName()));
+			spdlog::warn("Sending banks to {} is not implemented yet", synth->getName());
 		}
 	}
 
@@ -496,7 +498,7 @@ namespace midikraft {
 			}
 			else if (destination.exists() && params.fileOption != Librarian::MANY_FILES) {
 				// This is a directory, but we didn't want one
-				SimpleLogger::instance()->postMessage("Can't overwrite a directory, please choose a different name!");
+				spdlog::warn("Can't overwrite a directory, please choose a different name!");
 				return;
 			}
 
@@ -586,7 +588,7 @@ namespace midikraft {
 				}
 				FileOutputStream stream(file);
 				if (!midiFile.writeTo(stream, 1)) {
-					SimpleLogger::instance()->postMessage("ERROR: Failed to write SMF file to " + destination.getFullPathName());
+					spdlog::error("Failed to write SMF file to {}", destination.getFullPathName());
 				}
 				stream.flush();
 			}
@@ -706,11 +708,11 @@ namespace midikraft {
 				std::copy(requestMessages.cbegin(), requestMessages.cend(), std::back_inserter(messages));
 			}
 			else {
-				SimpleLogger::instance()->postMessage("Error: Can't send to synth because no MIDI location implemented for it");
+				spdlog::error("Can't send to synth because no MIDI location implemented for it");
 			}
 		}
 		else {
-			SimpleLogger::instance()->postMessage("Failure: This synth does not implement any valid capability to start downloading a full bank");
+			spdlog::error("Failure: This synth does not implement any valid capability to start downloading a full bank");
 			downloadNumber_ = endDownloadNumber_; 
 		}
 
@@ -729,7 +731,7 @@ namespace midikraft {
 			messages = programDumpCapability->requestPatch(downloadNumber_);
 		}		
 		else {
-			SimpleLogger::instance()->postMessage("Failure: This synth does not implement any valid capability to start downloading a full bank");
+			spdlog::error("Failure: This synth does not implement any valid capability to start downloading a full bank");
 			downloadNumber_ = endDownloadNumber_;
 		}
 

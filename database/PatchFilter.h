@@ -29,6 +29,7 @@ namespace midikraft {
 		bool onlySpecifcType;
 		int typeID;
 		bool showHidden;
+		bool showUndecided;
 		bool onlyUntagged;
 		std::set<Category> categories; 
 		bool andCategories; // Turns OR into AND

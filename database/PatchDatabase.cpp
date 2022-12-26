@@ -373,15 +373,62 @@ namespace midikraft {
 			if (!filter.listID.empty()) {
 				where += " AND patch_in_list.id = :LID";
 			}
-			if (filter.onlyFaves) {
-				where += " AND favorite == 1";
-			}
 			if (filter.onlySpecifcType) {
 				where += " AND type == :TYP";
 			}
-			if (!filter.showHidden) {
-				where += " AND (hidden is null or hidden != 1)";
+
+			// Show Hidden and Show Faves are special in that they can be combined
+			// and need explicit code for the 4 cases
+			if (filter.onlyFaves) {
+				if (filter.showHidden) {
+					if (filter.showUndecided) {
+						// No op, just retrieve all
+					}
+					else
+					{
+						// Don't show all
+						where += " AND (hidden == 1 OR favorite == 1)";
+					}
+				}
+				else
+				{
+					if (filter.showUndecided) {
+						// Everything that is not hidden
+						where += " AND (hidden is null or hidden != 1)";
+					}
+					else
+					{
+						// Only favorites that are not hidden
+						where += " AND (favorite == 1) AND (hidden is null or hidden != 1)";
+					}
+				}
 			}
+			else {
+				if (filter.showHidden) {
+					if (filter.showUndecided) {
+						// All that's not favorite
+						where += " AND (favorite != 1)";
+					}
+					else
+					{
+						// Only hidden
+						where += " AND (hidden == 1)";
+					}
+				}
+				else
+				{
+					if (filter.showUndecided) {
+						// Everything that is not hidden and not fave
+						where += " AND (favorite != 1) AND (hidden is null or hidden != 1)";
+					}
+					else
+					{
+						// All that is not hidden
+						where += " AND (hidden is null or hidden != 1)";
+					}
+				}
+			}
+
 			if (filter.onlyUntagged) {
 				where += " AND categories == 0";
 			}
@@ -400,6 +447,7 @@ namespace midikraft {
 			if (filter.onlyDuplicateNames) {
 				where += " AND (name_count > 1)";
 			}
+			spdlog::debug(where);
 			return where;
 		}
 
@@ -1650,6 +1698,7 @@ namespace midikraft {
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;
 		filter.showHidden = false;
+		filter.showUndecided = false;
 		if (synth)
 			filter.synths.emplace(synth->getName(), synth);
 		filter.onlyDuplicateNames = false;
@@ -1665,6 +1714,7 @@ namespace midikraft {
 		filter.onlySpecifcType = false;
 		filter.onlyUntagged = false;
 		filter.showHidden = false;
+		filter.showUndecided = false;
 		for (auto const& synth : synths) {
 			filter.synths.emplace(synth->getName(), synth);
 		}

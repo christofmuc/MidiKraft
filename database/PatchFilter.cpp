@@ -9,6 +9,42 @@
 
 namespace midikraft {
 
+	PatchFilter::PatchFilter(std::map<std::string, std::weak_ptr<Synth>>& synth_list) : synths(synth_list) {
+		initDefaults();
+	}
+
+	PatchFilter::PatchFilter(std::vector<std::shared_ptr<Synth>>&& synth_list) {
+		for (auto const& synth : synth_list) {
+			synths.emplace(synth->getName(), synth);
+		}
+		initDefaults();
+	}
+
+	PatchFilter::PatchFilter(std::vector<std::shared_ptr<Synth>>& synth_list) {
+		for (auto const& synth : synth_list) {
+			synths.emplace(synth->getName(), synth);
+		}
+		initDefaults();
+	}
+
+	void PatchFilter::initDefaults() {
+		orderBy = PatchOrdering::Order_by_Import_id;
+		onlyFaves = false;
+		onlySpecifcType = false;
+		onlyUntagged = false;
+		showHidden = false;
+		showUndecided = false;
+		onlyDuplicateNames = false;
+		andCategories = false;
+	}
+
+	void PatchFilter::turnOnAll()
+	{
+		onlyFaves = true;
+		showHidden = true;
+		showUndecided = true;
+	}
+
 	bool operator!=(PatchFilter const& a, PatchFilter const& b)
 	{
 		// Check complex fields 
@@ -34,6 +70,7 @@ namespace midikraft {
 			|| a.onlySpecifcType != b.onlySpecifcType
 			|| a.typeID != b.typeID
 			|| a.showHidden != b.showHidden
+			|| a.showUndecided != b.showUndecided
 			|| a.andCategories != b.andCategories
 			|| a.onlyUntagged != b.onlyUntagged;
 	}

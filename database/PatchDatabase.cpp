@@ -1689,38 +1689,5 @@ namespace midikraft {
 	std::vector<Category> PatchDatabase::getCategories() const {
 		return impl->getCategories();
 	}
-
-	PatchFilter PatchDatabase::allForSynth(std::shared_ptr<Synth> synth)
-	{
-		PatchFilter filter;
-		filter.orderBy = PatchOrdering::Order_by_Import_id;
-		filter.onlyFaves = false;
-		filter.onlySpecifcType = false;
-		filter.onlyUntagged = false;
-		filter.showHidden = false;
-		filter.showUndecided = false;
-		if (synth)
-			filter.synths.emplace(synth->getName(), synth);
-		filter.onlyDuplicateNames = false;
-		filter.andCategories = false;
-		return filter;
-	}
-
-	PatchFilter PatchDatabase::allPatchesFilter(std::vector<std::shared_ptr<Synth>> synths)
-	{
-		PatchFilter filter;
-		filter.orderBy = PatchOrdering::Order_by_Import_id;
-		filter.onlyFaves = false;
-		filter.onlySpecifcType = false;
-		filter.onlyUntagged = false;
-		filter.showHidden = false;
-		filter.showUndecided = false;
-		for (auto const& synth : synths) {
-			filter.synths.emplace(synth->getName(), synth);
-		}
-		filter.onlyDuplicateNames = false;
-		filter.andCategories = false;
-		return filter;
-	}
 }
 

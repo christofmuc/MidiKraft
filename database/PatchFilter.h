@@ -8,6 +8,7 @@
 
 #include "Synth.h"
 #include "Category.h"
+#include "PatchHolder.h"
 
 namespace midikraft {
 
@@ -20,6 +21,14 @@ namespace midikraft {
 
 	class PatchFilter {
 	public:
+		PatchFilter(std::map<std::string, std::weak_ptr<Synth>>& synths);
+		PatchFilter(std::vector<std::shared_ptr<Synth>>& synths);
+		PatchFilter(std::vector<std::shared_ptr<Synth>>&& synths);
+
+		PatchFilter(PatchFilter const& other) = default;
+
+		void turnOnAll();
+
 		std::map<std::string, std::weak_ptr<Synth>> synths;
 		PatchOrdering orderBy;
 		std::string importID;
@@ -34,6 +43,9 @@ namespace midikraft {
 		std::set<Category> categories; 
 		bool andCategories; // Turns OR into AND
 		bool onlyDuplicateNames;
+
+	private:
+		void initDefaults();
 	};
 
 	// Inequality operator for patch filters - this can be used to e.g. match if a database query result is for a specific filter setup

@@ -161,7 +161,7 @@ namespace midikraft {
 
 	private:
 		std::shared_ptr<DataFile> patch_;
-		std::shared_ptr<Synth> synth_;
+		std::weak_ptr<Synth> synth_;
 		std::string name_;
 		std::string sourceId_;
 		int type_;

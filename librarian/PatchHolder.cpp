@@ -77,12 +77,12 @@ namespace midikraft {
 
 	midikraft::Synth * PatchHolder::synth() const
 	{
-		return synth_ ? synth_.get() : nullptr;
+		return !synth_.expired() ? synth_.lock().get() : nullptr;
 	}
 
 	std::shared_ptr<midikraft::Synth> PatchHolder::smartSynth() const
 	{
-		return synth_;
+		return synth_.expired() ? nullptr : synth_.lock();
 	}
 
 	int PatchHolder::getType() const
@@ -239,7 +239,7 @@ namespace midikraft {
 
 	std::string PatchHolder::md5() const
 	{
-		return synth_->calculateFingerprint(patch_);
+		return synth_.lock()->calculateFingerprint(patch_);
 	}
 
 	std::string PatchHolder::createDragInfoString() const
@@ -247,7 +247,7 @@ namespace midikraft {
 		// The drag info should be... "PATCH", synth, type, and md5
 		nlohmann::json dragInfo = {
 			{ "drag_type", "PATCH"},
-			{ "synth", synth_->getName() },
+			{ "synth", synth_.lock()->getName()},
 			{ "data_type", patch_->dataTypeID()},
 			{ "patch_name", name()},
 			{ "md5", md5() }

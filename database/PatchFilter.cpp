@@ -31,6 +31,7 @@ namespace midikraft {
 		orderBy = PatchOrdering::Order_by_Import_id;
 		onlyFaves = false;
 		onlySpecifcType = false;
+		typeID = 0;
 		onlyUntagged = false;
 		showHidden = false;
 		showUndecided = false;

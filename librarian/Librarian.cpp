@@ -462,9 +462,9 @@ namespace midikraft {
 			int sent = 0;
 			i = 0;
 			for (auto const& patch : synthBank.patches()) {
-				if (progressHandler) progressHandler->setMessage(fmt::format("Sending patch {} to {}", patch.name(), synth->friendlyProgramName(patch.patchNumber())));
+				if (progressHandler) progressHandler->setMessage(fmt::format("Sending patch {} to {}", patch.name.get(), synth->friendlyProgramName(patch.program.get())));
 				if (fullBank || synthBank.isPositionDirty(i++)) {
-					auto messages = programDumpCapability->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
+					auto messages = programDumpCapability->patchToProgramDumpSysex(patch.patch(), patch.program.get());
 					synth->sendBlockOfMessagesToSynth(location->midiOutput(), messages);
 				}
 				if (progressHandler) progressHandler->setProgressPercentage(++sent / (double) count);
@@ -518,7 +518,7 @@ namespace midikraft {
 						// Let's see if we have program dump capability for the synth!
 						auto pdc = Capability::hasCapability<ProgramDumpCabability>(patch.synth());
 						if (pdc) {
-							sysexMessages = pdc->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
+							sysexMessages = pdc->patchToProgramDumpSysex(patch.patch(), patch.program.get());
 							break;
 						}
 						// fall through do default then
@@ -530,7 +530,7 @@ namespace midikraft {
 						break;
 					}
 
-					String fileName = patch.name();
+					String fileName = patch.name.get();
 					switch (params.fileOption) {
 					case Librarian::MANY_FILES:
 					{

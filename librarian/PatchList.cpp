@@ -31,17 +31,22 @@ namespace midikraft {
 		name_ = new_name;
 	}
 
-	void PatchList::setPatches(std::vector<PatchHolder> patches)
+	void PatchList::setPatches(std::vector<PatchHolder> const& patches)
 	{
 		patches_ = patches;
 	}
 
-	std::vector<midikraft::PatchHolder> PatchList::patches() const
+	std::vector<midikraft::PatchHolder> &PatchList::patches() 
 	{
 		return patches_;
 	}
 
-	void PatchList::addPatch(PatchHolder patch)
+	std::vector<midikraft::PatchHolder> const& PatchList::patches() const
+	{
+		return patches_;
+	}
+
+	void PatchList::addPatch(PatchHolder const& patch)
 	{
 		patches_.push_back(patch);
 	}

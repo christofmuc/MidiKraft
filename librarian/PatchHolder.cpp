@@ -12,38 +12,64 @@
 #include "StoredPatchNameCapability.h"
 #include "HasBanksCapability.h"
 
+#include "LambdaValueListener.h"
+
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
+#include "SpdLogJuce.h"
 
 #include <nlohmann/json.hpp>
 
 namespace midikraft {
 
-	const char
-		*kFileSource = "filesource",
-		*kSynthSource = "synthsource",
-		*kBulkSource = "bulksource",
-		*kFileInBulk = "fileInBulk",
-		*kFileName = "filename",
-		*kFullPath = "fullpath",
-		*kTimeStamp = "timestamp",
-		*kBankNumber = "banknumber",
-		*kProgramNo = "program";
+	static const char
+		* kFileSource = "filesource",
+		* kSynthSource = "synthsource",
+		* kBulkSource = "bulksource",
+		* kFileInBulk = "fileInBulk",
+		* kFileName = "filename",
+		* kFullPath = "fullpath",
+		* kTimeStamp = "timestamp",
+		* kBankNumber = "banknumber",
+		* kProgramNo = "program",
+		* kName = "name",
+		* kFavorite = "favorite",
+		* kHidden = "hidden",
+		* kSourceId = "sourceId",
+		* kType = "type";
 
-	PatchHolder::PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, 
-		MidiBankNumber bank, MidiProgramNumber place, std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
-		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false), synth_(activeSynth), bankNumber_(bank), patchNumber_(place)
+	PatchHolder::PatchHolder(std::weak_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, 
+		MidiBankNumber _bank, MidiProgramNumber place, std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
+		: tree_("patchHolder")
+		, name(tree_, kName, nullptr, "") // Default name is empty
+		, sourceId(tree_, kSourceId, nullptr, "")
+		, bank(tree_, kBankNumber, nullptr, MidiBankNumber::invalid())
+		, program(tree_, kProgramNo, nullptr, MidiProgramNumber::invalidProgram())
+		, favorite(tree_, kFavorite, nullptr, Favorite())
+		, hidden(tree_, kHidden, nullptr, false)
+		, sourceInfo_(sourceInfo), patch_(patch), synth_(activeSynth)
 	{
-		if (patch) {
-			name_ = activeSynth->nameForPatch(patch);
-			if (name_.empty()) {
+		if (patch && !activeSynth.expired()) {
+			name = activeSynth.lock()->nameForPatch(patch);
+			if (name.get().isEmpty()) {
 				// No information on the patch name from the data. We need to make one up from the Program Place given to this Meta Data constructor
-				name_ = activeSynth->friendlyProgramAndBankName(bank, place);
+				name = activeSynth.lock()->friendlyProgramAndBankName(_bank, place);
 			}
+			//TODO This does not look like it is at the right place in the code
 			if (detector) {
 				categories_ = detector->determineAutomaticCategories(*this);
 			}
 		}
+		bank = _bank;
+		program = place;
+
+		name.forceUpdateOfCachedValue();
+		sourceId.forceUpdateOfCachedValue();
+		bank.forceUpdateOfCachedValue();
+		program.forceUpdateOfCachedValue();
+		favorite.forceUpdateOfCachedValue();
+		hidden.forceUpdateOfCachedValue();
+
 		/*if (sourceInfo && !bankNumber_.isValid() && patchNumber_.toZeroBased() == 0) {
 			// Bug fix for old data - the bank/program columns might contain nothing while the file source actually has the correct data.
 			// Apply this
@@ -64,10 +90,65 @@ namespace midikraft {
 				}
 			}
 		}*/
+		createListeners();
 	}
 
-	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())
+	PatchHolder::PatchHolder() : PatchHolder({}, nullptr, nullptr, MidiBankNumber::invalid(), MidiProgramNumber::invalidProgram(), nullptr)
 	{
+	}
+
+	PatchHolder::PatchHolder(PatchHolder const& other) : PatchHolder({}, nullptr, nullptr, MidiBankNumber::invalid(), MidiProgramNumber::invalidProgram(), nullptr) {
+		// My plan had been to just copy the whole tree, but then the existing CachedValues point to the wrong tree, and the 
+		// whole value updates won't work...
+		name = other.name.get();
+		sourceId = other.sourceId.get();
+		bank = other.bank.get();
+		program = other.program.get();
+		favorite = other.favorite.get();
+		hidden = other.hidden.get();
+		patch_ = other.patch_;
+		synth_ = other.synth_;
+		categories_ = other.categories_;
+		userDecisions_ = other.userDecisions_;
+		sourceInfo_ = other.sourceInfo_; //TODO this is not a deep copy
+	}
+
+	void PatchHolder::operator =(PatchHolder const& other) {
+		// My plan had been to just copy the whole tree, but then the existing CachedValues point to the wrong tree, and the 
+		// whole value updates won't work...
+		name = other.name.get();
+		sourceId = other.sourceId.get();
+		bank = other.bank.get();
+		program = other.program.get();
+		favorite = other.favorite.get();
+		hidden = other.hidden.get();
+		patch_ = other.patch_;
+		synth_ = other.synth_;
+		categories_ = other.categories_;
+		userDecisions_ = other.userDecisions_;
+		sourceInfo_ = other.sourceInfo_; //TODO this is not a deep copy
+
+		/*name.forceUpdateOfCachedValue();
+		sourceId.forceUpdateOfCachedValue();
+		bank.forceUpdateOfCachedValue();
+		program.forceUpdateOfCachedValue();
+		favorite.forceUpdateOfCachedValue();
+		hidden.forceUpdateOfCachedValue();*/
+
+		createListeners();
+	}
+
+	void PatchHolder::createListeners() {
+		listeners_.clear();
+
+		listeners_.addListener(tree_.getPropertyAsValue(kName, nullptr), [this](juce::Value& newName) {
+			auto storedInPatch = midikraft::Capability::hasCapability<StoredPatchNameCapability>(patch_);
+			if (storedInPatch) {
+				// If the Patch can do it, poke the name into the patch, and then use the result (limited to the characters the synth can do) for the patch holder as well
+				storedInPatch->setName(newName.toString().toStdString());
+				spdlog::debug("Updating patch '{}' stored name to {} with result {}", name.get(), newName.toString(), storedInPatch->name());
+			}
+		});
 	}
 
 	std::shared_ptr<DataFile> PatchHolder::patch() const
@@ -90,83 +171,9 @@ namespace midikraft {
 		return patch_->dataTypeID();
 	}
 
-	void PatchHolder::setName(std::string const &newName)
-	{
-		auto storedInPatch = midikraft::Capability::hasCapability<StoredPatchNameCapability>(patch());
-		if (storedInPatch) {
-			// If the Patch can do it, poke the name into the patch, and then use the result (limited to the characters the synth can do) for the patch holder as well
-			storedInPatch->setName(newName);
-			name_ = storedInPatch->name();
-		}
-		else {
-			// The name is only stored in the PatchHolder, and thus the database, anyway, so we just accept the string
-			name_ = newName;
-		}
-	}
-
-	std::string PatchHolder::name() const
-	{
-		return name_;
-	}
-
-	void PatchHolder::setSourceId(std::string const &source_id)
-	{
-		sourceId_ = source_id;
-	}
-
-	std::string PatchHolder::sourceId() const
-	{
-		return sourceId_;
-	}
-
-	void PatchHolder::setPatchNumber(MidiProgramNumber number)
-	{
-		patchNumber_ = number;
-	}
-
-	MidiProgramNumber PatchHolder::patchNumber() const
-	{
-		return patchNumber_;
-	}
-
-	void PatchHolder::setBank(MidiBankNumber bank)
-	{
-		bankNumber_ = bank;
-	}
-
-	MidiBankNumber PatchHolder::bankNumber() const
-	{
-		return bankNumber_;
-	}
-
-	bool PatchHolder::isFavorite() const
-	{
-		return isFavorite_.is() == Favorite::TFavorite::YES;
-	}
-
-	Favorite PatchHolder::howFavorite() const
-	{
-		return isFavorite_;
-	}
-
-	void PatchHolder::setFavorite(Favorite fav)
-	{
-		isFavorite_ = fav;
-	}
-
 	void PatchHolder::setSourceInfo(std::shared_ptr<SourceInfo> newSourceInfo)
 	{
 		sourceInfo_ = newSourceInfo;
-	}
-
-	bool PatchHolder::isHidden() const
-	{
-		return isHidden_;
-	}
-
-	void PatchHolder::setHidden(bool isHidden)
-	{
-		isHidden_ = isHidden;
 	}
 
 	bool PatchHolder::hasCategory(Category const &category) const
@@ -249,7 +256,7 @@ namespace midikraft {
 			{ "drag_type", "PATCH"},
 			{ "synth", synth_.lock()->getName()},
 			{ "data_type", patch_->dataTypeID()},
-			{ "patch_name", name()},
+			{ "patch_name", name.get().toStdString()},
 			{ "md5", md5() }
 		};
 		return dragInfo.dump(-1, ' ', true, nlohmann::detail::error_handler_t::replace); // Force ASCII, else we get UTF8 exceptions when using some old synths data. Like the MKS50...
@@ -552,4 +559,17 @@ namespace midikraft {
 		return individualInfo_;
 	}
 
+	bool Favorite::operator!=(Favorite const& other) const {
+		return favorite_ != other.favorite_;
+	}
+
 }
+
+midikraft::Favorite juce::VariantConverter<midikraft::Favorite>::fromVar(const var& v) {
+	return midikraft::Favorite(static_cast<int>(v));
+}
+
+juce::var juce::VariantConverter<midikraft::Favorite>::toVar(const midikraft::Favorite& t) {
+	return static_cast<int>(t.is());
+}
+

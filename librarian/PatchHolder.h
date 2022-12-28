@@ -11,6 +11,8 @@
 #include "Patch.h"
 #include "MidiBankNumber.h"
 #include "AutomaticCategory.h"
+#include "LambdaValueListener.h"
+
 // Turn off warning on unknown pragmas for VC++
 #pragma warning(push)
 #pragma warning(disable: 4068)
@@ -32,6 +34,11 @@ namespace midikraft {
 		explicit Favorite(int howFavorite); // For loading from the database
 
 		TFavorite is() const;
+		bool isItForSure() const {
+			return favorite_ == Favorite::TFavorite::YES;
+		}
+
+		bool operator!=(Favorite const& other) const;
 
 	private:
 		TFavorite favorite_;
@@ -106,37 +113,33 @@ namespace midikraft {
 	};
 
 	class PatchHolder {
+	private:
+		// Need to initialize this fist
+		ValueTree tree_;
+
 	public:		
 		PatchHolder();
-		PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,
+		PatchHolder(std::weak_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,
 			MidiBankNumber bank, MidiProgramNumber place, 
 			std::shared_ptr<AutomaticCategory> detector = nullptr);
+		PatchHolder(PatchHolder const& other);
+
+		void operator =(PatchHolder const& other);
 
 		std::shared_ptr<DataFile> patch() const;
 		Synth *synth() const;
 		std::shared_ptr<Synth> smartSynth() const; // This is for refactoring
 
-		int getType() const;
+		int getType() const; // calculated from patch data, not settable
 
-		void setName(std::string const &newName);
-		std::string name() const;
+		juce::CachedValue<String> name;
+		juce::CachedValue<String> sourceId;
+		juce::CachedValue<MidiBankNumber> bank;
+		juce::CachedValue<MidiProgramNumber> program;
+		juce::CachedValue<Favorite> favorite;
+		juce::CachedValue<bool> hidden;
 
-		void setSourceId(std::string const &source_id);
-		std::string sourceId() const;
-
-		void setPatchNumber(MidiProgramNumber number);
-		MidiProgramNumber patchNumber() const;
-
-		void setBank(MidiBankNumber bank);
-		MidiBankNumber bankNumber() const;
-
-		bool isFavorite() const;
-		Favorite howFavorite() const;
-		void setFavorite(Favorite fav);
 		void setSourceInfo(std::shared_ptr<SourceInfo> newSourceInfo);
-
-		bool isHidden() const;
-		void setHidden(bool isHidden);
 
 		bool hasCategory(Category const &category) const;
 		void setCategory(Category const &category, bool hasIt);
@@ -159,19 +162,25 @@ namespace midikraft {
 		static bool dragItemIsPatch(nlohmann::json const& dragInfo);
 		static bool dragItemIsList(nlohmann::json const& dragInfo);
 
+		ValueTree getTree() { return tree_;  };
+
 	private:
+		void createListeners();
+
+		ListenerSet listeners_;
+		
 		std::shared_ptr<DataFile> patch_;
 		std::weak_ptr<Synth> synth_;
-		std::string name_;
-		std::string sourceId_;
-		int type_;
-		Favorite isFavorite_;
-		bool isHidden_;
 		std::set<Category> categories_;
 		std::set<Category> userDecisions_;
-		MidiBankNumber bankNumber_;
-		MidiProgramNumber patchNumber_;
 		std::shared_ptr<SourceInfo> sourceInfo_;
 	};
 
 }
+
+template <> class juce::VariantConverter<midikraft::Favorite> {
+public:
+	static midikraft::Favorite fromVar(const var& v);
+	static var toVar(const midikraft::Favorite& t);
+};
+

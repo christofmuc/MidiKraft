@@ -19,10 +19,11 @@ namespace midikraft {
 		std::string name() const;
 		void setName(std::string const& new_name);
 
-		virtual void setPatches(std::vector<PatchHolder> patches);
-		virtual void addPatch(PatchHolder patch);
+		virtual void setPatches(std::vector<PatchHolder> const& patches);
+		virtual void addPatch(PatchHolder const& patch);
 
-		std::vector<PatchHolder> patches() const;
+		std::vector<PatchHolder> const &patches() const;
+		std::vector<PatchHolder> &patches();
 		
 	private:
 		std::string id_;

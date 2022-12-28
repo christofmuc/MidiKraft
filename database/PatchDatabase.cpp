@@ -291,16 +291,16 @@ namespace midikraft {
 				// Insert values into prepared statement
 				sql.bind(":SYN", patch.synth()->getName().c_str());
 				sql.bind(":MD5", patch.md5());
-				sql.bind(":NAM", patch.name());
+				sql.bind(":NAM", patch.name.get().toStdString());
 				sql.bind(":TYP", patch.getType());
 				sql.bind(":DAT", patch.patch()->data().data(), (int)patch.patch()->data().size());
-				sql.bind(":FAV", (int)patch.howFavorite().is());
-				sql.bind(":HID", patch.isHidden());
+				sql.bind(":FAV", (int)patch.favorite.get().is());
+				sql.bind(":HID", patch.hidden.get());
 				sql.bind(":SID", sourceID);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
-				sql.bind(":BNK", patch.bankNumber().isValid() ? patch.bankNumber().toZeroBased() : 0);
-				sql.bind(":PRG", patch.patchNumber().toZeroBasedWithBank());
+				sql.bind(":BNK", patch.bank.get().isValid() ? patch.bank.get().toZeroBased() : 0);
+				sql.bind(":PRG", patch.program.get().toZeroBasedWithBank());
 				sql.bind(":CAT", bitfield.categorySetAsBitfield(patch.categories()));
 				sql.bind(":CUD", bitfield.categorySetAsBitfield(patch.userDecisionSet()));
 
@@ -657,13 +657,13 @@ namespace midikraft {
 					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, bank, program);
 
 					std::string patchName = query.getColumn("name").getString();
-					holder.setName(patchName);
+					holder.name = patchName;
 					std::string sourceId = query.getColumn("sourceID");
-					holder.setSourceId(sourceId);
+					holder.sourceId = sourceId;
 
 					auto favoriteColumn = query.getColumn("favorite");
 					if (favoriteColumn.isInteger()) {
-						holder.setFavorite(Favorite(favoriteColumn.getInt()));
+						holder.favorite = Favorite(favoriteColumn.getInt());
 					}
 					/*auto typeColumn = query.getColumn("type");
 					if (typeColumn.isInteger()) {
@@ -671,7 +671,7 @@ namespace midikraft {
 					}*/
 					auto hiddenColumn = query.getColumn("hidden");
 					if (hiddenColumn.isInteger()) {
-						holder.setHidden(hiddenColumn.getInt() == 1);
+						holder.hidden = hiddenColumn.getInt() == 1;
 					}
 					std::set<Category> updateSet;
 					bitfield.makeSetOfCategoriesFromBitfield(updateSet, query.getColumn("categories").getInt64());
@@ -766,7 +766,7 @@ namespace midikraft {
 						loadBankAndProgram(ph.smartSynth(), query, bank, program);
 						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, bank, program);
 						std::string name = query.getColumn("name");
-						existingPatch.setName(name);
+						existingPatch.name = name;
 						result.emplace(md5, existingPatch);
 					}
 				}
@@ -814,13 +814,13 @@ namespace midikraft {
 		}
 
 		int calculateMergedFavorite(PatchHolder const& newPatch, PatchHolder const& existingPatch) {
-			if (newPatch.howFavorite().is() == Favorite::TFavorite::DONTKNOW) {
+			if (newPatch.favorite.get().is() == Favorite::TFavorite::DONTKNOW) {
 				// Keep the old value
-				return (int)existingPatch.howFavorite().is();
+				return (int)existingPatch.favorite.get().is();
 			}
 			else {
 				// Use the new one
-				return (int)newPatch.howFavorite().is();
+				return (int)newPatch.favorite.get().is();
 			}
 		}
 
@@ -841,13 +841,13 @@ namespace midikraft {
 						sql.bind(":CUD", bitfield.categorySetAsBitfield(newPatch.userDecisionSet()));
 					}
 					if (updateChoices & UPDATE_NAME) {
-						sql.bind(":NAM", newPatch.name());
+						sql.bind(":NAM", newPatch.name.get().toStdString());
 					}
 					if (updateChoices & UPDATE_DATA) {
 						sql.bind(":DAT", newPatch.patch()->data().data(), (int)newPatch.patch()->data().size());
 					}
 					if (updateChoices & UPDATE_HIDDEN) {
-						sql.bind(":HID", newPatch.isHidden());
+						sql.bind(":HID", newPatch.hidden.get());
 					}
 					if (updateChoices & UPDATE_FAVORITE) {
 						sql.bind(":FAV", calculateMergedFavorite(newPatch, existingPatch));
@@ -919,12 +919,12 @@ namespace midikraft {
 				if (knownPatches.find(md5_key) != knownPatches.end()) {
 					// Super special logic - do not set the name if the patch name is a default name to prevent us from losing manually given names or those imported from "better" sysex files
 					unsigned onlyUpdateThis = updateChoice;
-					if (hasDefaultName(patch.patch().get(), patch.name())) {
+					if (hasDefaultName(patch.patch().get(), patch.name.get().toStdString())) {
 						onlyUpdateThis = onlyUpdateThis & (~UPDATE_NAME);
 					}
-					if ((onlyUpdateThis & UPDATE_NAME) && (patch.name() != knownPatches[md5_key].name())) {
+					if ((onlyUpdateThis & UPDATE_NAME) && (patch.name.get() != knownPatches[md5_key].name.get())) {
 						updatedNames++;
-						spdlog::info("Renaming {} with better name {}", knownPatches[md5_key].name(), patch.name());
+						spdlog::info("Renaming {} with better name {}", knownPatches[md5_key].name.get(), patch.name.get());
 					}
 
 					// Update the database with the new info. If more than the name should be updated, we first need to load the full existing patch (the bulkGetPatches only is a projection with the name loaded only)
@@ -991,16 +991,16 @@ namespace midikraft {
 					auto duplicate = md5Inserted[patchMD5];
 
 					// The new one could have better name?
-					if (hasDefaultName(duplicate.patch().get(), duplicate.name()) && !hasDefaultName(newPatch.patch().get(), newPatch.name())) {
+					if (hasDefaultName(duplicate.patch().get(), duplicate.name.get().toStdString()) && !hasDefaultName(newPatch.patch().get(), newPatch.name.get().toStdString())) {
 						updatePatch(newPatch, duplicate, UPDATE_NAME);
-						spdlog::info("Updating patch name {} to better one: {}", duplicate.name(), newPatch.name());
+						spdlog::info("Updating patch name {} to better one: {}", duplicate.name.get(), newPatch.name.get());
 					}
 					else {
-						spdlog::info("Skipping patch {} because it is a duplicate of {}", newPatch.name(),  duplicate.name());
+						spdlog::info("Skipping patch {} because it is a duplicate of {}", newPatch.name.get(),  duplicate.name.get());
 					}
 				}
 				else {
-					if (newPatch.sourceId().empty()) {
+					if (newPatch.sourceId.get().isEmpty()) {
 						putPatch(newPatch, mapMD5_to_idOfImport[patchMD5]);
 						if (synthsWithUploadedItems.find(newPatch.synth()) == synthsWithUploadedItems.end()) {
 							// First time this synth sees an upload
@@ -1009,7 +1009,7 @@ namespace midikraft {
 						synthsWithUploadedItems[newPatch.synth()] += 1;
 					}
 					else {
-						putPatch(newPatch, newPatch.sourceId());
+						putPatch(newPatch, newPatch.sourceId.get().toStdString());
 					}
 					md5Inserted[patchMD5] = newPatch;
 					sumOfAll++;

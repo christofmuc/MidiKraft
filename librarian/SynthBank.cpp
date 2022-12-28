@@ -38,6 +38,10 @@ namespace midikraft {
 			patch.setBank(bankNo_);
 			patch.setPatchNumber(MidiProgramNumber::fromZeroBaseWithBank(bankNo_, i++));
 		}
+		// In case the bank was not full (could be a brand new user bank), fill it up with empty holders
+		for (size_t j = patches.size(); j < bankNo_.bankSize(); j++) {
+			patches.push_back(midikraft::PatchHolder(synth_, nullptr, nullptr, bankNo_, MidiProgramNumber::fromZeroBaseWithBank(bankNo_, (int)j)));
+		}
 
 		// Validate everything worked
 		for (auto patch : patches) {
@@ -56,6 +60,25 @@ namespace midikraft {
 		PatchList::addPatch(patch);
 	}
 
+	void SynthBank::fillWithPatch(PatchHolder initPatch) {
+		auto copy = patches();
+		bool modified = false;
+		for (auto patch = copy.begin(); patch != copy.end(); patch++) {
+			if (patch->patch() == nullptr) {
+				// This is an empty button, put out Patch into it!
+				auto old = *patch;
+				*patch = initPatch;
+				patch->setBank(old.bankNumber());
+				patch->setPatchNumber(old.patchNumber());
+				modified = true;
+				dirtyPositions_.insert(old.patchNumber().toZeroBased());
+			}
+		}
+		if (modified) {
+			setPatches(copy);
+		}
+	}
+
 	void SynthBank::changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch)
 	{
 		auto currentList = patches();
@@ -67,6 +90,7 @@ namespace midikraft {
 				setPatches(currentList);
 				dirtyPositions_.insert(position);
 			}
+			fillWithPatch(patch);
 		}
 		else {
 			jassertfalse;
@@ -100,7 +124,7 @@ namespace midikraft {
 
 	bool SynthBank::validatePatchInfo(PatchHolder patch) 
 	{
-		if (patch.smartSynth()->getName() != synth_->getName()) {
+		if (patch.smartSynth() && patch.smartSynth()->getName() != synth_->getName()) {
 			spdlog::error("program error - list contains patches not for the synth of this bank, aborting");
 			return false;
 		}

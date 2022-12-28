@@ -18,6 +18,8 @@ namespace midikraft {
 		// location
 		virtual void setPatches(std::vector<PatchHolder> patches) override;
 		virtual void addPatch(PatchHolder patch) override;
+
+		virtual void fillWithPatch(PatchHolder patch);
 		
 		virtual void changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
 		

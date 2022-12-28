@@ -239,7 +239,10 @@ namespace midikraft {
 
 	std::string PatchHolder::md5() const
 	{
-		return synth_.lock()->calculateFingerprint(patch_);
+		if (!synth_.expired() && patch_)
+			return synth_.lock()->calculateFingerprint(patch_);
+		else
+			return "empty";
 	}
 
 	std::string PatchHolder::createDragInfoString() const
@@ -248,7 +251,7 @@ namespace midikraft {
 		nlohmann::json dragInfo = {
 			{ "drag_type", "PATCH"},
 			{ "synth", synth_.lock()->getName()},
-			{ "data_type", patch_->dataTypeID()},
+			{ "data_type", patch_ ? patch_->dataTypeID() : 0},
 			{ "patch_name", name()},
 			{ "md5", md5() }
 		};

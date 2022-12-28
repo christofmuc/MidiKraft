@@ -261,8 +261,8 @@ namespace midikraft {
 							//jassert(patches.size() == 1);
 							if (patches.size() == 1) {
 								PatchHolder holder(activeSynth, fileSource, patches[0], bank, place, detector);
-								holder.favorite = fav;
-								holder.name = patchName;
+								holder.setFavorite(fav);
+								holder.setName(patchName);
 								for (const auto& cat : categories) {
 									holder.setCategory(cat, true);
 									holder.setUserDecision(cat); // All Categories loaded via PatchInterchangeFormat are considered user decisions
@@ -310,14 +310,12 @@ namespace midikraft {
 		for (auto patch : patches) {
 			nlohmann::json patchJson;
 			patchJson[kSynth] = patch.synth()->getName();
-			patchJson[kName] = patch.name.get().toStdString();
-			patchJson[kFavorite] = patch.favorite.get().isItForSure() ? 1 : 0;
-			if (patch.bank.get().isValid()) {
-				patchJson[kBank] = patch.bank.get().toZeroBased();
+			patchJson[kName] = patch.name();
+			patchJson[kFavorite] = patch.isFavorite() ? 1 : 0;
+			if (patch.bankNumber().isValid()) {
+				patchJson[kBank] = patch.bankNumber().toZeroBased();
 			}
-			if (patch.program.get().isValid()) {
-				patchJson[kPlace] = patch.program.get().toZeroBased();
-			}
+			patchJson[kPlace] = patch.patchNumber().toZeroBased();
  			auto categoriesSet = patch.categories();
 			auto userDecisions = patch.userDecisionSet();
 			auto userDefinedCategories = category_intersection(categoriesSet, userDecisions);

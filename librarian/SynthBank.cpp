@@ -12,7 +12,6 @@
 
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
-#include "SpdLogJuce.h"
 
 namespace midikraft {
 
@@ -30,27 +29,26 @@ namespace midikraft {
 	{
 	}
 
-	void SynthBank::setPatches(std::vector<PatchHolder> const& patches)
+	void SynthBank::setPatches(std::vector<PatchHolder> patches)
 	{
-		std::vector<PatchHolder> copyOfPatches = patches;
 		// Renumber the patches, the original patch information will not reflect the position 
 		// of the patch in the bank, so it needs to be fixed.
 		int i = 0;
-		for (midikraft::PatchHolder& patch : copyOfPatches) {
-			patch.bank = bankNo_;
-			patch.program = MidiProgramNumber::fromZeroBaseWithBank(bankNo_, i++);
+		for (midikraft::PatchHolder& patch : patches) {
+			patch.setBank(bankNo_);
+			patch.setPatchNumber(MidiProgramNumber::fromZeroBaseWithBank(bankNo_, i++));
 		}
 
 		// Validate everything worked
-		for (auto const& patch : copyOfPatches) {
+		for (auto patch : patches) {
 			if (!validatePatchInfo(patch)) {
 				return;
 			}
 		}
-		PatchList::setPatches(copyOfPatches);
+		PatchList::setPatches(patches);
 	}
 
-	void SynthBank::addPatch(PatchHolder const& patch)
+	void SynthBank::addPatch(PatchHolder patch)
 	{
 		if (!validatePatchInfo(patch)) {
 			return;
@@ -89,7 +87,7 @@ namespace midikraft {
 					dirtyPositions_.insert(write_pos++);
 				}
 				else {
-					spdlog::info("Skipping patch %s because it is for synth %s and cannot be put into the bank", listToCopy[read_pos].name.get(), listToCopy[read_pos].synth()->getName());
+					spdlog::info("Skipping patch %s because it is for synth %s and cannot be put into the bank", listToCopy[read_pos].name(), listToCopy[read_pos].synth()->getName());
 					read_pos++;
 				}
 			}
@@ -100,17 +98,17 @@ namespace midikraft {
 		}
 	}
 
-	bool SynthBank::validatePatchInfo(PatchHolder const& patch)
+	bool SynthBank::validatePatchInfo(PatchHolder patch) 
 	{
 		if (patch.smartSynth()->getName() != synth_->getName()) {
 			spdlog::error("program error - list contains patches not for the synth of this bank, aborting");
 			return false;
 		}
-		if (!patch.bank.get().isValid() || (patch.bank.get() != bankNo_)) {
+		if (!patch.bankNumber().isValid() || (patch.bankNumber().toZeroBased() != bankNo_.toZeroBased())) {
 			spdlog::error("program error - list contains patches for a different bank, aborting");
 			return false;
 		}
-		if (patch.program.get().isBankKnown() && patch.program.get().bank() != bankNo_) {
+		if (patch.patchNumber().isBankKnown() && patch.patchNumber().bank().toZeroBased() != bankNo_.toZeroBased()) {
 			spdlog::error("program error - list contains patches with non normalized program position not matching current bank, aborting");
 			return false;
 		}

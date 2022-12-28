@@ -30,6 +30,7 @@ set(Sources
 	PatchHolder.cpp PatchHolder.h
 	PatchInterchangeFormat.cpp PatchInterchangeFormat.h
 	PatchList.cpp PatchList.h
+	Session.h
 	SynthBank.cpp SynthBank.h
 	SynthHolder.cpp SynthHolder.h
 	${RESOURCE_FILES}

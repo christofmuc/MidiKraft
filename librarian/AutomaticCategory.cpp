@@ -89,7 +89,7 @@ namespace midikraft {
 			// Second step, if we have no category yet, try to detect the category from the name using the regex rule set stored in the file automatic_categories.jsonc
 			for (auto autoCat : predefinedCategories_) {
 				for (auto matcher : autoCat.second.patchNameMatchers_) {
-					bool found = std::regex_search(patch.name.get().toStdString(), matcher.second);
+					bool found = std::regex_search(patch.name(), matcher.second);
 					if (found) {
 						result.insert(autoCat.second.category_);
 					}

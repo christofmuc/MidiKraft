@@ -7,6 +7,7 @@
 #pragma once
 
 #include "PatchHolder.h"
+#include "Session.h"
 #include "AutomaticCategory.h"
 
 namespace midikraft {
@@ -15,6 +16,7 @@ namespace midikraft {
 
 	class JsonSerialization {
 	public:
+		static std::string patchInSessionID(Synth *synth, std::shared_ptr<SessionPatch> patch);
 		static std::string dataToString(std::vector<uint8> const &data);
 		static std::vector<uint8> stringToData(std::string const string);
 	};

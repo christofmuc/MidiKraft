@@ -49,7 +49,7 @@ namespace midikraft {
 		}
 		else {
 			// This could be inconsistent - obviously the programNo contains the bank, but you supplied a bank as well!?
-			if (bankNo != programNo.bank())
+			if (bankNo.toZeroBased() != programNo.bank().toZeroBased())
 			{
 				SimpleLogger::instance()->postMessageOncePerRun("Implementation error - called friendlyProgramAndBankName with inconsistent bank info!");
 			}

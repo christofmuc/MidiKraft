@@ -16,8 +16,8 @@ namespace midikraft {
 
 		// Override these to make sure they only contain patches for the synth, and have a proper program
 		// location
-		virtual void setPatches(std::vector<PatchHolder>  const& patches) override;
-		virtual void addPatch(PatchHolder const& patch) override;
+		virtual void setPatches(std::vector<PatchHolder> patches) override;
+		virtual void addPatch(PatchHolder patch) override;
 		
 		virtual void changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
 		
@@ -52,7 +52,7 @@ namespace midikraft {
 		SynthBank(std::string const& id, std::string const& name, std::shared_ptr<Synth> synth, MidiBankNumber bank);
 
 	private:
-		bool validatePatchInfo(PatchHolder const& patch);
+		bool validatePatchInfo(PatchHolder patch);
 
 		std::shared_ptr<Synth> synth_;
 		std::set<int> dirtyPositions_;

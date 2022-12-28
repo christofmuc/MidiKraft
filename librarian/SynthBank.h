@@ -60,6 +60,13 @@ namespace midikraft {
 		
 	};
 
+	class UserBank : public SynthBank {
+	public:
+		UserBank(std::string const& id, std::string const& name, std::shared_ptr<Synth> synth, MidiBankNumber bank) 
+			: SynthBank(id, name, synth, bank) 
+		{}
+	};
+
 	class ActiveSynthBank : public SynthBank
 	{
 	public:

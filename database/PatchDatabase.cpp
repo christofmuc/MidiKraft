@@ -1262,7 +1262,7 @@ namespace midikraft {
 							int bankInt = queryList.getColumn("midi_bank_number").getInt();
 							if (info.id.find(synthName) != 0) {
 								// This is a stored user bank
-								list = std::make_shared<SynthBank>(queryList.getColumn("name").getText(),
+								list = std::make_shared<UserBank>(info.id, queryList.getColumn("name").getText(),
 									s
 									, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
 									);

@@ -467,7 +467,10 @@ namespace midikraft {
 					auto messages = programDumpCapability->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
 					synth->sendBlockOfMessagesToSynth(location->midiOutput(), messages);
 				}
-				if (progressHandler) progressHandler->setProgressPercentage(++sent / (double) count);
+				if (progressHandler) {
+					progressHandler->setMessage(fmt::format("Sending patch #{}: '{}'...", sent, patch.name()));
+					progressHandler->setProgressPercentage(++sent / (double)count);
+				}
 				if (progressHandler && progressHandler->shouldAbort()) {
 					spdlog::warn("Canceled bank upload in mid-flight!");
 					if (finishedHandler) {

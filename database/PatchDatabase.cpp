@@ -1197,6 +1197,27 @@ namespace midikraft {
 			return categorizer;
 		}
 
+		std::vector<ListInfo> allSynthBanks(std::shared_ptr<Synth> synth)
+		{
+			try {
+				SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth = :SYN");
+				query.bind(":SYN", synth->getName());
+				std::vector<ListInfo> result;
+				while (query.executeStep()) {
+					std::string bankId(query.getColumn("id").getText());
+					//TODO This is a hack, if the ID starts with the synth name it is an active SynthBank...
+					if (bankId.find(synth->getName()) == 0) {
+						result.push_back({ bankId, query.getColumn("name").getText() });
+					}
+				}
+				return result;
+			}
+			catch (SQLite::Exception& e) {
+				spdlog::error("Database error when retrieving lists of user banks: {}", e.what());
+				return {};
+			}
+		}
+
 		std::vector<ListInfo> allUserBanks(std::shared_ptr<Synth> synth)
 		{
 			try {
@@ -1205,6 +1226,7 @@ namespace midikraft {
 				std::vector<ListInfo> result;
 				while (query.executeStep()) {
 					std::string bankId(query.getColumn("id").getText());
+					//TODO This is a hack, if the ID starts with the synth name it is an active SynthBank...
 					if (bankId.find(synth->getName()) != 0) {
 						result.push_back({ bankId, query.getColumn("name").getText() });
 					}
@@ -1564,6 +1586,11 @@ namespace midikraft {
 	std::vector<ListInfo> PatchDatabase::allPatchLists()
 	{
 		return impl->allPatchLists();
+	}
+
+	std::vector<ListInfo> PatchDatabase::allSynthBanks(std::shared_ptr<Synth> synth)
+	{
+		return impl->allSynthBanks(synth);
 	}
 
 	std::vector<ListInfo> PatchDatabase::allUserBanks(std::shared_ptr<Synth> synth)

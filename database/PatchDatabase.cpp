@@ -188,10 +188,10 @@ namespace midikraft {
 			if (currentVersion < 8) {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
-				//db_.exec("ALTER TABLE lists ADD COLUMN synth TEXT");
-				//db_.exec("ALTER TABLE lists ADD COLUMN midi_bank_number INTEGER");
-				//db_.exec("ALTER TABLE lists ADD COLUMN last_synced INTEGER");
-				//TODO db_.exec("UPDATE schema_version SET number = 7");
+				db_.exec("ALTER TABLE lists ADD COLUMN synth TEXT");
+				db_.exec("ALTER TABLE lists ADD COLUMN midi_bank_number INTEGER");
+				db_.exec("ALTER TABLE lists ADD COLUMN last_synced INTEGER");
+				db_.exec("UPDATE schema_version SET number = 8");
 				transaction.commit();
 			}
 		}

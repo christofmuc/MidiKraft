@@ -60,6 +60,10 @@ namespace midikraft {
 		PatchList::addPatch(patch);
 	}
 
+	std::string SynthBank::targetBankName() const {
+		return friendlyBankName(synth_, bankNo_);
+	}
+
 	void SynthBank::fillWithPatch(PatchHolder initPatch) {
 		auto copy = patches();
 		bool modified = false;

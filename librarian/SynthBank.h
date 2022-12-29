@@ -19,6 +19,9 @@ namespace midikraft {
 		virtual void setPatches(std::vector<PatchHolder> patches) override;
 		virtual void addPatch(PatchHolder patch) override;
 
+		// Synth bank specific code
+		std::string targetBankName() const;
+
 		virtual void fillWithPatch(PatchHolder patch);
 		
 		virtual void changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);

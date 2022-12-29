@@ -35,6 +35,10 @@ namespace midikraft {
 			return bankNo_;
 		}
 
+		bool isDirty() const {
+			return !dirtyPositions_.empty();
+		}
+
 		bool isPositionDirty(int position) const
 		{
 			return dirtyPositions_.find(position) != dirtyPositions_.end();

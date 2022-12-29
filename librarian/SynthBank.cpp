@@ -64,6 +64,19 @@ namespace midikraft {
 		return friendlyBankName(synth_, bankNo_);
 	}
 
+	bool SynthBank::isWritable() const {
+		// ROM banks can only be defined with the newer BankDescriptorsCapability
+		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth_);
+		if (descriptors) {
+			auto banks = descriptors->bankDescriptors();
+			if (bankNo_.toZeroBased() < banks.size()) {
+				return !banks[bankNo_.toZeroBased()].isROM;
+			}
+		}
+		// We actually don't know...
+		return true;
+	}
+
 	void SynthBank::fillWithPatch(PatchHolder initPatch) {
 		auto copy = patches();
 		bool modified = false;

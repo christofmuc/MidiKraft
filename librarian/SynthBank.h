@@ -21,6 +21,8 @@ namespace midikraft {
 
 		// Synth bank specific code
 		std::string targetBankName() const;
+		// Test if this is a ROM bank
+		bool isWritable() const;
 
 		virtual void fillWithPatch(PatchHolder patch);
 		

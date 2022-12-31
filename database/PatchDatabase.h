@@ -75,7 +75,7 @@ namespace midikraft {
 		bool putPatches(std::vector<PatchHolder> const &patches);
 
 		int deletePatches(PatchFilter filter);
-		int deletePatches(std::string const& synth, std::vector<std::string> const& md5s);
+		std::pair<int, int> deletePatches(std::string const& synth, std::vector<std::string> const& md5s);
 		int reindexPatches(PatchFilter filter);
 
 		std::string makeDatabaseBackup(std::string const &suffix);

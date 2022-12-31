@@ -36,7 +36,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 8;
+	const int SCHEMA_VERSION = 9;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -46,6 +46,7 @@ namespace midikraft {
 	/* 6 - adding the table categories to track which bit index is used for which tag */
 	/* 7 - adding the table lists to allow storing lists of patches */
 	/* 8 - adding synth name, timestamp and banknumber to patch list to allow store synth banks */
+	/* 9 - adding foreign key to make sure no patch is deleted that belongs to a list */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -128,6 +129,15 @@ namespace midikraft {
 			}
 		}
 
+		std::string migrateTable(std::string table_name, std::function<void()> create_new_table) {
+			auto old_table_name = table_name + "_old";
+			db_.exec(fmt::format("ALTER TABLE {} RENAME TO {}", table_name, old_table_name ).c_str());
+			create_new_table();
+			db_.exec(fmt::format("INSERT INTO {} SELECT * FROM {}", table_name, old_table_name).c_str());
+			//db_.exec(fmt::format("DROP TABLE {}", old_table_name).c_str());
+			return old_table_name;
+		}
+
 		void migrateSchema(int currentVersion) {
 			bool hasBackuped = false;
 
@@ -194,6 +204,19 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 8");
 				transaction.commit();
 			}
+			if (currentVersion < 9) {
+				backupIfNecessary(hasBackuped);
+				db_.exec("PRAGMA foreign_keys = OFF");
+				SQLite::Transaction transaction(db_);
+				auto table1 = migrateTable("patches", std::bind(&PatchDataBaseImpl::createPatchTable, this));
+				auto table2 = migrateTable("patch_in_list", std::bind(&PatchDataBaseImpl::createPatchInListTable, this));
+				db_.exec("UPDATE schema_version SET number = 9");
+				transaction.commit();
+				/// These can't be deleted within the transaction above
+				db_.exec(fmt::format("DROP TABLE {}", table1).c_str());
+				db_.exec(fmt::format("DROP TABLE {}", table2).c_str());
+				db_.exec("PRAGMA foreign_keys = ON");
+			}
 		}
 
 		void insertDefaultCategories() {
@@ -214,11 +237,21 @@ namespace midikraft {
 			db_.exec(String("INSERT INTO categories VALUES (14, 'Voice', '" + Colour::fromString("ffa75781").darker().toString() + "', 1)").toStdString().c_str());
 		}
 
+		void createPatchTable() {
+			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT NOT NULL, md5 TEXT NOT NULL, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
+				" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER, PRIMARY KEY (synth, md5))");
+		}
+
+		void createPatchInListTable() {
+			db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL, FOREIGN KEY(synth, md5) REFERENCES patches(synth, md5))");
+		}
+
 		void createSchema() {
+			db_.exec("PRAGMA foreign_keys = ON");
+
 			SQLite::Transaction transaction(db_);
 			if (!db_.tableExists("patches")) {
-				db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT, md5 TEXT UNIQUE, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
-					" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER)");
+				createPatchTable();
 			}
 			if (!db_.tableExists("imports")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
@@ -234,8 +267,9 @@ namespace midikraft {
 			if (!db_.tableExists("lists")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL, synth TEXT, midi_bank_number INTEGER, last_synced INTEGER)");
 			}
+			
 			if (!db_.tableExists("patch_in_list")) {
-				db_.exec("CREATE TABLE IF NOT EXISTS patch_in_list(id TEXT NOT NULL, synth TEXT NOT NULL, md5 TEXT NOT NULL, order_num INTEGER NOT NULL)");
+				createPatchInListTable();
 			}
 
 			// Commit transaction
@@ -1057,28 +1091,42 @@ namespace midikraft {
 			return 0;
 		}
 
-		int deletePatches(std::string const& synth, std::vector<std::string> const& md5s) {
+		std::pair<int, int> deletePatches(std::string const& synth, std::vector<std::string> const& md5s) {
 			try {
 				int rowsDeleted = 0;
+				int rowsHidden = 0;
 				for (auto md5 : md5s) {
-					// Build a delete query
-					std::string deleteStatement = "DELETE FROM patches WHERE md5 = :MD5 AND synth = :SYN";
-					SQLite::Statement query(db_, deleteStatement.c_str());
-					query.bind(":SYN", synth);
-					query.bind(":MD5", md5);
-					// Execute
-					rowsDeleted += query.exec();
+					// We need to check if the patch to be deleted is part of a bank. Then it cannot be deleted, but just hidden
+					// it can be deleted from regular user lists, though, so let's do this first;
+					removePatchFromSimpleList(synth, md5);
+
+					if (isPatchPartOfBank(synth, md5)) {
+						// Just hide it
+						SQLite::Statement query(db_, "UPDATE patches SET hidden = 1 WHERE synth = :SYN and md5 = :MD5");
+						query.bind(":SYN", synth);
+						query.bind(":MD5", md5);
+						rowsHidden += query.exec();
+					}
+					else {
+						// Build a delete query
+						std::string deleteStatement = "DELETE FROM patches WHERE md5 = :MD5 AND synth = :SYN";
+						SQLite::Statement query(db_, deleteStatement.c_str());
+						query.bind(":SYN", synth);
+						query.bind(":MD5", md5);
+						// Execute
+						rowsDeleted += query.exec();
+					}
 				}
 
 				// Make sure there are no orphans left in any patch list
-				removeAllOrphansFromPatchLists();
+				//removeAllOrphansFromPatchLists();
 
-				return rowsDeleted;
+				return { rowsDeleted, rowsHidden };
 			}
 			catch (SQLite::Exception& ex) {
 				spdlog::error("DATABASE ERROR in deletePatches via md5s: SQL Exception {}", ex.what());
 			}
-			return 0;
+			return{ 0, 0 };
 		}
 
 		int reindexPatches(PatchFilter filter) {
@@ -1104,7 +1152,7 @@ namespace midikraft {
 					SQLite::Transaction transaction(db_);
 
 					// We got everything into the RAM - do we dare do delete them from the database now?
-					int deleted = deletePatches(filter.synths.begin()->second.lock()->getName(), toBeDeleted);
+					auto [deleted, hidden] = deletePatches(filter.synths.begin()->second.lock()->getName(), toBeDeleted);
 					if (deleted != (int)toBeReindexed.size()) {
 						spdlog::error("Aborting reindexing - count of deleted patches does not match count of retrieved patches. Program Error.");
 						return -1;
@@ -1479,6 +1527,25 @@ namespace midikraft {
 			}
 		}
 
+		void removePatchFromSimpleList(std::string const& synth, std::string const& md5) {
+			// Simple List as in - this is not a bank. It is not allowed to delete patches that are part of a bank
+			SQLite::Statement removeFromSimpleList(db_, "DELETE FROM patch_in_list WHERE synth = :SYN AND md5 = :MD5 AND EXISTS (SELECT * FROM lists WHERE id = patch_in_list.id AND synth IS NULL)");
+			removeFromSimpleList.bind(":SYN", synth);
+			removeFromSimpleList.bind(":MD5", md5);
+			removeFromSimpleList.exec();
+		}
+
+		bool isPatchPartOfBank(std::string const& synth, std::string const& md5) {
+			SQLite::Statement findBankForPatch(db_, "SELECT COUNT(*) FROM lists INNER JOIN patch_in_list AS pil ON lists.id = pil.id WHERE lists.synth = :SYN AND pil.md5 = :MD5");
+			findBankForPatch.bind(":SYN", synth);
+			findBankForPatch.bind(":MD5", md5);
+			if (findBankForPatch.executeStep()) {
+				return findBankForPatch.getColumn(0).getInt() > 0;
+			}
+			spdlog::error("Program error determining if patch is part of bank, hoping for the best from here...");
+			return false;
+		}
+
 		void removeAllOrphansFromPatchLists() {
 			try {
 				SQLite::Statement cleanupPatchLists(db_,
@@ -1637,7 +1704,7 @@ namespace midikraft {
 		return impl->deletePatches(filter);
 	}
 
-	int PatchDatabase::deletePatches(std::string const& synth, std::vector<std::string> const& md5s)
+	std::pair<int, int> PatchDatabase::deletePatches(std::string const& synth, std::vector<std::string> const& md5s)
 	{
 		return impl->deletePatches(synth, md5s);
 	}

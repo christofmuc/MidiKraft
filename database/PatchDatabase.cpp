@@ -12,6 +12,7 @@
 #include "PatchHolder.h"
 #include "SynthBank.h"
 #include "StoredPatchNameCapability.h"
+#include "HasBanksCapability.h"
 
 #include "JsonSchema.h"
 #include "JsonSerialization.h"
@@ -739,6 +740,43 @@ namespace midikraft {
 				spdlog::error("DATABASE ERROR in getSinglePatch: SQL Exception {}", ex.what());
 			}
 			return false;
+		}
+
+		std::vector<MidiProgramNumber> getBankPositions(std::shared_ptr<Synth> synth, std::string const& md5) {
+			std::vector<MidiProgramNumber> result;
+			try {
+				SQLite::Statement query(db_, "SELECT lists.midi_bank_number, pil.order_num FROM lists JOIN patch_in_list AS PIL ON lists.id = pil.id "
+					"WHERE pil.md5 = :MD5 and lists.synth = :SYN AND lists.last_synced IS NOT NULL AND lists.last_synced > 0 AND lists.midi_bank_number IS NOT NULL");
+				query.bind(":SYN", synth->getName());
+				query.bind(":MD5", md5);
+				while (query.executeStep()) {
+					int bankNo = query.getColumn("midi_bank_number").getInt();
+					if (auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(synth)) {
+						if (bankNo >= 0 && bankNo < descriptors->bankDescriptors().size()) {
+							result.push_back(MidiProgramNumber::fromZeroBaseWithBank(MidiBankNumber::fromZeroBase(bankNo, descriptors->bankDescriptors()[bankNo].size), query.getColumn("order_num").getInt()));
+						}
+						else {
+							spdlog::error("Data error - bank number stored is bigger than bank descriptors allow for!");
+						}
+					}
+					else if (auto banks = Capability::hasCapability<HasBanksCapability>(synth)) {
+						// All banks have the same size
+						if (bankNo >= 0 && bankNo < banks->numberOfBanks()) {
+							result.push_back(MidiProgramNumber::fromZeroBaseWithBank(MidiBankNumber::fromZeroBase(bankNo, banks->numberOfPatches()), query.getColumn("order_num").getInt()));
+						}
+						else {
+							spdlog::error("Data error - bank number stored is bigger than banks count allows for!");
+						}
+					}
+					else {
+						spdlog::error("Data error - no way to determine MIDI Bank for list position");
+					}
+				}
+			}
+			catch (SQLite::Exception& ex) {
+				spdlog::error("DATABASE ERROR in getSinglePatch: SQL Exception {}", ex.what());
+			}
+			return result;
 		}
 
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder>& result, std::vector<std::pair<std::string, PatchHolder>>& needsReindexing, int skip, int limit) {
@@ -1619,6 +1657,10 @@ namespace midikraft {
 	bool PatchDatabase::getSinglePatch(std::shared_ptr<Synth> synth, std::string const& md5, std::vector<PatchHolder>& result)
 	{
 		return impl->getSinglePatch(synth, md5, result);
+	}
+
+	std::vector<MidiProgramNumber> PatchDatabase::getBankPositions(std::shared_ptr<Synth> synth, std::string const& md5) {
+		return impl->getBankPositions(synth, md5);
 	}
 
 	bool PatchDatabase::putPatch(PatchHolder const& patch) {

@@ -16,6 +16,7 @@ namespace midikraft {
 		virtual int numberOfBanks() const = 0;
 		virtual int numberOfPatches() const = 0;
 		virtual std::string friendlyBankName(MidiBankNumber bankNo) const = 0;
+		virtual std::vector<juce::MidiMessage> bankSelectMessages(MidiBankNumber bankNo) const = 0;
 	};
 
 	// From 1.17 on, you would implement this capability returning a more interesting descriptor
@@ -30,6 +31,7 @@ namespace midikraft {
 	class HasBankDescriptorsCapability {
 	public:
 		virtual std::vector<BankDescriptor> bankDescriptors() const = 0;
+		virtual std::vector<juce::MidiMessage> bankSelectMessages(MidiBankNumber bankNo) const = 0;
 	};
 
 }

@@ -65,6 +65,7 @@ namespace midikraft {
 
 		int getPatchesCount(PatchFilter filter);
 		bool getSinglePatch(std::shared_ptr<Synth> synth, std::string const& md5, std::vector<PatchHolder>& result);
+		std::vector<MidiProgramNumber> getBankPositions(std::shared_ptr<Synth> synth, std::string const& md5);
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
 
 		void getPatchesAsync(PatchFilter filter, std::function<void(PatchFilter const filteredBy, std::vector<PatchHolder> const &)> finished, int skip, int limit);

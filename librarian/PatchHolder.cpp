@@ -336,7 +336,7 @@ namespace midikraft {
 			auto doc = nlohmann::json::parse(str);
 			if (doc.is_object()) {
 				if (doc.contains(kFileSource)) {
-					return FromFileSource::fromString(str);
+                    return FromFileSource::fromString(str);
 				}
 				else if (doc.contains(kSynthSource)) {
 					return FromSynthSource::fromString(str);

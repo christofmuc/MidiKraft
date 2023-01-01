@@ -336,8 +336,8 @@ namespace midikraft {
 				sql.bind(":SRC", patch.sourceInfo()->toString());
 				sql.bind(":BNK", patch.bankNumber().isValid() ? patch.bankNumber().toZeroBased() : 0);
 				sql.bind(":PRG", patch.patchNumber().toZeroBasedWithBank());
-				sql.bind(":CAT", bitfield.categorySetAsBitfield(patch.categories()));
-				sql.bind(":CUD", bitfield.categorySetAsBitfield(patch.userDecisionSet()));
+				sql.bind(":CAT", (int64_t) bitfield.categorySetAsBitfield(patch.categories()));
+				sql.bind(":CUD", (int64_t) bitfield.categorySetAsBitfield(patch.userDecisionSet()));
 
 				sql.exec();
 			}
@@ -538,7 +538,7 @@ namespace midikraft {
 				query.bind(":TYP", filter.typeID);
 			}
 			if (!filter.onlyUntagged && !filter.categories.empty()) {
-				query.bind(":CAT", bitfield.categorySetAsBitfield(filter.categories));
+				query.bind(":CAT", (int64_t) bitfield.categorySetAsBitfield(filter.categories));
 			}
 		}
 
@@ -909,8 +909,8 @@ namespace midikraft {
 					SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5 and synth = :SYN");
 					if (updateChoices & UPDATE_CATEGORIES) {
 						calculateMergedCategories(newPatch, existingPatch);
-						sql.bind(":CAT", bitfield.categorySetAsBitfield(newPatch.categories()));
-						sql.bind(":CUD", bitfield.categorySetAsBitfield(newPatch.userDecisionSet()));
+						sql.bind(":CAT", (int64_t) bitfield.categorySetAsBitfield(newPatch.categories()));
+						sql.bind(":CUD", (int64_t) bitfield.categorySetAsBitfield(newPatch.userDecisionSet()));
 					}
 					if (updateChoices & UPDATE_NAME) {
 						sql.bind(":NAM", newPatch.name());
@@ -1508,7 +1508,7 @@ namespace midikraft {
 						update.bind(":ID", patchList->id());
 						update.bind(":NAM", patchList->name());
 						if (auto activeBank = std::dynamic_pointer_cast<midikraft::ActiveSynthBank>(patchList)) {
-							update.bind(":LSY", activeBank->lastSynced().toMilliseconds());
+							update.bind(":LSY", (int64_t) activeBank->lastSynced().toMilliseconds());
 						}
 						else {
 							update.bind(":LSY", 0);
@@ -1528,7 +1528,7 @@ namespace midikraft {
 						insert.bind(":SYN", isSynthBank->synth()->getName());
 						insert.bind(":BNK", isSynthBank->bankNumber().toZeroBased());
 						if (auto activeBank = std::dynamic_pointer_cast<midikraft::ActiveSynthBank>(patchList)) {
-							insert.bind(":LSY", activeBank->lastSynced().toMilliseconds()); // Storing UNIX epoch here
+							insert.bind(":LSY", (int64_t) activeBank->lastSynced().toMilliseconds()); // Storing UNIX epoch here
 						}
 						else {
 							insert.bind(":LSY", 0);

@@ -17,7 +17,12 @@ namespace midikraft {
 		// Build the input array
 		std::vector<dsp::Complex<float>> input(256);
 		for (auto harmonic : harmonics.harmonics()) {
-			input[harmonic.first] = dsp::Complex<float>(0.0f, harmonic.second);
+            if (harmonic.first > 0) {
+                input[static_cast<size_t>(harmonic.first)] = dsp::Complex<float>(0.0f, harmonic.second);
+            }
+            else {
+                jassertfalse;
+            }
 		}
 
 		// Reserve output array and run inverse transform
@@ -33,7 +38,7 @@ namespace midikraft {
 
 	}
 
-	void Additive::Harmonics::setHarmonic(unsigned harmonicNumber, float value)
+	void Additive::Harmonics::setHarmonic(int harmonicNumber, float value)
 	{
 		if (value > 0.0f) {
 			harmonics_[harmonicNumber] = value;

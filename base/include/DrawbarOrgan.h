@@ -20,13 +20,13 @@ namespace midikraft {
 			BROWN, WHITE, BLACK
 		};
 
-		Drawbar(std::string const &name, Color color, std::string const &pitch, std::string const &traditional_name, unsigned harmonic_number) :
+		Drawbar(std::string const &name, Color color, std::string const &pitch, std::string const &traditional_name, int harmonic_number) :
 			name_(name), pitch_(pitch), traditional_name_(traditional_name), color_(color), harmonic_number_(harmonic_number) {
 		}
 
 		std::string name_, pitch_, traditional_name_;
 		Color color_;
-		unsigned harmonic_number_;
+		int harmonic_number_;
 	};
 
 	class DrawbarOrgan {

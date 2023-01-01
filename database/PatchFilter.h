@@ -26,6 +26,7 @@ namespace midikraft {
 		PatchFilter(std::vector<std::shared_ptr<Synth>>&& synths);
 
 		PatchFilter(PatchFilter const& other) = default;
+        PatchFilter &operator =(PatchFilter const& other) = default;
 
 		void turnOnAll();
 

@@ -164,7 +164,6 @@ namespace midikraft {
 		std::weak_ptr<Synth> synth_;
 		std::string name_;
 		std::string sourceId_;
-		int type_;
 		Favorite isFavorite_;
 		bool isHidden_;
 		std::set<Category> categories_;

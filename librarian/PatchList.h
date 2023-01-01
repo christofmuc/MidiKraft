@@ -14,6 +14,7 @@ namespace midikraft {
 	public:
 		PatchList(std::string const& name);
 		PatchList(std::string const& id, std::string const &name);
+        virtual ~PatchList() = default;
 		
 		std::string id() const;
 		std::string name() const;

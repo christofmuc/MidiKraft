@@ -32,8 +32,14 @@ namespace midikraft {
 
 	PatchHolder::PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, 
 		MidiBankNumber bank, MidiProgramNumber place, std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
-		: sourceInfo_(sourceInfo), patch_(patch), type_(0), isFavorite_(Favorite()), isHidden_(false), synth_(activeSynth), bankNumber_(bank), patchNumber_(place)
-	{
+		: patch_(patch)
+            , synth_(activeSynth)
+            , isFavorite_(Favorite())
+            , isHidden_(false)
+            , bankNumber_(bank)
+            , patchNumber_(place)
+            , sourceInfo_(sourceInfo)
+    {
 		if (patch) {
 			name_ = activeSynth->nameForPatch(patch);
 			if (name_.empty()) {
@@ -66,7 +72,7 @@ namespace midikraft {
 		}*/
 	}
 
-	PatchHolder::PatchHolder() : isFavorite_(Favorite()), type_(0), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())
+	PatchHolder::PatchHolder() : isFavorite_(Favorite()), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())
 	{
 	}
 
@@ -383,7 +389,7 @@ namespace midikraft {
 			auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(synth);
 			if (descriptors) {
 				auto banks = descriptors->bankDescriptors();
-				if (bankNo_.toZeroBased() < banks.size()) {
+				if (bankNo_.toZeroBased() < static_cast<int>(banks.size())) {
 					bank = " " + banks[bankNo_.toZeroBased()].name;
 				}
 				else {

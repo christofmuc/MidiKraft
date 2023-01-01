@@ -41,7 +41,7 @@ namespace midikraft {
 			nextBankHandler_ = [this, midiOutput, synth, progressHandler, bankNo, onFinished](std::vector<midikraft::PatchHolder> patchesLoaded) {
 				std::copy(patchesLoaded.begin(), patchesLoaded.end(), std::back_inserter(currentDownloadedPatches_));
 				downloadBankNumber_++;
-				if (downloadBankNumber_ == bankNo.size()) {
+				if (downloadBankNumber_ == static_cast<int>(bankNo.size())) {
 					if (bankNo.size() > 1) {
 						tagPatchesWithMultiBulkImport(currentDownloadedPatches_);
 					}

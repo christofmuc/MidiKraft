@@ -1391,6 +1391,10 @@ namespace midikraft {
 					}
 				}
 			}
+			if (!list) {
+				spdlog::error("Failed to create list!");
+				return nullptr;
+			}
 
 			// Now load the patches in this list
 			SQLite::Statement query(db_, "SELECT * from patch_in_list where id=:ID order by order_num");

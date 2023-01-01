@@ -13,6 +13,7 @@ namespace midikraft {
 	class Tag {
 	public:
 		Tag(std::string const &name);
+        virtual ~Tag() = default;
 
 		virtual void setName(std::string const &name);
 		virtual std::string name() const;

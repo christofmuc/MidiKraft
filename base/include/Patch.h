@@ -17,6 +17,7 @@ namespace midikraft {
 	public:
 		DataFile(int dataTypeID);
 		DataFile(int dataTypeID, Synth::PatchData const &patchdata);
+        DataFile(DataFile const& other) = default;
         virtual ~DataFile() = default;
 
 		int dataTypeID() const;

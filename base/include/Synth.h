@@ -39,7 +39,7 @@ namespace midikraft {
 
 		// Override this to make a prettier program name. This is the old version that expects the program number equal to program number + bank number times bank size
 		// Use friendlyProgramAndBankName instead
-		[[deprecated]]
+		//[[deprecated]]
 		virtual std::string friendlyProgramName(MidiProgramNumber programNo) const;
 
 		virtual std::string friendlyProgramAndBankName(MidiBankNumber bankNo, MidiProgramNumber programNo) const;

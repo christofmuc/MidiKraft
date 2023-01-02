@@ -51,6 +51,11 @@ if (MSVC)
     # warning level 4 and all warnings as errors
     target_compile_options(midikraft-librarian PRIVATE /W4 /WX)
 else()
-    # lots of warnings and all warnings as errors
-    target_compile_options(midikraft-librarian PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unknown-pragmas)
+	if(UNIX AND NOT APPLE)
+		# lots of warnings and all warnings as errors
+		target_compile_options(midikraft-librarian PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unknown-pragmas -Wno-implicit-fallthrough)
+	else()
+		# lots of warnings and all warnings as errors
+		target_compile_options(midikraft-librarian PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unknown-pragmas)
+	endif()
 endif()

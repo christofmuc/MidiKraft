@@ -524,9 +524,9 @@ namespace midikraft {
 							sysexMessages = pdc->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
 							break;
 						}
-						// fall through do default then
 					}
-					default:
+                    // fall through do default then
+                    default:
 					case Librarian::EDIT_BUFFER_DUMPS:
 						// Every synth is forced to have an implementation for this
 						sysexMessages = patch.synth()->dataFileToSysex(patch.patch(), nullptr);

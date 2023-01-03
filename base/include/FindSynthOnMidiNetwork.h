@@ -36,6 +36,7 @@ namespace midikraft {
 		// Implementation of task
 		virtual void run() override;
 
+		static std::vector<MidiNetworkLocation> detectSynthOld(DiscoverableDevice &synth, ProgressHandler *progressHandler);
 		static std::vector<MidiNetworkLocation> detectSynth(DiscoverableDevice &synth, ProgressHandler *progressHandler);
 
 	private:

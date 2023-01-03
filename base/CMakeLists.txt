@@ -36,6 +36,7 @@ set(Sources
 	include/MasterkeyboardCapability.h	
 	include/MidiClockCapability.h
 	include/MidiController.h src/MidiController.cpp
+	include/MidiCoroutine.h 
 	include/MidiLocationCapability.h
 	include/MidiRequest.h src/MidiRequest.cpp
 	include/MTSFile.h src/MTSFile.cpp

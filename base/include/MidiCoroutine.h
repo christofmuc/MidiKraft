@@ -9,7 +9,11 @@
 #include "JuceHeader.h"
 
 #include <spdlog/spdlog.h>
+#ifdef __APPLE__
+#include <experimental/coroutine>
+#else
 #include <coroutine>
+#endif
 
 namespace midikraft {
 

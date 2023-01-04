@@ -65,7 +65,7 @@ target_include_directories(midikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/inclu
 target_link_libraries(midikraft-base PUBLIC juce-utils spdlog::spdlog)
 
 if(APPLE)
-	target_compile_options(midikraft-base PRIVATE -fcoroutines-ts -fexperimental-library)
+	target_compile_options(midikraft-base PRIVATE -fcoroutines-ts)
 endif()
 
 # Pedantic about warnings

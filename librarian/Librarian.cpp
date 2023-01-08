@@ -185,46 +185,95 @@ namespace midikraft {
 		}
 	}
 
-	void Librarian::downloadEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, TFinishedHandler onFinished)
+	MidiCoroutine<std::vector<PatchHolder>> Librarian::downloadEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler)
 	{
-		// First things first - this should not be called more than once at a time, and there should be no other Librarian callback handlers be registered!
-		jassert(handles_.empty());
-		clearHandlers();
-
-		// Ok, for this we need to send a program change message, and then a request edit buffer message from the active synth
-		// Once we get that, store the patch and increment number by one
-		downloadNumber_ = 0;
-		currentDownload_.clear();
-		onFinished_ = onFinished;
-		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
-		auto streamLoading = midikraft::Capability::hasCapability<StreamLoadCapability>(synth);
-		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
-		auto programChangeCapability = midikraft::Capability::hasCapability<SendsProgramChangeCapability>(synth);
-		auto handle = MidiController::makeOneHandle();
-		if (streamLoading) {
-			// Simple enough, we hope
-			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
-				ignoreUnused(source);
-				this->handleNextStreamPart(midiOutput, synth, progressHandler, editBuffer, StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP);
-			});
-			handles_.push(handle);
-			currentDownload_.clear();
-			auto messages = streamLoading->requestStreamElement(0, StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP);
-			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
-		} else if (editBufferCapability) {
-			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput *source, const juce::MidiMessage &editBuffer) {
-				ignoreUnused(source);
-				this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, MidiBankNumber::fromZeroBase(0, SynthBank::numberOfPatchesInBank(synth, 0)));
-			});
-			handles_.push(handle);
-			// Special case - load only a single patch. In this case we're interested in the edit buffer only!
-			startDownloadNumber_ = 0;
-			endDownloadNumber_ = 1;
-			startDownloadNextEditBuffer(midiOutput, synth, false); // No program change required, we want exactly one edit buffer, the current one
+		using this_coroutine = MidiCoroutine<std::vector<PatchHolder>>;
+		std::vector<MidiMessage> download;
+		auto startTime = std::chrono::steady_clock::now(); // To timeout operations accordingly
+		
+		if (auto streamLoading = midikraft::Capability::hasCapability<StreamLoadCapability>(synth)) {
+			auto streamType = StreamLoadCapability::StreamType::EDIT_BUFFER_DUMP;
+			//int progressTotal = streamLoading->numberOfStreamMessagesExpected(streamType);
+			midiOutput->sendBlockOfMessagesFullSpeed(streamLoading->requestStreamElement(0, streamType));
+			do {
+				auto message = co_await this_coroutine::IncomingMidiMessage{};
+				if (streamLoading->isMessagePartOfStream(message.message, streamType)) {
+					download.push_back(message.message);
+					//if (progressTotal > 0 && progressHandler) {
+					//	progressHandler->setProgressPercentage(download.size() / (double)progressTotal);
+					//}
+					if (streamLoading->isStreamComplete(download, streamType)) {
+						auto result = synth->loadSysex(download);
+						//if (progressHandler) progressHandler->onSuccess();
+						co_return Librarian::tagPatchesWithImportFromSynth(synth, result, MidiBankNumber::invalid());
+					}
+					/*else if (progressHandler && progressHandler->shouldAbort()) {
+						progressHandler->onCancel();
+						co_return{};
+					}*/
+				}
+			} while ((std::chrono::steady_clock::now() - startTime) < std::chrono::milliseconds(1500));
+			spdlog::error("Timeout while waiting for messages to download edit buffer via stream loading from {}", synth->getName());
+			co_return{};
 		}
-		else if (programDumpCapability && programChangeCapability) {
-			auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
-			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
+		else if (auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth)) {
+			// Get all commands
+			auto requestMessages = editBufferCapability->requestEditBufferDump();
+			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), requestMessages);
+			do {
+				auto editBuffer = co_await this_coroutine::IncomingMidiMessage{};
+				auto handshake = editBufferCapability->isMessagePartOfEditBuffer(editBuffer.message);
+				if (handshake.isPartOfEditBufferDump) {
+					// See if we should send a reply (ACK)
+					if (!handshake.handshakeReply.empty()) {
+						synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), handshake.handshakeReply);
+					}
+					download.push_back(editBuffer.message);
+					if (editBufferCapability->isEditBufferDump(download)) {
+						auto patches = synth->loadSysex(download);
+						if (progressHandler) progressHandler->onSuccess();
+						co_return tagPatchesWithImportFromSynth(synth, patches, MidiBankNumber::invalid());
+							
+					}
+					else if (progressHandler->shouldAbort()) {
+						if (progressHandler) progressHandler->onCancel();
+						co_return{};
+					}
+				}
+			} while (std::chrono::steady_clock::now() - startTime < std::chrono::milliseconds(1500));
+			spdlog::error("Timeout while waiting for messages to download edit buffer via edit buffer request from {}", synth->getName());
+			co_return{};
+		}
+		else if (auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth)) {
+			if (auto programChangeCapability = midikraft::Capability::hasCapability<SendsProgramChangeCapability>(synth)) {
+				auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
+				synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
+				do {
+					auto programDumpMessage = co_await this_coroutine::IncomingMidiMessage{};
+					auto handshake = programDumpCapability->isMessagePartOfProgramDump(programDumpMessage.message);
+					if (handshake.isPartOfProgramDump) {
+						download.push_back(programDumpMessage.message);
+						// See if we should send a reply (ACK)
+						if (!handshake.handshakeReply.empty()) {
+							synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), handshake.handshakeReply);
+						}
+						if (programDumpCapability->isSingleProgramDump(download)) {
+							auto patches = synth->loadSysex(download);
+							if (progressHandler) progressHandler->onSuccess();
+							co_return tagPatchesWithImportFromSynth(synth, patches, MidiBankNumber::invalid());
+						}
+						else if (progressHandler->shouldAbort()) {
+							if (progressHandler) progressHandler->onCancel();
+							co_return{};
+						}
+					}
+				} while (std::chrono::steady_clock::now() - startTime < std::chrono::milliseconds(1500));
+				spdlog::error("Timeout while waiting for messages to download edit buffer via program dump request from {}", synth->getName());
+				co_return{};
+			}
+			else {
+				spdlog::error("No way to defined for the {} to send a program change, can't download edit buffer", synth->getName());
+			}
 		}
 		else {
 			spdlog::error("The {} has no way to request the edit buffer or program place", synth->getName());

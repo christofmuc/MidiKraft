@@ -129,7 +129,8 @@ namespace midikraft {
 		}
 	}
 
-	MidiCoroutine<std::vector<MidiNetworkLocation>> asyncDetectSynth(MidiControllerInput<MidiCoroutine<std::vector<MidiNetworkLocation>>::promise_type>& input, DiscoverableDevice& synth, ProgressHandler* progressHandler) {
+	MidiCoroutine<std::vector<MidiNetworkLocation>> asyncDetectSynth(DiscoverableDevice& synth, ProgressHandler* progressHandler) {
+		using this_coroutine = MidiCoroutine<std::vector<MidiNetworkLocation>>;
 		std::vector<MidiNetworkLocation> locationsFound;
 
 		// Loop over all inputs and enable them so we get messages from them
@@ -154,26 +155,24 @@ namespace midikraft {
 		int numDevices = juce::MidiOutput::getAvailableDevices().size();
 		for (auto outputDevice : juce::MidiOutput::getAvailableDevices()) {
 			for (auto channel : channelsToSearch) {
-				co_yield{ outputDevice, synth.deviceDetect(channel) };
+				MidiController::instance()->getMidiOutput(outputDevice)->sendBlockOfMessagesFullSpeed(synth.deviceDetect(channel));
 			}
 			auto startOfDetection = std::chrono::steady_clock::now();
 			do {
-				auto incoming = co_await input;
-				spdlog::debug("Got {} messages", incoming.message.size());
-				for (auto singleMessage : incoming.message) {
-					auto detectionResult = synth.channelIfValidDeviceResponse(singleMessage);
-					if (detectionResult.isValid()) {
-						spdlog::info("Detected device {} with MIDI Output/Input pair '{}','{}'", synth.getName(), outputDevice.name, incoming.device.name);
-						synth.setWasDetected(true);
-						locationsFound.push_back({incoming.device, outputDevice, detectionResult});
+				auto singleMessage = co_await this_coroutine::IncomingMidiMessage{};
+				spdlog::debug("Got message: {}", singleMessage.message.getDescription());
+				auto detectionResult = synth.channelIfValidDeviceResponse(singleMessage.message);
+				if (detectionResult.isValid()) {
+					spdlog::info("Detected device {} with MIDI Output/Input pair '{}','{}'", synth.getName(), outputDevice.name, singleMessage.device.name);
+					synth.setWasDetected(true);
+					locationsFound.push_back({ singleMessage.device, outputDevice, detectionResult});
 
-						// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
-						MidiMessage endDetectMessage;
-						if (synth.endDeviceDetect(endDetectMessage)) {
-							MidiController::instance()->getMidiOutput(outputDevice)->sendMessageNow(endDetectMessage);
-						}
-						break;
+					// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
+					MidiMessage endDetectMessage;
+					if (synth.endDeviceDetect(endDetectMessage)) {
+						MidiController::instance()->getMidiOutput(outputDevice)->sendMessageNow(endDetectMessage);
 					}
+					break;
 				}
 			} while (std::chrono::steady_clock::now() - startOfDetection < std::chrono::milliseconds(synth.deviceDetectSleepMS()));
 			// this will update the progress bar on the dialog box
@@ -184,9 +183,10 @@ namespace midikraft {
 
 	std::vector<MidiNetworkLocation> FindSynthOnMidiNetwork::detectSynth(DiscoverableDevice & synth, ProgressHandler * progressHandler) {
 		ignoreUnused(progressHandler);
-		MidiControllerInput<MidiCoroutine<std::vector<MidiNetworkLocation>>::promise_type> input;
-		auto coroutine = asyncDetectSynth(input, synth, progressHandler);
-		return runMidiCoroutine<std::vector<MidiNetworkLocation>>(coroutine);
+		//MidiControllerInput<MidiCoroutine<std::vector<MidiNetworkLocation>>::promise_type> input;
+		auto coroutine = asyncDetectSynth(synth, progressHandler);
+		coroutine.handle.resume();
+		return coroutine.getResult();
 	}
 
 

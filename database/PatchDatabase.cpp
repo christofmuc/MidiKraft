@@ -37,7 +37,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 9;
+	const int SCHEMA_VERSION = 10;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -48,6 +48,7 @@ namespace midikraft {
 	/* 7 - adding the table lists to allow storing lists of patches */
 	/* 8 - adding synth name, timestamp and banknumber to patch list to allow store synth banks */
 	/* 9 - adding foreign key to make sure no patch is deleted that belongs to a list */
+	/* 10 - drop tables created by upgrade to 9, needing retry with database connection */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -130,12 +131,19 @@ namespace midikraft {
 			}
 		}
 
-		std::string migrateTable(std::string table_name, std::function<void()> create_new_table) {
+		std::string migrateTable(std::string table_name, std::function<void()> create_new_table, std::vector<std::string> const& column_list) {
 			auto old_table_name = table_name + "_old";
 			db_.exec(fmt::format("ALTER TABLE {} RENAME TO {}", table_name, old_table_name ).c_str());
 			create_new_table();
-			db_.exec(fmt::format("INSERT INTO {} SELECT * FROM {}", table_name, old_table_name).c_str());
-			//db_.exec(fmt::format("DROP TABLE {}", old_table_name).c_str());
+			std::string column_names;
+			for (auto const& name : column_list) {
+				if (!column_names.empty()) {
+					column_names += ", ";
+				}
+				column_names += name;
+			}
+			auto query = fmt::format("INSERT INTO {}({}) SELECT {} FROM {}",  table_name, column_names, column_names, old_table_name);
+			db_.exec(query.c_str());			
 			return old_table_name;
 		}
 
@@ -199,9 +207,14 @@ namespace midikraft {
 			if (currentVersion < 8) {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
-				db_.exec("ALTER TABLE lists ADD COLUMN synth TEXT");
-				db_.exec("ALTER TABLE lists ADD COLUMN midi_bank_number INTEGER");
-				db_.exec("ALTER TABLE lists ADD COLUMN last_synced INTEGER");
+				try {
+					db_.exec("ALTER TABLE lists ADD COLUMN synth TEXT");
+					db_.exec("ALTER TABLE lists ADD COLUMN midi_bank_number INTEGER");
+					db_.exec("ALTER TABLE lists ADD COLUMN last_synced INTEGER");
+				}
+				catch (SQLite::Exception& e) {
+					spdlog::warn("Could not add additional columns into lists table, database already partially migrated? {}", e.getErrorStr());
+				}
 				db_.exec("UPDATE schema_version SET number = 8");
 				transaction.commit();
 			}
@@ -209,14 +222,22 @@ namespace midikraft {
 				backupIfNecessary(hasBackuped);
 				db_.exec("PRAGMA foreign_keys = OFF");
 				SQLite::Transaction transaction(db_);
-				auto table1 = migrateTable("patches", std::bind(&PatchDataBaseImpl::createPatchTable, this));
-				auto table2 = migrateTable("patch_in_list", std::bind(&PatchDataBaseImpl::createPatchInListTable, this));
+				auto table1 = migrateTable("patches", std::bind(&PatchDataBaseImpl::createPatchTable, this),
+					{ "synth", "md5", "name", "data", "favorite", "sourceID", "sourceName", "sourceInfo", "midiProgramNo", "categories", "categoryUserDecision", "hidden", "type", "midiBankNo" });
+				auto table2 = migrateTable("patch_in_list", std::bind(&PatchDataBaseImpl::createPatchInListTable, this),
+					{ "id", "synth", "md5", "order_num" });
 				db_.exec("UPDATE schema_version SET number = 9");
 				transaction.commit();
-				/// These can't be deleted within the transaction above
-				db_.exec(fmt::format("DROP TABLE {}", table1).c_str());
-				db_.exec(fmt::format("DROP TABLE {}", table2).c_str());
+			}
+			if (currentVersion < 10) {
+				db_.exec("PRAGMA foreign_keys = OFF");
+				/// These can't be deleted within a transaction
+				jassert(db_.getTotalChanges() == 0);
+				db_.exec(fmt::format("DROP TABLE IF EXISTS {}", "patches_old").c_str());
+				db_.exec(fmt::format("DROP TABLE IF EXISTS {}", "patch_in_list_old").c_str());
+				db_.exec("UPDATE schema_version SET number = 10");
 				db_.exec("PRAGMA foreign_keys = ON");
+				db_.exec("VACUUM");
 			}
 		}
 
@@ -277,11 +298,13 @@ namespace midikraft {
 			transaction.commit();
 
 			// Check if schema needs to be migrated
-			SQLite::Statement schemaQuery(db_, "SELECT number FROM schema_version");
-			if (schemaQuery.executeStep()) {
-				int version = schemaQuery.getColumn("number").getInt();
+			std::unique_ptr<SQLite::Statement> schemaQuery = std::make_unique<SQLite::Statement>(db_, "SELECT number FROM schema_version");
+			if (schemaQuery->executeStep()) {
+				int version = schemaQuery->getColumn("number").getInt();
 				if (version < SCHEMA_VERSION) {
 					try {
+						// Explicitly close our query, because we might want to drop tables and can do this only with closed operations
+						schemaQuery.reset();
 						migrateSchema(version);
 					}
 					catch (SQLite::Exception& e) {
@@ -679,9 +702,9 @@ namespace midikraft {
 
 			// Load the BLOB
 			if (dataColumn.isBlob()) {
-				std::vector<uint8> patchData((uint8*)dataColumn.getBlob(), ((uint8*)dataColumn.getBlob()) + dataColumn.getBytes());
-				//TODO I should not need the midiProgramNumber here
-				newPatch = synth->patchFromPatchData(patchData, program);
+			std::vector<uint8> patchData((uint8*)dataColumn.getBlob(), ((uint8*)dataColumn.getBlob()) + dataColumn.getBytes());
+			//TODO I should not need the midiProgramNumber here
+			newPatch = synth->patchFromPatchData(patchData, program);
 			}
 
 			// We need the current categories
@@ -1608,9 +1631,13 @@ namespace midikraft {
 		CriticalSection categoryLock_;
 	};
 
-	PatchDatabase::PatchDatabase() {
+	PatchDatabase::PatchDatabase(bool overwrite) {
 		try {
-			impl.reset(new PatchDataBaseImpl(generateDefaultDatabaseLocation(), OpenMode::READ_WRITE));
+			File location(generateDefaultDatabaseLocation());
+			if (location.exists() && !overwrite) {
+				location = location.getNonexistentSibling();
+			}
+			impl.reset(new PatchDataBaseImpl(location.getFullPathName().toStdString(), OpenMode::READ_WRITE));
 		}
 		catch (SQLite::Exception& e) {
 			throw PatchDatabaseException(e.what());

@@ -56,7 +56,7 @@ namespace midikraft {
 			UPDATE_ALL = UPDATE_NAME | UPDATE_CATEGORIES | UPDATE_HIDDEN | UPDATE_DATA | UPDATE_FAVORITE
 		};
 
-		PatchDatabase(); // Default location
+		explicit PatchDatabase(bool overwrite); // Default location
 		PatchDatabase(std::string const &databaseFile, OpenMode mode); // Specific file
 		~PatchDatabase();
 

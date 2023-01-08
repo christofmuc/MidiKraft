@@ -505,7 +505,7 @@ namespace midikraft {
 			if (filter.onlyDuplicateNames) {
 				where += " AND (name_count > 1)";
 			}
-			spdlog::debug(where);
+			//spdlog::debug(where);
 			return where;
 		}
 

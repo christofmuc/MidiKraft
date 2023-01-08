@@ -210,7 +210,7 @@ namespace midikraft {
 			spdlog::error("MIDI input {} never was opened, can't disable! Program error?", toDisable.name);
 		}
 		else {
-			spdlog::trace("MIDI input" + toDisable.name + " stopped");
+			spdlog::trace("MIDI input {} stopped", toDisable.name);
 			inputsOpen_[toDisable.identifier]->stop();
 		}
 	}

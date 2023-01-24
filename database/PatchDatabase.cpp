@@ -37,7 +37,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 10;
+	const int SCHEMA_VERSION = 12;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -50,6 +50,7 @@ namespace midikraft {
 	/* 9 - adding foreign key to make sure no patch is deleted that belongs to a list */
 	/* 10 - drop tables created by upgrade to 9, needing retry with database connection */
 	/* 11 - adding an index to speed up the duplicate name search, as suggested by chatGPT */
+	/* 12 - adding an index to speed up the import list building */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -249,6 +250,14 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 11");
 				transaction.commit();
 			}
+			if (currentVersion < 12) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				/// These can't be deleted within a transaction
+				db_.exec("CREATE INDEX IF NOT EXISTS patch_sourceid_idx ON patches (sourceID)");
+				db_.exec("UPDATE schema_version SET number = 12");
+				transaction.commit();
+			}
 		}
 
 		void insertDefaultCategories() {
@@ -306,6 +315,7 @@ namespace midikraft {
 
 			// Creating indexes
 			db_.exec("CREATE INDEX IF NOT EXISTS patch_synth_name_idx ON patches (synth, name)");
+			db_.exec("CREATE INDEX IF NOT EXISTS patch_sourceid_idx ON patches (sourceID)");
 
 			// Commit transaction
 			transaction.commit();

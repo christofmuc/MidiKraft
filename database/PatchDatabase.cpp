@@ -49,6 +49,7 @@ namespace midikraft {
 	/* 8 - adding synth name, timestamp and banknumber to patch list to allow store synth banks */
 	/* 9 - adding foreign key to make sure no patch is deleted that belongs to a list */
 	/* 10 - drop tables created by upgrade to 9, needing retry with database connection */
+	/* 11 - adding an index to speed up the duplicate name search, as suggested by chatGPT */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -230,6 +231,7 @@ namespace midikraft {
 				transaction.commit();
 			}
 			if (currentVersion < 10) {
+				backupIfNecessary(hasBackuped);
 				db_.exec("PRAGMA foreign_keys = OFF");
 				/// These can't be deleted within a transaction
 				jassert(db_.getTotalChanges() == 0);
@@ -238,6 +240,14 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 10");
 				db_.exec("PRAGMA foreign_keys = ON");
 				db_.exec("VACUUM");
+			}
+			if (currentVersion < 11) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				/// These can't be deleted within a transaction
+				db_.exec("CREATE INDEX IF NOT EXISTS patch_synth_name_idx ON patches (synth, name)");
+				db_.exec("UPDATE schema_version SET number = 11");
+				transaction.commit();
 			}
 		}
 
@@ -293,6 +303,9 @@ namespace midikraft {
 			if (!db_.tableExists("patch_in_list")) {
 				createPatchInListTable();
 			}
+
+			// Creating indexes
+			db_.exec("CREATE INDEX IF NOT EXISTS patch_synth_name_idx ON patches (synth, name)");
 
 			// Commit transaction
 			transaction.commit();
@@ -503,7 +516,7 @@ namespace midikraft {
 				}
 			}
 			if (filter.onlyDuplicateNames) {
-				where += " AND (name_count > 1)";
+				where += " AND patches_count.count > 1";
 			}
 			//spdlog::debug(where);
 			return where;
@@ -530,12 +543,26 @@ namespace midikraft {
 				joinClause += " INNER JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
 			}
 			if (filter.onlyDuplicateNames) {
-				if (filter.showHidden)
+				joinClause += " JOIN patches_count ON patches.synth = patches_count.synth AND patches.name = patches_count.dup_name";
+				/*if (filter.showHidden)
 					joinClause += " JOIN (select name as dup_name, synth, count(*) as name_count from patches group by dup_name, synth) as ordinal_table on patches.name = ordinal_table.dup_name and patches.synth = ordinal_table.synth";
 				else
-					joinClause += " JOIN (select name as dup_name, synth, count(*) as name_count from patches where hidden = 0 group by dup_name, synth) as ordinal_table on patches.name = ordinal_table.dup_name and patches.synth = ordinal_table.synth";
+					joinClause += " JOIN (select name as dup_name, synth, count(*) as name_count from patches where hidden = 0 group by dup_name, synth) as ordinal_table on patches.name = ordinal_table.dup_name and patches.synth = ordinal_table.synth";*/
 			}
 			return joinClause;
+		}
+
+		std::string buildCTE(PatchFilter filter) {
+			if (filter.onlyDuplicateNames) {
+				return R"sql(WITH patches_count AS (
+   SELECT synth, name as dup_name, COUNT(*) as count
+   FROM patches
+   GROUP BY synth, name
+))sql";
+			}
+			else {
+				return "";
+			}
 		}
 
 		std::string synthVariable(int no) {
@@ -567,7 +594,7 @@ namespace midikraft {
 
 		int getPatchesCount(PatchFilter filter) {
 			try {
-				std::string queryString = "SELECT count(*) FROM patches" + buildJoinClause(filter) + buildWhereClause(filter, false);
+				std::string queryString = fmt::format("{} SELECT count(*) FROM patches {} {}", buildCTE(filter), buildJoinClause(filter), buildWhereClause(filter, false));
 				SQLite::Statement query(db_, queryString);
 				bindWhereClause(query, filter);
 				if (query.executeStep()) {
@@ -803,7 +830,8 @@ namespace midikraft {
 		}
 
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder>& result, std::vector<std::pair<std::string, PatchHolder>>& needsReindexing, int skip, int limit) {
-			std::string selectStatement = "SELECT * FROM patches " + buildJoinClause(filter) + buildWhereClause(filter, true) + buildOrderClause(filter);
+			std::string selectStatement = fmt::format("{} SELECT * FROM patches {} {} {}", buildCTE(filter), buildJoinClause(filter), buildWhereClause(filter, true), buildOrderClause(filter));
+			spdlog::debug("SQL {}", selectStatement);
 			if (limit != -1) {
 				selectStatement += " LIMIT :LIM ";
 				selectStatement += " OFFSET :OFS";

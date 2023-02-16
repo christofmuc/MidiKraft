@@ -32,10 +32,10 @@ namespace midikraft {
 	{
 		// The default implementation is just that you see something
 		if (programNo.isBankKnown()) {
-			return fmt::format("{:02d}-{:02d}", programNo.bank().toZeroBased(),  programNo.toZeroBased());
+			return fmt::format("{:02d}-{:02d}", programNo.bank().toZeroBased(),  programNo.toZeroBasedDiscardingBank());
 		}
 		else {
-			return fmt::format("{:02d}", programNo.toZeroBased());
+			return fmt::format("{:02d}", programNo.toZeroBasedWithBank());
 		}
 	}
 
@@ -44,7 +44,7 @@ namespace midikraft {
 		if (!programNo.isBankKnown()) {
 			// Default implementation is the old logic that the program numbers are just continuous
 			// from one bank to the next
-			int program = programNo.toZeroBased();
+			int program = programNo.toZeroBasedWithBank();
 			return friendlyProgramName(MidiProgramNumber::fromZeroBaseWithBank(bankNo, program));
 		}
 		else {
@@ -199,7 +199,8 @@ namespace midikraft {
 				messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);
 				auto location = Capability::hasCapability<MidiLocationCapability>(this);
 				if (location && location->channel().isValid() && place.isValid()) {
-					messages.push_back(MidiMessage::programChange(location->channel().toOneBasedInt(), place.toZeroBased())); // Some synths might need a bank change as well, e.g. the Matrix 1000. Which luckily has an edit buffer
+					// Some synths might need a bank change as well, e.g. the Matrix 1000. Which luckily has an edit buffer
+					messages.push_back(MidiMessage::programChange(location->channel().toOneBasedInt(), place.toZeroBasedDiscardingBank()));
 				}
 			}
 		}

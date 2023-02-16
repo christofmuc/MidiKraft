@@ -223,7 +223,7 @@ namespace midikraft {
 			startDownloadNextEditBuffer(midiOutput, synth, false); // No program change required, we want exactly one edit buffer, the current one
 		}
 		else if (programDumpCapability && programChangeCapability) {
-			auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
+			auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBasedWithBank());
 			synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 		}
 		else {

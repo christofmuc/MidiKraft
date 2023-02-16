@@ -315,7 +315,7 @@ namespace midikraft {
 			if (patch.bankNumber().isValid()) {
 				patchJson[kBank] = patch.bankNumber().toZeroBased();
 			}
-			patchJson[kPlace] = patch.patchNumber().toZeroBased();
+			patchJson[kPlace] = patch.patchNumber().toZeroBasedDiscardingBank();
  			auto categoriesSet = patch.categories();
 			auto userDecisions = patch.userDecisionSet();
 			auto userDefinedCategories = category_intersection(categoriesSet, userDecisions);

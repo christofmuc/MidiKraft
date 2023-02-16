@@ -32,6 +32,6 @@ void midikraft::MTSFile::setName(std::string const& name)
 std::vector<juce::MidiMessage> midikraft::MTSFile::createMidiMessagesFromDataFile(MidiProgramNumber placeToStore)
 {
 	auto copyOfData = data();
-	copyOfData[4] = (uint8) placeToStore.toZeroBased();
+	copyOfData[4] = (uint8) placeToStore.toZeroBasedDiscardingBank();
 	return { MidiHelpers::sysexMessage(copyOfData) };
 }

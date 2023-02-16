@@ -88,7 +88,7 @@ namespace midikraft {
 				patch->setBank(old.bankNumber());
 				patch->setPatchNumber(old.patchNumber());
 				modified = true;
-				dirtyPositions_.insert(old.patchNumber().toZeroBased());
+				dirtyPositions_.insert(old.patchNumber().toZeroBasedDiscardingBank());
 			}
 		}
 		if (modified) {
@@ -99,7 +99,7 @@ namespace midikraft {
 	void SynthBank::changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch)
 	{
 		auto currentList = patches();
-		int position = programPlace.toZeroBased();
+		int position = programPlace.toZeroBasedDiscardingBank();
 		if (position < static_cast<int>(currentList.size())) {
 			// Check that we are not dropping a patch onto itself
 			if (currentList[position].md5() != patch.md5()) {
@@ -117,7 +117,7 @@ namespace midikraft {
 	void SynthBank::copyListToPosition(MidiProgramNumber programPlace, PatchList const& list)
 	{
 		auto currentList = patches();
-		int position = programPlace.toZeroBased();
+		int position = programPlace.toZeroBasedDiscardingBank();
 		if (position < static_cast<int>(currentList.size())) {
 			auto listToCopy = list.patches();
 			int read_pos = 0;

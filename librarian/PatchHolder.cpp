@@ -458,7 +458,7 @@ namespace midikraft {
 		}
 		else
 		{
-			doc[kProgramNo] = program.toZeroBased();
+			doc[kProgramNo] = program.toZeroBasedDiscardingBank();
 		}
 		jsonRep_ = doc.dump();
 

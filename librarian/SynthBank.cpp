@@ -128,7 +128,7 @@ namespace midikraft {
 					dirtyPositions_.insert(write_pos++);
 				}
 				else {
-					spdlog::info("Skipping patch %s because it is for synth %s and cannot be put into the bank", listToCopy[read_pos].name(), listToCopy[read_pos].synth()->getName());
+					spdlog::info("Skipping patch {} because it is for synth {} and cannot be put into the bank", listToCopy[read_pos].name(), listToCopy[read_pos].synth()->getName());
 					read_pos++;
 				}
 			}

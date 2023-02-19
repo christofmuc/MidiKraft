@@ -75,7 +75,7 @@ namespace midikraft {
 		// Determine what we will do with the answer...
 		auto handle = MidiController::makeOneHandle();
 		auto streamLoading = midikraft::Capability::hasCapability<StreamLoadCapability>(synth);
-		auto bankCapableSynth = midikraft::Capability::hasCapability<BankDumpCapability>(synth);
+		auto bankCapableSynth = midikraft::Capability::hasCapability<BankDumpRequestCapability>(synth);
 		auto handshakeLoadingRequired = midikraft::Capability::hasCapability<HandshakeLoadingCapability>(synth);
 		if (streamLoading) {
 			// Simple enough, we hope

@@ -56,15 +56,4 @@ namespace midikraft {
 		}
 	}
 	
-	std::string JsonSerialization::patchInSessionID(Synth *synth, std::shared_ptr<SessionPatch> patch) {
-		// Every possible patch can be stored in the database once per synth and session.
-		// build a hash to represent this.
-		ignoreUnused(synth);
-		jassert(synth->getName() == patch->synthName_);
-		std::string patchHash = patch->patchHolder_.md5();
-		std::string toBeHashed = fmt::format("{}-{}-{}", patch->session_.name_, patch->synthName_, patchHash);
-		MD5 hash(toBeHashed.data(), toBeHashed.size());
-		return hash.toHexString().toStdString();
-	}
-
 }

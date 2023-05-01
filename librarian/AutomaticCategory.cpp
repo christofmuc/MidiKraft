@@ -21,7 +21,7 @@ namespace midikraft {
 	AutomaticCategory::AutomaticCategory(std::vector<Category> existingCats)
 	{
 		if (autoCategoryFileExists()) {
-			spdlog::info("Overriding built-in automatic category rules with file {}", getAutoCategoryFile().getFullPathName().toStdString());
+			SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding built-in automatic category rules with file {}", getAutoCategoryFile().getFullPathName().toStdString()));
 			loadFromFile(existingCats, getAutoCategoryFile().getFullPathName().toStdString());
 		}
 		else {
@@ -29,7 +29,7 @@ namespace midikraft {
 		}
 
 		if (autoCategoryMappingFileExists()) {
-			spdlog::info("Overriding built-in import category rules with file {}", getAutoCategoryMappingFile().getFullPathName().toStdString());
+			SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding built-in import category rules with file {}", getAutoCategoryMappingFile().getFullPathName().toStdString()));
 			auto fileContent = getAutoCategoryMappingFile().loadFileAsString();
 			try {
 				loadMappingFromString(fileContent.toStdString());

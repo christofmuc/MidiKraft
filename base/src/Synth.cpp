@@ -190,7 +190,7 @@ namespace midikraft {
 						}
 					}
 					if (place.isValid()) {
-						spdlog::warn("{} has no edit buffer, using program {} instead", getName(), friendlyProgramName(place));
+						SimpleLogger::instance()->postMessageOncePerRun(fmt::format("{} has no edit buffer, using program {} instead", getName(), friendlyProgramName(place)));
 					}
 					else {
 						spdlog::error("{} has no edit buffer and not way to determine a standard program place, can't send program change", getName());

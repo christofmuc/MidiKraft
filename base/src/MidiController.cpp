@@ -91,7 +91,7 @@ namespace midikraft {
 		return midiOut_ != nullptr;
 	}
 
-	MidiController::MidiController()
+	MidiController::MidiController() : midiLogLevel_(MidiLogLevel::SYSEX_ONLY)
 	{
 		if (instance_ != nullptr) {
 			throw new std::runtime_error("This is a singleton, can't create twice");
@@ -217,7 +217,19 @@ namespace midikraft {
 
 	// These methods handle callbacks from the midi device
 	void MidiController::handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) {
-		if (!message.isActiveSense() && !message.isMidiClock()) {
+		bool doLog = false;
+		switch (midiLogLevel_) {
+		case MidiLogLevel::SYSEX_ONLY:
+			doLog = message.isSysEx();
+			break;
+		case MidiLogLevel::ALL_BUT_REALTIME:
+			doLog = !message.isActiveSense() && !message.isMidiClock();
+			break;
+		default:
+			doLog = true;
+		}
+		if (doLog)
+		{
 			logMidiMessage(message, source->getName(), false);
 		}
 
@@ -324,6 +336,10 @@ namespace midikraft {
 			outputDevices.insert(historyOfAllOutpus_.begin(), historyOfAllOutpus_.end());
 		}
 		return outputDevices;
+	}
+
+	void MidiController::setMidiLogLevel(MidiLogLevel level) {
+		midiLogLevel_ = level;
 	}
 
     juce::MidiDeviceInfo MidiController::getMidiOutputByIdentifier(const String &identifier)

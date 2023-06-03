@@ -94,6 +94,7 @@ namespace midikraft {
 		else {
 			// The other Synth types load message by message
 			std::vector<MidiMessage> currentStreak;
+			std::vector<MidiMessage> currentBank;
 			for (auto message : sysexMessages) {
 				if (editBufferSynth && editBufferSynth->isMessagePartOfEditBuffer(message).isPartOfEditBufferDump) {
 					currentStreak.push_back(message);
@@ -124,9 +125,13 @@ namespace midikraft {
 					}
 				}
 				else if (bankDumpSynth && bankDumpSynth->isBankDump(message)) {
-					auto morePatches = bankDumpSynth->patchesFromSysexBank(message);
-					spdlog::info("Loaded bank dump with {} patches", morePatches.size());
-					std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
+					currentBank.push_back(message);
+					if (bankDumpSynth->isBankDumpFinished(currentBank)) {
+						auto morePatches = bankDumpSynth->patchesFromSysexBank(currentBank);
+						spdlog::info("Loaded bank dump with {} patches", morePatches.size());
+						std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
+						currentBank.clear();
+					}
 				}
 				else if (dataFileLoadSynth) {
 					// Should test all data file types!
@@ -143,6 +148,10 @@ namespace midikraft {
 					// with a syx extension, wrongly getting interpreted as a real sysex file.
 					spdlog::warn("Ignoring sysex message found, not implemented: {}", message.getDescription());
 				}
+			}
+			if (currentBank.size() > 0) {
+				// There were bank messages, but not complete
+				spdlog::warn("Incomplete bank found, patches from {} messages not loaded. Program or adaptation error?", currentBank.size());
 			}
 		}
 

@@ -111,7 +111,8 @@ namespace midikraft {
 
 	std::vector<MidiNetworkLocation> FindSynthOnMidiNetwork::detectSynth(DiscoverableDevice &synth, ProgressHandler *progressHandler)
 	{
-		FindSynthOnMidiNetwork m(synth, fmt::format("Looking for {} on your MIDI network...", synth.getName()), progressHandler);
+		auto nameCap = dynamic_cast<NamedDeviceCapability*>(&synth);
+		FindSynthOnMidiNetwork m(synth, fmt::format("Looking for {} on your MIDI network...", nameCap ? nameCap->getName() : "'invalid name'"), progressHandler);
 		m.startThread();
 		if (m.waitForThreadToExit(15000))
 		{

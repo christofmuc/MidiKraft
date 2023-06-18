@@ -13,8 +13,7 @@
 
 namespace midikraft {
 
-	//TODO - Woah, can't remember why this needs to be a virtual inheritance? Smell!
-	class DiscoverableDevice : public virtual NamedDeviceCapability {
+	class DiscoverableDevice {
 	public:
 		// These need to be implemented by any new device we want to find on the network
 		virtual std::vector<juce::MidiMessage> deviceDetect(int channel) = 0;

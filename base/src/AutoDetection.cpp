@@ -20,7 +20,8 @@ namespace midikraft {
 		*kOutput = "output";
 
 	static std::string midiSetupKey(DiscoverableDevice *synth, std::string const &trait) {
-		return fmt::format("{}-{}", synth->getName(), trait);
+		auto nameCap = dynamic_cast<NamedDeviceCapability*>(synth);
+		return fmt::format("{}-{}", nameCap ? nameCap->getName() : "invalid", trait);
 	}
 
 	AutoDetection::AutoDetection() : handler_(MidiController::makeOneHandle())

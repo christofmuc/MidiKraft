@@ -240,7 +240,7 @@ namespace midikraft {
 		return "";
 	}
 
-	MidiProgramNumber Synth::numberForPatch(std::shared_ptr<DataFile> dataFile) const
+	MidiProgramNumber Synth::numberForPatch(std::shared_ptr<DataFile> dataFile) 
 	{
 		// Old school real patch?
 		auto realPatch = std::dynamic_pointer_cast<Patch>(dataFile);
@@ -249,7 +249,7 @@ namespace midikraft {
 		}
 		else {
 			// Let's check if we have program dump capability
-			auto programDumpCapa = dynamic_cast<const ProgramDumpCabability *>(this);
+			const auto programDumpCapa = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
 			if (programDumpCapa) {
 				// We assume we can interprete the data file as a list of MidiMessages!
 				return programDumpCapa->getProgramNumber(dataFile->asMidiMessages());

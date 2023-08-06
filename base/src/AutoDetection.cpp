@@ -40,6 +40,7 @@ namespace midikraft {
 
 	void AutoDetection::autoconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths, ProgressHandler *progressHandler)
 	{
+		spdlog::debug("Starting auto configure of all synths");
 		// For all devices that are discoverable, run the find method
 		for (auto synthHolder : allSynths) {
 			if (synthHolder) {
@@ -47,11 +48,13 @@ namespace midikraft {
 			}
 		}
 		listenerToAllFound(allSynths);
+		spdlog::debug("Auto configure of all synths done, notifying listeners");
 		sendChangeMessage();
 	}
 
 	void AutoDetection::quickconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths)
 	{
+		spdlog::debug("Starting quick configure of all synths");
 		// For all devices that are discoverable, run the find method
 		for (auto &synthHolder : allSynths) {
 			if (synthHolder) {
@@ -74,6 +77,7 @@ namespace midikraft {
 		}
 		}
 		listenerToAllFound(allSynths);
+		spdlog::debug("Quick configure of all synths done, notifying listeners");
 		sendChangeMessage();
 	}
 
@@ -82,16 +86,20 @@ namespace midikraft {
 		if (synth->channel().isValid()) {
 			Settings::instance().set(midiSetupKey(synth, kChannel), fmt::format("{}", synth->channel().toZeroBasedInt()));
 		}
-		Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput().identifier.toStdString());
-		Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput().identifier.toStdString());
+		if (synth->midiInput().name.isNotEmpty()) {
+			Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput().name.toStdString());
+		}
+		if (synth->midiOutput().name.isNotEmpty()) {
+			Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput().name.toStdString());
+		}
 	}
 
 	void AutoDetection::loadSettings(SimpleDiscoverableDevice *synth)
 	{
 		std::string input = Settings::instance().get(midiSetupKey(synth, kInput));
-		synth->setInput(MidiController::instance()->getMidiInputByIdentifier(input));
+		synth->setInput(MidiController::instance()->getMidiInputByName(input));
 		std::string output = Settings::instance().get(midiSetupKey(synth, kOutput));
-		synth->setOutput(MidiController::instance()->getMidiOutputByIdentifier(output));
+		synth->setOutput(MidiController::instance()->getMidiOutputByName(output));
 
 		synth->setChannel(MidiChannel::invalidChannel());
 		std::string channelString = Settings::instance().get(midiSetupKey(synth, kChannel));

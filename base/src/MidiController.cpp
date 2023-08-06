@@ -145,6 +145,8 @@ namespace midikraft {
 					return false;
 				}
 			}
+			spdlog::info("Could not find MIDI output {}, device disconnected?", newOutput.name);
+			return false;
 		}
 		return true;
 	}

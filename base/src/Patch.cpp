@@ -8,6 +8,8 @@
 
 #include "SynthParameterDefinition.h"
 
+#include "Sysex.h"
+
 namespace midikraft {
 
 	DataFile::DataFile(int dataTypeID) : dataTypeID_(dataTypeID)
@@ -51,6 +53,11 @@ namespace midikraft {
 		    data_[(size_t) sysExIndex] = value;
         else
             jassertfalse;
+	}
+
+	std::vector<juce::MidiMessage> DataFile::asMidiMessages() const
+	{
+		return Sysex::vectorToMessages(data_);
 	}
 
 	Synth::PatchData Patch::blankOut(std::vector<Range<size_t>> const &blankoutZones, Synth::PatchData const &inputData)

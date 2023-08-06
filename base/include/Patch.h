@@ -29,6 +29,8 @@ namespace midikraft {
 		virtual int at(int sysExIndex) const;
 		virtual void setAt(int sysExIndex, uint8 value);
 
+		std::vector<juce::MidiMessage> asMidiMessages() const;
+
 	protected:
 		// Just any ID you want to give it
 		int dataTypeID_;
@@ -40,6 +42,8 @@ namespace midikraft {
 	class Patch : public DataFile {
 	public:
 		using DataFile::DataFile;
+
+		virtual MidiProgramNumber patchNumber() const = 0;
 
 		// For patch comparison
 		static Synth::PatchData blankOut(std::vector<Range<size_t>> const &blankoutZones, Synth::PatchData const &inputData);

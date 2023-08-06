@@ -425,8 +425,10 @@ namespace midikraft {
 			// Alternatively, use the running number to just enumerate patches as they come in. 
 			auto programDumpCapability = std::dynamic_pointer_cast<ProgramDumpCabability>(synth);
 			if (programDumpCapability) {
-				auto storedProgramNumber = programDumpCapability->getProgramNumber();
-				place = realpatch->patchNumber();
+				// We cannot use the program dump capability directly here, because there is no guarantee that the patch is stored as a list of MIDI messages. We need to delegate to the synth to do the right thing
+				auto storedProgram = synth->numberForPatch(patch);
+				patchHolder.setBank(storedProgram.bank());
+				patchHolder.setPatchNumber(storedProgram);
 			}
 			else
 			{

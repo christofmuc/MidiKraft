@@ -240,6 +240,24 @@ namespace midikraft {
 		return "";
 	}
 
+	MidiProgramNumber Synth::numberForPatch(std::shared_ptr<DataFile> dataFile) const
+	{
+		// Old school real patch?
+		auto realPatch = std::dynamic_pointer_cast<Patch>(dataFile);
+		if (realPatch) {
+			return realPatch->patchNumber();
+		}
+		else {
+			// Let's check if we have program dump capability
+			auto programDumpCapa = dynamic_cast<const ProgramDumpCabability *>(this);
+			if (programDumpCapa) {
+				// We assume we can interprete the data file as a list of MidiMessages!
+				return programDumpCapa->getProgramNumber(dataFile->asMidiMessages());
+			}
+		}
+		return MidiProgramNumber::invalidProgram();
+	}
+
 	void Synth::sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
 		auto messages = dataFileToSysex(dataFile, target);

@@ -41,8 +41,6 @@ namespace midikraft {
 	public:
 		using DataFile::DataFile;
 
-		virtual MidiProgramNumber patchNumber() const = 0;
-
 		// For patch comparison
 		static Synth::PatchData blankOut(std::vector<Range<size_t>> const &blankoutZones, Synth::PatchData const &inputData);
 	};

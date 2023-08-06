@@ -405,12 +405,39 @@ namespace midikraft {
 			//}
 		}
 
+		return createPatchHoldersFromPatchList(synth, patches, MidiBankNumber::invalid(), [fullpath, filename](MidiBankNumber bankNo, MidiProgramNumber programNo) {
+				ignoreUnused(bankNo);
+				return std::make_shared<FromFileSource>(filename, fullpath, programNo);
+			}, automaticCategories);
+	}
+
+	std::vector<PatchHolder> Librarian::createPatchHoldersFromPatchList(std::shared_ptr<Synth> synth, TPatchVector const& patches, MidiBankNumber bankNo, std::function<std::shared_ptr<SourceInfo>(MidiBankNumber, MidiProgramNumber)> generateSourceinfo, std::shared_ptr<AutomaticCategory> automaticCategories)
+	{
 		// Add the meta information
 		std::vector<PatchHolder> result;
 		int i = 0;
-		for (auto patch : patches) {
-			result.push_back(PatchHolder(synth, std::make_shared<FromFileSource>(filename, fullpath, MidiProgramNumber::fromZeroBase(i)), patch,
-				MidiBankNumber::fromZeroBase(0, SynthBank::numberOfPatchesInBank(synth, 0)), MidiProgramNumber::fromZeroBase(i), automaticCategories));
+		for (auto const& patch : patches) {
+			auto runningPatchNumber = MidiProgramNumber::fromZeroBaseWithBank(bankNo, i);
+			auto sourceInfo = generateSourceinfo(bankNo, runningPatchNumber);
+			auto patchHolder = PatchHolder(synth, sourceInfo, patch, automaticCategories);
+
+			// If then synth has a stored program number - currently this is tied to the ProgramDumpCapability - use that. 
+			// Alternatively, use the running number to just enumerate patches as they come in. 
+			auto programDumpCapability = std::dynamic_pointer_cast<ProgramDumpCabability>(synth);
+			if (programDumpCapability) {
+				auto storedProgramNumber = programDumpCapability->getProgramNumber();
+				place = realpatch->patchNumber();
+			}
+			else
+			{
+				patchHolder.setBank(bankNo);
+				patchHolder.setPatchNumber(runningPatchNumber);
+			}
+			if (patchHolder.name().empty())
+			{
+				patchHolder.setName(synth->friendlyProgramAndBankName(patchHolder.bankNumber(), patchHolder.patchNumber()));
+			}
+			result.push_back(patchHolder);
 			i++;
 		}
 		return result;
@@ -422,15 +449,11 @@ namespace midikraft {
 			patches = synth->loadSysex(messages);
 		}
 		// Add the meta information
-		std::vector<PatchHolder> result;
-		int i = 0;
 		Time now;
-		for (auto patch : patches) {
-			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, MidiBankNumber::invalid()), patch,
-				MidiBankNumber::invalid(), MidiProgramNumber::fromZeroBase(i), automaticCategories));
-			i++;
-		}
-		return result;
+		return createPatchHoldersFromPatchList(synth, patches, MidiBankNumber::invalid(), [now](MidiBankNumber bankNo, MidiProgramNumber programNo) {
+			ignoreUnused(programNo);
+			return std::make_shared<FromSynthSource>(now, bankNo);
+		}, automaticCategories);
 	}
 
 	void Librarian::sendBankToSynth(SynthBank const& synthBank, bool fullBank, ProgressHandler* progressHandler, std::function<void(bool completed)> finishedHandler)
@@ -890,16 +913,10 @@ namespace midikraft {
 	std::vector<PatchHolder> Librarian::tagPatchesWithImportFromSynth(std::shared_ptr<Synth> synth, TPatchVector &patches, MidiBankNumber bankNo) {
 		std::vector<PatchHolder> result;
 		auto now = Time::getCurrentTime();
-		int i = 0;
-		for (auto patch : patches) {
-			MidiProgramNumber place = MidiProgramNumber::fromZeroBase(i++);
-			auto realpatch = std::dynamic_pointer_cast<Patch>(patch);
-			if (realpatch && realpatch->patchNumber().isValid()) {
-				place = realpatch->patchNumber();
-			}
-			result.push_back(PatchHolder(synth, std::make_shared<FromSynthSource>(now, bankNo), patch, bankNo, place));
-		}
-		return result;
+		return createPatchHoldersFromPatchList(synth, patches, bankNo, [now](MidiBankNumber bank, MidiProgramNumber programNumber) {
+			ignoreUnused(programNumber);
+			return std::make_shared<FromSynthSource>(now, bank);
+			}, nullptr);
 	}
 
 	void Librarian::tagPatchesWithMultiBulkImport(std::vector<PatchHolder> &patches) {

@@ -73,6 +73,7 @@ namespace midikraft {
 		void handleNextProgramBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& editBuffer, MidiBankNumber bankNo);
 		void handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& bankDump, MidiBankNumber bankNo);
 
+		std::vector<PatchHolder> createPatchHoldersFromPatchList(std::shared_ptr<Synth> synth, TPatchVector const& patches, MidiBankNumber bankNo, std::function<std::shared_ptr<SourceInfo>(MidiBankNumber, MidiProgramNumber)> generateSourceinfo, std::shared_ptr<AutomaticCategory> automaticCategories);
 		std::vector<PatchHolder> tagPatchesWithImportFromSynth(std::shared_ptr<Synth> synth, TPatchVector &patches, MidiBankNumber bankNo);
 		void tagPatchesWithMultiBulkImport(std::vector<PatchHolder> &patches);
 

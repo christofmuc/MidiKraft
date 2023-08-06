@@ -31,45 +31,21 @@ namespace midikraft {
 		*kProgramNo = "program";
 
 	PatchHolder::PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, 
-		MidiBankNumber bank, MidiProgramNumber place, std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
+		std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
 		: patch_(patch)
             , synth_(activeSynth)
             , isFavorite_(Favorite())
             , isHidden_(false)
-            , bankNumber_(bank)
-            , patchNumber_(place)
+            , bankNumber_(MidiBankNumber::invalid())
+            , patchNumber_(MidiProgramNumber::invalidProgram())
             , sourceInfo_(sourceInfo)
     {
 		if (patch) {
 			name_ = activeSynth->nameForPatch(patch);
-			if (name_.empty()) {
-				// No information on the patch name from the data. We need to make one up from the Program Place given to this Meta Data constructor
-				name_ = activeSynth->friendlyProgramAndBankName(bank, place);
-			}
 			if (detector) {
 				categories_ = detector->determineAutomaticCategories(*this);
 			}
 		}
-		/*if (sourceInfo && !bankNumber_.isValid() && patchNumber_.toZeroBased() == 0) {
-			// Bug fix for old data - the bank/program columns might contain nothing while the file source actually has the correct data.
-			// Apply this
-			auto filesource = std::dynamic_pointer_cast<FromFileSource>(sourceInfo);
-			if (filesource) {
-				patchNumber_ = filesource->programNumber();
-				if (patchNumber_.bank().isValid()) {
-					bankNumber_ = patchNumber_.bank();
-				}
-			}
-			else if (auto bulksource = std::dynamic_pointer_cast<FromBulkImportSource>(sourceInfo)) {
-				filesource = std::dynamic_pointer_cast<FromFileSource>(bulksource->individualInfo());
-				if (filesource) {
-					patchNumber_ = filesource->programNumber();
-					if (patchNumber_.bank().isValid()) {
-						bankNumber_ = patchNumber_.bank();
-					}
-				}
-			}
-		}*/
 	}
 
 	PatchHolder::PatchHolder() : isFavorite_(Favorite()), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())

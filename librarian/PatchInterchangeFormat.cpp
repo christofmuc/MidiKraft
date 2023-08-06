@@ -260,8 +260,10 @@ namespace midikraft {
 							auto patches = activeSynth->loadSysex(messages);
 							//jassert(patches.size() == 1);
 							if (patches.size() == 1) {
-								PatchHolder holder(activeSynth, fileSource, patches[0], bank, place, detector);
+								PatchHolder holder(activeSynth, fileSource, patches[0], detector);
 								holder.setFavorite(fav);
+								holder.setBank(bank);
+								holder.setPatchNumber(place);
 								holder.setName(patchName);
 								for (const auto& cat : categories) {
 									holder.setCategory(cat, true);

@@ -109,7 +109,6 @@ namespace midikraft {
 	public:		
 		PatchHolder();
 		PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,
-			MidiBankNumber bank, MidiProgramNumber place, 
 			std::shared_ptr<AutomaticCategory> detector = nullptr);
 
 		std::shared_ptr<DataFile> patch() const;

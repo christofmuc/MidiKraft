@@ -749,7 +749,9 @@ namespace midikraft {
 			if (newPatch) {
 				auto sourceColumn = query.getColumn("sourceInfo");
 				if (sourceColumn.isText()) {
-					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch, bank, program);
+					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch);
+					holder.setBank(bank);
+					holder.setPatchNumber(program);
 
 					std::string patchName = query.getColumn("name").getString();
 					holder.setName(patchName);
@@ -897,7 +899,9 @@ namespace midikraft {
 						MidiProgramNumber program = MidiProgramNumber::invalidProgram();
 						MidiBankNumber bank = MidiBankNumber::invalid();
 						loadBankAndProgram(ph.smartSynth(), query, bank, program);
-						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr, bank, program);
+						PatchHolder existingPatch(ph.smartSynth(), ph.sourceInfo(), nullptr);
+						existingPatch.setBank(bank);
+						existingPatch.setPatchNumber(program);
 						std::string name = query.getColumn("name");
 						existingPatch.setName(name);
 						result.emplace(md5, existingPatch);

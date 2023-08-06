@@ -40,7 +40,15 @@ namespace midikraft {
 		}
 		// In case the bank was not full (could be a brand new user bank), fill it up with empty holders
 		for (size_t j = patches.size(); static_cast<int>(j) < bankNo_.bankSize(); j++) {
-			patches.push_back(midikraft::PatchHolder(synth_, nullptr, nullptr, bankNo_, MidiProgramNumber::fromZeroBaseWithBank(bankNo_, (int)j)));
+			auto initPatch = midikraft::PatchHolder(synth_, nullptr, nullptr);
+			initPatch.setBank(bankNo_);
+			auto patchNo = MidiProgramNumber::fromZeroBaseWithBank(bankNo_, (int)j);
+			initPatch.setPatchNumber(patchNo);
+			if (initPatch.name().empty())
+			{
+				initPatch.setName(patches[j].smartSynth()->friendlyProgramAndBankName(bankNo_, patchNo));
+			}
+			patches.push_back(initPatch);
 		}
 
 		// Validate everything worked

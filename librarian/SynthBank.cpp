@@ -46,7 +46,9 @@ namespace midikraft {
 			initPatch.setPatchNumber(patchNo);
 			if (initPatch.name().empty())
 			{
-				initPatch.setName(patches[j].smartSynth()->friendlyProgramAndBankName(bankNo_, patchNo));
+				if (j < patches.size()) {
+					initPatch.setName(patches[j].smartSynth()->friendlyProgramAndBankName(bankNo_, patchNo));
+				}
 			}
 			patches.push_back(initPatch);
 		}

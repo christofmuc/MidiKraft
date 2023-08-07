@@ -755,7 +755,7 @@ namespace midikraft {
 
 					std::string patchName = query.getColumn("name").getString();
 					holder.setName(patchName);
-					std::string sourceId = query.getColumn("sourceID");
+					std::string sourceId = query.getColumn("sourceID").getString();
 					holder.setSourceId(sourceId);
 
 					auto favoriteColumn = query.getColumn("favorite");

@@ -1351,7 +1351,7 @@ namespace midikraft {
 		std::vector<ListInfo> allSynthBanks(std::shared_ptr<Synth> synth)
 		{
 			try {
-				SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth = :SYN");
+				SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth = :SYN AND midi_bank_number is not NULL");
 				query.bind(":SYN", synth->getName());
 				std::vector<ListInfo> result;
 				while (query.executeStep()) {
@@ -1372,7 +1372,7 @@ namespace midikraft {
 		std::vector<ListInfo> allUserBanks(std::shared_ptr<Synth> synth)
 		{
 			try {
-				SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth = :SYN");
+				SQLite::Statement query(db_, "SELECT * FROM lists WHERE synth = :SYN AND midi_bank_number is not NULL");
 				query.bind(":SYN", synth->getName());
 				std::vector<ListInfo> result;
 				while (query.executeStep()) {

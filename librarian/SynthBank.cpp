@@ -124,6 +124,19 @@ namespace midikraft {
 		}
 	}
 
+	void SynthBank::updatePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch)
+	{
+		auto currentList = patches();
+		int position = programPlace.toZeroBasedDiscardingBank();
+		if (position < static_cast<int>(currentList.size())) {
+			currentList[position] = patch;
+			setPatches(currentList);
+		}
+		else {
+			jassertfalse;
+		}
+	}
+
 	void SynthBank::copyListToPosition(MidiProgramNumber programPlace, PatchList const& list)
 	{
 		auto currentList = patches();

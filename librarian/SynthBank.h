@@ -28,6 +28,7 @@ namespace midikraft {
 		virtual void fillWithPatch(PatchHolder patch);
 		
 		virtual void changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
+		virtual void updatePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
 		
 		void copyListToPosition(MidiProgramNumber programPlace, PatchList const& list);
 

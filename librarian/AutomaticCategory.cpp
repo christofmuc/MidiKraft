@@ -76,7 +76,7 @@ namespace midikraft {
 						}
 					}
 					else {
-						spdlog::warn("Synth{} has no mapping defined for stored category{}. Use Categories... Edit mappings... to fix.", synthname, tag.name());
+						spdlog::warn("Synth{} has no mapping defined for stored category {}. Use Categories... Edit mappings... to fix.", synthname, tag.name());
 					}
 				}
 				else {

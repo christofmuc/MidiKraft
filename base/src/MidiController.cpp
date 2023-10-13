@@ -121,7 +121,21 @@ namespace midikraft {
 
 	void MidiController::logMidiMessage(const MidiMessage& message, const String& source, bool isOut) {
 		if (midiLogFunction_) {
-			midiLogFunction_(message, source, isOut);
+			bool doLog = false;
+			switch (midiLogLevel_) {
+			case MidiLogLevel::SYSEX_ONLY:
+				doLog = message.isSysEx();
+				break;
+			case MidiLogLevel::ALL_BUT_REALTIME:
+				doLog = !message.isActiveSense() && !message.isMidiClock();
+				break;
+			default:
+				doLog = true;
+			}
+			if (doLog)
+			{
+				midiLogFunction_(message, source, isOut);
+			}
 		}
 	}
 
@@ -219,21 +233,7 @@ namespace midikraft {
 
 	// These methods handle callbacks from the midi device
 	void MidiController::handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) {
-		bool doLog = false;
-		switch (midiLogLevel_) {
-		case MidiLogLevel::SYSEX_ONLY:
-			doLog = message.isSysEx();
-			break;
-		case MidiLogLevel::ALL_BUT_REALTIME:
-			doLog = !message.isActiveSense() && !message.isMidiClock();
-			break;
-		default:
-			doLog = true;
-		}
-		if (doLog)
-		{
-			logMidiMessage(message, source->getName(), false);
-		}
+		logMidiMessage(message, source->getName(), false);
 
 		// Call all currently registered handlers, but make sure to iterate over a copy of the list as it might get modified while the handlers run
 		// First the new style handlers;

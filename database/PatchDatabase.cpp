@@ -1254,6 +1254,41 @@ namespace midikraft {
 					// This is a complex database operation, use a transaction to make sure we get all or nothing
 					SQLite::Transaction transaction(db_);
 
+					// First insert the retrieved patches back into the database. The merge logic will handle the multiple instance situation
+					std::vector<PatchHolder> remainingPatches;
+					mergePatchesIntoDatabase(toBeReinserted, remainingPatches, nullptr, UPDATE_ALL, false);
+
+					// Now, update the patch in list table to point to the newly inserted patch
+					for (auto remap : toBeReindexed) {
+						try {
+							SQLite::Statement query(db_, "SELECT count(*) as num_entries from patch_in_list WHERE synth = :SYN and md5 = :MD5");
+							query.bind(":SYN", remap.second.synth()->getName());
+							query.bind(":MD5", remap.first);
+							bool worked = query.executeStep();
+							if (!worked) {
+								spdlog::error("Failed to query patch_in_list table, program error");
+								return -1;
+							}
+							int found = query.getColumn("num_entries").getInt();
+							if (found > 0) {
+								spdlog::error("Found {} list entries for patch, updating {}", found, remap.first);
+								SQLite::Statement query(db_, "UPDATE patch_in_list SET md5 = :MDN WHERE synth = :SYN and md5 = :MD5");
+								query.bind(":SYN", remap.second.synth()->getName());
+								query.bind(":MD5", remap.first);
+								query.bind(":MDN", remap.second.md5());
+								int rowUpdated = query.exec();
+								if (rowUpdated != found) {
+									spdlog::error("Aborting reindexing - could not update patch in list entry for md5 {}: {} updated but {} expected", remap.first, rowUpdated, found);
+									return -1;
+								}
+							}
+						}
+						catch (SQLite::Exception& e) {
+							spdlog::error("Database error when reindexing patches: {}", e.what());
+							return -1;
+						}
+					}
+
 					// We got everything into the RAM - do we dare do delete them from the database now?
 					auto [deleted, hidden] = deletePatches(filter.synths.begin()->second.lock()->getName(), toBeDeleted);
 					if (deleted != (int)toBeReindexed.size()) {
@@ -1261,9 +1296,6 @@ namespace midikraft {
 						return -1;
 					}
 
-					// Now insert the retrieved patches back into the database. The merge logic will handle the multiple instance situation
-					std::vector<PatchHolder> remainingPatches;
-					mergePatchesIntoDatabase(toBeReinserted, remainingPatches, nullptr, UPDATE_ALL, false);
 					transaction.commit();
 
 					return getPatchesCount(filter);

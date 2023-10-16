@@ -30,6 +30,7 @@ const char *kBank = "Bank";
 const char *kCategories = "Categories";
 const char *kNonCategories = "NonCategories";
 const char *kSourceInfo = "SourceInfo";
+const char *kComment= "Comment";
 const char *kLibrary = "Library";
 const char *kHeader = "Header";
 const char *kFileFormat = "FileFormat";
@@ -250,6 +251,11 @@ namespace midikraft {
 								importInfo = SourceInfo::fromString((*item)[kSourceInfo].dump());
 						}
 
+						std::string comment;
+						if (item->contains(kComment)) {
+							comment = (*item)[kComment];
+						}
+
 						// All mandatory fields found, we can parse the data!
 						MemoryBlock sysexData;
 						MemoryOutputStream writeToBlock(sysexData, false);
@@ -275,6 +281,7 @@ namespace midikraft {
 								if (importInfo) {
 									holder.setSourceInfo(importInfo);
 								}
+								holder.setComment(comment);
 								result.push_back(holder);
 							}
 						}
@@ -341,6 +348,10 @@ namespace midikraft {
 
 			if (patch.sourceInfo()) {
 				patchJson[kSourceInfo] = nlohmann::json::parse(patch.sourceInfo()->toString());
+			}
+
+			if (!patch.comment().empty()) {
+				patchJson[kComment] = patch.comment();
 			}
 
 			// Now the fun part, pack the sysex for transport

@@ -37,7 +37,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 12;
+	const int SCHEMA_VERSION = 13;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -51,6 +51,7 @@ namespace midikraft {
 	/* 10 - drop tables created by upgrade to 9, needing retry with database connection */
 	/* 11 - adding an index to speed up the duplicate name search, as suggested by chatGPT */
 	/* 12 - adding an index to speed up the import list building */
+	/* 13 - adding comment to the patch table */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -258,6 +259,13 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 12");
 				transaction.commit();
 			}
+			if (currentVersion < 13) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				db_.exec("ALTER TABLE patches ADD COLUMN comment TEXT");
+				db_.exec("UPDATE schema_version SET number = 13");
+				transaction.commit();
+			}
 		}
 
 		void insertDefaultCategories() {
@@ -280,7 +288,7 @@ namespace midikraft {
 
 		void createPatchTable() {
 			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT NOT NULL, md5 TEXT NOT NULL, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
-				" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER, PRIMARY KEY (synth, md5))");
+				" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER, comment TEXT, PRIMARY KEY (synth, md5))");
 		}
 
 		void createPatchInListTable() {
@@ -366,8 +374,8 @@ namespace midikraft {
 
 		bool putPatch(PatchHolder const& patch, std::string const& sourceID) {
 			try {
-				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, hidden, sourceID, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision)"
-					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :HID, :SID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD)");
+				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, hidden, sourceID, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision, comment)"
+					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :HID, :SID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD, :COM)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", patch.synth()->getName().c_str());
@@ -384,6 +392,7 @@ namespace midikraft {
 				sql.bind(":PRG", patch.patchNumber().toZeroBasedWithBank());
 				sql.bind(":CAT", (int64_t) bitfield.categorySetAsBitfield(patch.categories()));
 				sql.bind(":CUD", (int64_t) bitfield.categorySetAsBitfield(patch.userDecisionSet()));
+				sql.bind(":COM", patch.comment());
 
 				sql.exec();
 			}
@@ -446,7 +455,7 @@ namespace midikraft {
 				where += " AND sourceID = :SID";
 			}
 			if (!filter.name.empty()) {
-				where += " AND name LIKE :NAM";
+				where += " AND (name LIKE :NAM or comment LIKE :NAM)";
 				if (needsCollate) {
 					where += " COLLATE NOCASE";
 				}
@@ -776,6 +785,11 @@ namespace midikraft {
 					bitfield.makeSetOfCategoriesFromBitfield(updateSet, query.getColumn("categoryUserDecision").getInt64());
 					holder.setUserDecisions(updateSet);
 
+					auto commentColumn = query.getColumn("comment");
+					if (commentColumn.isText()) {
+						holder.setComment(std::string(commentColumn.getText()));
+					}
+
 					result.push_back(holder);
 					return true;
 				}
@@ -969,6 +983,7 @@ namespace midikraft {
 				if (updateChoices & UPDATE_HIDDEN) updateClause = prependWithComma(updateClause, "hidden = :HID");
 				if (updateChoices & UPDATE_DATA) updateClause = prependWithComma(updateClause, "data = :DAT");
 				if (updateChoices & UPDATE_FAVORITE) updateClause = prependWithComma(updateClause, "favorite = :FAV");
+				if (updateChoices & UPDATE_COMMENT) updateClause = prependWithComma(updateClause, "comment = :COM");
 
 				try {
 					SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5 and synth = :SYN");
@@ -988,6 +1003,13 @@ namespace midikraft {
 					}
 					if (updateChoices & UPDATE_FAVORITE) {
 						sql.bind(":FAV", calculateMergedFavorite(newPatch, existingPatch));
+					}
+					if (updateChoices & UPDATE_COMMENT) {
+						std::string newComment = newPatch.comment();
+						if (newComment.empty()) {
+							newComment = existingPatch.comment();
+						}
+						sql.bind(":COM", newComment);
 					}
 					sql.bind(":MD5", newPatch.md5());
 					sql.bind(":SYN", existingPatch.synth()->getName());

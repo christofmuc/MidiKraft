@@ -193,6 +193,16 @@ namespace midikraft {
 		return sourceInfo_;
 	}
 
+	std::string PatchHolder::comment() const
+	{
+		return comment_;
+	}
+
+	void PatchHolder::setComment(std::string const& newComment)
+	{
+		comment_ = newComment;
+	}
+
 	bool PatchHolder::autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector)
 	{
 		auto previous = categories();

@@ -148,6 +148,9 @@ namespace midikraft {
 
 		std::shared_ptr<SourceInfo> sourceInfo() const;
 
+		std::string comment() const;
+		void setComment(std::string const& newComment);
+
 		bool autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector); // Returns true if categories have changed!
 		
 		std::string md5() const;
@@ -170,6 +173,7 @@ namespace midikraft {
 		MidiBankNumber bankNumber_;
 		MidiProgramNumber patchNumber_;
 		std::shared_ptr<SourceInfo> sourceInfo_;
+		std::string comment_;
 	};
 
 }

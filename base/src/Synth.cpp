@@ -99,32 +99,8 @@ namespace midikraft {
 			for (auto message : sysexMessages) {
 				bool messageAccepted = false;
 
-				// Ty to parse and load the message as a data file
-				if (dataFileLoadSynth) {
-					// Should test all data file types!
-					for (int dataType = 0; dataType < static_cast<int>(dataFileLoadSynth->dataTypeNames().size()); dataType++) {
-						if (dataFileLoadSynth->isDataFile(message, dataType)) {
-							messageAccepted = true;
-							// Hit, we can load this
-							auto items = dataFileLoadSynth->loadData({ message }, dataType);
-							std::copy(items.begin(), items.end(), std::back_inserter(result));
-						}
-					}
-				}  
-
-				// Try to parse and load these messages as a bank dump
-				if (!messageAccepted && bankDumpSynth && bankDumpSynth->isBankDump(message)) {
-					messageAccepted = true;
-					currentBank.push_back(message);
-					if (bankDumpSynth->isBankDumpFinished(currentBank)) {
-						auto morePatches = bankDumpSynth->patchesFromSysexBank(currentBank);
-						spdlog::info("Loaded bank dump with {} patches", morePatches.size());
-						std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
-						currentBank.clear();
-					}
-				}
 				// Try to parse and load these messages as program dumps
-				else if (programDumpSynth && programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
+				if (programDumpSynth && programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
 					messageAccepted = true;
 					currentProgramDumps.push_back(message);
 					if (programDumpSynth->isSingleProgramDump(currentProgramDumps)) {
@@ -153,6 +129,29 @@ namespace midikraft {
 							spdlog::warn("Error decoding edit buffer dump for patch {}, skipping it", patchNo);
 						}
 						patchNo++;
+					}
+				}
+				// Try to parse and load these messages as a bank dump
+				else if (!messageAccepted && bankDumpSynth && bankDumpSynth->isBankDump(message)) {
+					messageAccepted = true;
+					currentBank.push_back(message);
+					if (bankDumpSynth->isBankDumpFinished(currentBank)) {
+						auto morePatches = bankDumpSynth->patchesFromSysexBank(currentBank);
+						spdlog::info("Loaded bank dump with {} patches", morePatches.size());
+						std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
+						currentBank.clear();
+					}
+				}
+				// Ty to parse and load the message as a data file
+				else if (dataFileLoadSynth) {
+					// Should test all data file types!
+					for (int dataType = 0; dataType < static_cast<int>(dataFileLoadSynth->dataTypeNames().size()); dataType++) {
+						if (dataFileLoadSynth->isDataFile(message, dataType)) {
+							messageAccepted = true;
+							// Hit, we can load this
+							auto items = dataFileLoadSynth->loadData({ message }, dataType);
+							std::copy(items.begin(), items.end(), std::back_inserter(result));
+						}
 					}
 				}
 				

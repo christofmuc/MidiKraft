@@ -357,7 +357,7 @@ namespace midikraft {
 					if (mode_ == OpenMode::READ_WRITE) {
 						AlertWindow::showMessageBox(AlertWindow::WarningIcon, "Database Error", message);
 					}
-					throw new SQLite::Exception(message);
+					throw SQLite::Exception(message);
 				}
 			}
 			else {
@@ -1015,7 +1015,7 @@ namespace midikraft {
 					sql.bind(":SYN", existingPatch.synth()->getName());
 					if (sql.exec() != 1) {
 						jassert(false);
-						throw new std::runtime_error("FATAL, I don't want to ruin your database");
+						throw std::runtime_error("FATAL, I don't want to ruin your database");
 					}
 				}
 				catch (SQLite::Exception& ex) {

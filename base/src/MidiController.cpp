@@ -94,7 +94,7 @@ namespace midikraft {
 	MidiController::MidiController() : midiLogLevel_(MidiLogLevel::SYSEX_ONLY)
 	{
 		if (instance_ != nullptr) {
-			throw new std::runtime_error("This is a singleton, can't create twice");
+			throw std::runtime_error("This is a singleton, can't create twice");
 		}
 		instance_ = this;
 

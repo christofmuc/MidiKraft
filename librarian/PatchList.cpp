@@ -6,6 +6,8 @@
 
 #include "PatchList.h"
 
+#include <algorithm>
+
 namespace midikraft {
 
 	PatchList::PatchList(std::string const &id, std::string const& name) : id_(id), name_(name)
@@ -44,6 +46,15 @@ namespace midikraft {
 	void PatchList::addPatch(PatchHolder patch)
 	{
 		patches_.push_back(patch);
+	}
+
+	void PatchList::insertPatchAtTopAndRemoveDuplicates(PatchHolder patch)
+	{
+		auto newend = std::remove_if(patches_.begin(), patches_.end(), [&](PatchHolder listEntry) {
+			return listEntry.synth() == patch.synth() && listEntry.md5() == patch.md5();
+			});
+		patches_.erase(newend, patches_.end());
+		patches_.insert(patches_.begin(), patch);
 	}
 
 }

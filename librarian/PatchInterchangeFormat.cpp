@@ -159,6 +159,9 @@ namespace midikraft {
 							if ((*item)[kFavorite].is_number_integer()) {
 								fav = Favorite((*item)[kFavorite] != 0);
 							}
+							else if ((*item)[kFavorite].is_null()) {
+								fav = Favorite(-1);
+							}
 							else {
 								std::string favoriteStr = (*item)[kFavorite];
 								try {
@@ -320,7 +323,21 @@ namespace midikraft {
 			nlohmann::json patchJson;
 			patchJson[kSynth] = patch.synth()->getName();
 			patchJson[kName] = patch.name();
-			patchJson[kFavorite] = patch.isFavorite() ? 1 : 0;
+			switch (patch.howFavorite().is()) {
+			case Favorite::TFavorite::DONTKNOW:
+				patchJson[kFavorite] = nlohmann::json();
+				break;
+			case Favorite::TFavorite::YES:
+				patchJson[kFavorite] = 1;
+				break;
+			case Favorite::TFavorite::NO:
+				patchJson[kFavorite] = 0;
+				break;
+			default:
+				spdlog::error("Missing code to write Favoriate value of {} to PIF, program error!", static_cast<int>(patch.howFavorite().is()));
+				patchJson[kFavorite] = nlohmann::json();
+			}
+			
 			if (patch.bankNumber().isValid()) {
 				patchJson[kBank] = patch.bankNumber().toZeroBased();
 			}

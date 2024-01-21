@@ -412,12 +412,13 @@ namespace midikraft {
 			return result;
 		}
 
-		bool renameImport(std::string importID, std::string newName) {
+		bool renameImport(std::string synthName, std::string importID, std::string newName) {
 			try {
 				SQLite::Transaction transaction(db_);
-				SQLite::Statement update(db_, "UPDATE imports set name = :NAM where id = :IID");
+				SQLite::Statement update(db_, "UPDATE imports set name = :NAM where id = :IID and synth = :SYN");
 				update.bind(":NAM", newName);
 				update.bind(":IID", importID);
+				update.bind(":SYN", synthName);
 				int rowsModified = update.exec();
 				if (rowsModified == 1) {
 					// Success
@@ -1945,8 +1946,8 @@ namespace midikraft {
 		PatchDataBaseImpl::makeDatabaseBackup(databaseFile, backupFileToCreate);
 	}
 
-	bool PatchDatabase::renameImport(std::string importID, std::string newName) {
-		return impl->renameImport(importID, newName);
+	bool PatchDatabase::renameImport(std::string synthName, std::string importID, std::string newName) {
+		return impl->renameImport(synthName, importID, newName);
 	}
 
 	std::vector<Category> PatchDatabase::getCategories() const {

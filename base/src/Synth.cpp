@@ -93,77 +93,81 @@ namespace midikraft {
 		}
 		else {
 			// The other Synth types load message by message
-			std::vector<MidiMessage> currentEditBuffers;
-			std::vector<MidiMessage> currentProgramDumps;
-			std::vector<MidiMessage> currentBank;
-			for (auto message : sysexMessages) {
-				bool messageAccepted = false;
+			if (programDumpSynth) {
+				std::vector<MidiMessage> currentProgramDumps;
+				for (auto message : sysexMessages) {
+					// Try to parse and load these messages as program dumps
+					if (programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
+						currentProgramDumps.push_back(message);
+						if (programDumpSynth->isSingleProgramDump(currentProgramDumps)) {
+							auto patch = programDumpSynth->patchFromProgramDumpSysex(currentProgramDumps);
+							currentProgramDumps.clear();
+							if (patch) {
+								result.push_back(patch);
+							}
+							else {
+								spdlog::warn("Error decoding program dump for patch {}, skipping it", patchNo);
+							}
+							patchNo++;
+						}
+					}
+				}
+			}
 
-				// Try to parse and load these messages as program dumps
-				if (programDumpSynth && programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
-					messageAccepted = true;
-					currentProgramDumps.push_back(message);
-					if (programDumpSynth->isSingleProgramDump(currentProgramDumps)) {
-						auto patch = programDumpSynth->patchFromProgramDumpSysex(currentProgramDumps);
-						currentProgramDumps.clear();
-						if (patch) {
-							result.push_back(patch);
-						}
-						else {
-							spdlog::warn("Error decoding program dump for patch {}, skipping it", patchNo);
-						}
-						patchNo++;
-					}
-				}
+			if (editBufferSynth) {
+				std::vector<MidiMessage> currentEditBuffers;
 				// Try to parse and load these messages as edit buffers
-				else if (editBufferSynth && editBufferSynth->isMessagePartOfEditBuffer(message).isPartOfEditBufferDump) {
-					messageAccepted = true;
-					currentEditBuffers.push_back(message);
-					if (editBufferSynth->isEditBufferDump(currentEditBuffers)) {
-						auto patch = editBufferSynth->patchFromSysex(currentEditBuffers);
-						currentEditBuffers.clear();
-						if (patch) {
-							result.push_back(patch);
+				for (auto message : sysexMessages) {
+					if (editBufferSynth->isMessagePartOfEditBuffer(message).isPartOfEditBufferDump) {
+						currentEditBuffers.push_back(message);
+						if (editBufferSynth->isEditBufferDump(currentEditBuffers)) {
+							auto patch = editBufferSynth->patchFromSysex(currentEditBuffers);
+							currentEditBuffers.clear();
+							if (patch) {
+								result.push_back(patch);
+							}
+							else {
+								spdlog::warn("Error decoding edit buffer dump for patch {}, skipping it", patchNo);
+							}
+							patchNo++;
 						}
-						else {
-							spdlog::warn("Error decoding edit buffer dump for patch {}, skipping it", patchNo);
-						}
-						patchNo++;
 					}
 				}
+			}
+
+			if (bankDumpSynth) {
+				std::vector<MidiMessage> currentBank;
 				// Try to parse and load these messages as a bank dump
-				else if (!messageAccepted && bankDumpSynth && bankDumpSynth->isBankDump(message)) {
-					messageAccepted = true;
-					currentBank.push_back(message);
-					if (bankDumpSynth->isBankDumpFinished(currentBank)) {
-						auto morePatches = bankDumpSynth->patchesFromSysexBank(currentBank);
-						spdlog::info("Loaded bank dump with {} patches", morePatches.size());
-						std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
-						currentBank.clear();
+				for (auto message : sysexMessages) {
+					if (bankDumpSynth->isBankDump(message)) {
+						currentBank.push_back(message);
+						if (bankDumpSynth->isBankDumpFinished(currentBank)) {
+							auto morePatches = bankDumpSynth->patchesFromSysexBank(currentBank);
+							spdlog::info("Loaded bank dump with {} patches", morePatches.size());
+							std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
+							currentBank.clear();
+						}
 					}
 				}
-				// Ty to parse and load the message as a data file
-				else if (dataFileLoadSynth) {
-					// Should test all data file types!
+			}
+
+			// Ty to parse and load the message as a data file
+			if (dataFileLoadSynth) {
+				// Should test all data file types!
+				for (auto message : sysexMessages) {
 					for (int dataType = 0; dataType < static_cast<int>(dataFileLoadSynth->dataTypeNames().size()); dataType++) {
 						if (dataFileLoadSynth->isDataFile(message, dataType)) {
-							messageAccepted = true;
 							// Hit, we can load this
 							auto items = dataFileLoadSynth->loadData({ message }, dataType);
 							std::copy(items.begin(), items.end(), std::back_inserter(result));
 						}
 					}
 				}
-				
-				if (!messageAccepted) {
-					// The way I ended up here was to load the ZIP of the Pro3 factory programs, and that includes the weird macOS resource fork
-					// with a syx extension, wrongly getting interpreted as a real sysex file.
-					spdlog::warn("Ignoring sysex message found, not implemented: {}", message.getDescription());
-				}
 			}
-			if (currentBank.size() > 0) {
+				
+			if (result.size() == 0) {
 				// There were bank messages, but not complete
-				spdlog::warn("Incomplete bank found, patches from {} messages not loaded. Program or adaptation error?", currentBank.size());
+				spdlog::warn("No patches found.");
 			}
 		}
 

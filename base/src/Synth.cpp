@@ -11,6 +11,7 @@
 #include "MidiController.h"
 #include "MidiHelpers.h"
 #include "Logger.h"
+#include "Sysex.h"
 
 #include "HasBanksCapability.h"
 #include "EditBufferCapability.h"
@@ -79,9 +80,9 @@ namespace midikraft {
 
 	TPatchVector Synth::loadSysex(std::vector<MidiMessage> const &sysexMessages)
 	{
-		TPatchVector result;
+		size_t maxNumberMessagesPerPatch = 10;
+
 		// Now that we have a list of messages, let's see if there are (hopefully) any patches between them
-		int patchNo = 0;
 		auto editBufferSynth = midikraft::Capability::hasCapability<EditBufferCapability>(this);
 		auto programDumpSynth = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
 		auto bankDumpSynth = midikraft::Capability::hasCapability<BankDumpCapability>(this);
@@ -89,46 +90,60 @@ namespace midikraft {
 		auto streamDumpSynth = midikraft::Capability::hasCapability<StreamLoadCapability>(this);
 		if (streamDumpSynth) {
 			// The stream dump synth loads all at once
-			result = streamDumpSynth->loadPatchesFromStream(sysexMessages);
+			return streamDumpSynth->loadPatchesFromStream(sysexMessages);
 		}
 		else {
 			// The other Synth types load message by message
+			TPatchVector results;
+			std::set<std::shared_ptr<midikraft::DataFile>> programDumps;
 			if (programDumpSynth) {
-				std::vector<MidiMessage> currentProgramDumps;
+				std::deque<MidiMessage> currentProgramDumps;
+				int patchNo = 0;
 				for (auto message : sysexMessages) {
 					// Try to parse and load these messages as program dumps
 					if (programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
 						currentProgramDumps.push_back(message);
-						if (programDumpSynth->isSingleProgramDump(currentProgramDumps)) {
-							auto patch = programDumpSynth->patchFromProgramDumpSysex(currentProgramDumps);
-							currentProgramDumps.clear();
+						while (currentProgramDumps.size() > maxNumberMessagesPerPatch) {
+							currentProgramDumps.pop_front();
+						}
+						std::vector<MidiMessage> slidingWindow(currentProgramDumps.begin(), currentProgramDumps.end());
+						if (programDumpSynth->isSingleProgramDump(slidingWindow)) {
+							auto patch = programDumpSynth->patchFromProgramDumpSysex(slidingWindow);
 							if (patch) {
-								result.push_back(patch);
+								results.push_back(patch);
+								programDumps.insert(patch);
 							}
 							else {
-								spdlog::warn("Error decoding program dump for patch {}, skipping it", patchNo);
+								spdlog::warn("Error decoding program dump for patch #{}, skipping it. {}", patchNo, Sysex::dumpSysexToString(slidingWindow));
 							}
+							currentProgramDumps.clear();
 							patchNo++;
 						}
 					}
 				}
 			}
 
+			TPatchVector editBufferResult;
 			if (editBufferSynth) {
-				std::vector<MidiMessage> currentEditBuffers;
+				std::deque<MidiMessage> currentEditBuffers;
 				// Try to parse and load these messages as edit buffers
+				int patchNo = 0;
 				for (auto message : sysexMessages) {
 					if (editBufferSynth->isMessagePartOfEditBuffer(message).isPartOfEditBufferDump) {
 						currentEditBuffers.push_back(message);
-						if (editBufferSynth->isEditBufferDump(currentEditBuffers)) {
-							auto patch = editBufferSynth->patchFromSysex(currentEditBuffers);
-							currentEditBuffers.clear();
+						if (currentEditBuffers.size() > maxNumberMessagesPerPatch) {
+							currentEditBuffers.pop_front();
+						}
+						std::vector<MidiMessage> slidingWindow(currentEditBuffers.begin(), currentEditBuffers.end());
+						if (editBufferSynth->isEditBufferDump(slidingWindow)) {
+							auto patch = editBufferSynth->patchFromSysex(slidingWindow);
 							if (patch) {
-								result.push_back(patch);
+								results.push_back(patch);
 							}
 							else {
-								spdlog::warn("Error decoding edit buffer dump for patch {}, skipping it", patchNo);
+								spdlog::warn("Error decoding edit buffer dump for patch #{}, skipping it. {}", patchNo, Sysex::dumpSysexToString(slidingWindow));
 							}
+							currentEditBuffers.clear();
 							patchNo++;
 						}
 					}
@@ -136,15 +151,19 @@ namespace midikraft {
 			}
 
 			if (bankDumpSynth) {
-				std::vector<MidiMessage> currentBank;
+				std::deque<MidiMessage> currentBank;
 				// Try to parse and load these messages as a bank dump
 				for (auto message : sysexMessages) {
 					if (bankDumpSynth->isBankDump(message)) {
 						currentBank.push_back(message);
-						if (bankDumpSynth->isBankDumpFinished(currentBank)) {
-							auto morePatches = bankDumpSynth->patchesFromSysexBank(currentBank);
+						if (currentBank.size() > maxNumberMessagesPerPatch) {
+							currentBank.pop_front();
+						}
+						std::vector<MidiMessage> slidingWindow(currentBank.begin(), currentBank.end());
+						if (bankDumpSynth->isBankDumpFinished(slidingWindow)) {
+							auto morePatches = bankDumpSynth->patchesFromSysexBank(slidingWindow);
 							spdlog::info("Loaded bank dump with {} patches", morePatches.size());
-							std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
+							std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(results));
 							currentBank.clear();
 						}
 					}
@@ -159,19 +178,42 @@ namespace midikraft {
 						if (dataFileLoadSynth->isDataFile(message, dataType)) {
 							// Hit, we can load this
 							auto items = dataFileLoadSynth->loadData({ message }, dataType);
-							std::copy(items.begin(), items.end(), std::back_inserter(result));
+							std::copy(items.begin(), items.end(), std::back_inserter(results));
 						}
 					}
 				}
 			}
+
+			// Now, we used all parsers on all messages. In some weird cases we might have produced double entries. We try to detect these and keep the program dumps instead of edit buffer dumps when available
+			std::map<std::string, std::shared_ptr<midikraft::DataFile>> deduplicatedPatches;
+			TPatchVector deduplicatedResult;
+			for (auto& patch : results) {
+				std::string id = calculateFingerprint(patch);
+				if (deduplicatedPatches.find(id) != deduplicatedPatches.end()) {
+					if (programDumps.find(patch) != programDumps.end()) {
+						// This has been parsed by the program dump routine, so it is worth keeping over any other 
+						deduplicatedPatches[id] = patch;
+					}
+					else {
+						spdlog::debug("Discarding patch because we already have it and this is not a program buffer dump: {}", nameForPatch(patch));
+					}
+				}
+				else {
+					deduplicatedPatches[id] = patch;
+				}
+			}
 				
-			if (result.size() == 0) {
+			if (deduplicatedPatches.size() == 0) {
 				// There were bank messages, but not complete
 				spdlog::warn("No patches found.");
 			}
-		}
 
-		return result;
+			TPatchVector remainingPatches;
+			for (auto const& item : deduplicatedPatches) {
+				remainingPatches.push_back(item.second);
+			}
+			return remainingPatches;
+		}
 	}
 
 	void Synth::saveSysex(std::string const &filename, std::vector<juce::MidiMessage> messages)

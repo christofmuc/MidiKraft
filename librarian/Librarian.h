@@ -31,6 +31,7 @@ namespace midikraft {
 
 		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), currentDownloadBank_(MidiBankNumber::invalid()), downloadNumber_(0), startDownloadNumber_(0), endDownloadNumber_(0) {}
 
+		BankDownloadMethod determineBankDownloadMethod(std::shared_ptr<Synth> synth);
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 

@@ -64,4 +64,18 @@ namespace midikraft {
 		virtual void sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const &midiOutput, std::vector<MidiMessage> const& buffer);
 	};
 
+	enum class BankDownloadMethod {
+		UNKNOWN,
+		STREAMING,
+		HANDSHAKES,
+		BANKS,
+		EDIT_BUFFERS,
+		PROGRAM_BUFFERS
+	};
+
+	class BankDownloadMethodIndicationCapability {
+	public:
+		virtual BankDownloadMethod bankDownloadMethod() const = 0;
+	};
+
 }

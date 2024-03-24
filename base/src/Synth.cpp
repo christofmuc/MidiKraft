@@ -95,7 +95,7 @@ namespace midikraft {
 		else {
 			// The other Synth types load message by message
 			TPatchVector results;
-			std::set<std::shared_ptr<midikraft::DataFile>> programDumps;
+			std::map<std::string, std::shared_ptr<midikraft::DataFile>> programDumpsById;
 			if (programDumpSynth) {
 				std::deque<MidiMessage> currentProgramDumps;
 				int patchNo = 0;
@@ -111,7 +111,7 @@ namespace midikraft {
 							auto patch = programDumpSynth->patchFromProgramDumpSysex(slidingWindow);
 							if (patch) {
 								results.push_back(patch);
-								programDumps.insert(patch);
+								programDumpsById[calculateFingerprint(patch)] = patch;
 							}
 							else {
 								spdlog::warn("Error decoding program dump for patch #{}, skipping it. {}", patchNo, Sysex::dumpSysexToString(slidingWindow));
@@ -123,7 +123,6 @@ namespace midikraft {
 				}
 			}
 
-			TPatchVector editBufferResult;
 			if (editBufferSynth) {
 				std::deque<MidiMessage> currentEditBuffers;
 				// Try to parse and load these messages as edit buffers
@@ -138,7 +137,14 @@ namespace midikraft {
 						if (editBufferSynth->isEditBufferDump(slidingWindow)) {
 							auto patch = editBufferSynth->patchFromSysex(slidingWindow);
 							if (patch) {
-								results.push_back(patch);
+								auto id = calculateFingerprint(patch);
+								if (programDumpsById.find(id) == programDumpsById.end()) {
+									results.push_back(patch);
+								}
+								else {
+									// Ignore edit buffer, as we already loaded a program dump with the same ID. This happens for 
+									// synths where program dumps will make edit buffers to be detected, like the Reface DX adaptation.
+								}
 							}
 							else {
 								spdlog::warn("Error decoding edit buffer dump for patch #{}, skipping it. {}", patchNo, Sysex::dumpSysexToString(slidingWindow));
@@ -184,35 +190,7 @@ namespace midikraft {
 				}
 			}
 
-			// Now, we used all parsers on all messages. In some weird cases we might have produced double entries. We try to detect these and keep the program dumps instead of edit buffer dumps when available
-			std::map<std::string, std::shared_ptr<midikraft::DataFile>> deduplicatedPatches;
-			TPatchVector deduplicatedResult;
-			for (auto& patch : results) {
-				std::string id = calculateFingerprint(patch);
-				if (deduplicatedPatches.find(id) != deduplicatedPatches.end()) {
-					if (programDumps.find(patch) != programDumps.end()) {
-						// This has been parsed by the program dump routine, so it is worth keeping over any other 
-						deduplicatedPatches[id] = patch;
-					}
-					else {
-						spdlog::debug("Discarding patch because we already have it and this is not a program buffer dump: {}", nameForPatch(patch));
-					}
-				}
-				else {
-					deduplicatedPatches[id] = patch;
-				}
-			}
-				
-			if (deduplicatedPatches.size() == 0) {
-				// There were bank messages, but not complete
-				spdlog::warn("No patches found.");
-			}
-
-			TPatchVector remainingPatches;
-			for (auto const& item : deduplicatedPatches) {
-				remainingPatches.push_back(item.second);
-			}
-			return remainingPatches;
+			return results;
 		}
 	}
 

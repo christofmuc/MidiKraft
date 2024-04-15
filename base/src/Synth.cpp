@@ -317,4 +317,25 @@ namespace midikraft {
 		MidiController::instance()->getMidiOutput(midiOutput)->sendBlockOfMessagesFullSpeed(buffer);
 	}
 
+
+	int Synth::sizeOfBank(std::shared_ptr<Synth> synth, int zeroBasedBankNumber)
+	{
+		auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(synth);
+		if (descriptors) {
+			return descriptors->bankDescriptors()[zeroBasedBankNumber].size;
+		}
+		else {
+			auto banks = Capability::hasCapability<HasBanksCapability>(synth);
+			if (banks) {
+				return banks->numberOfPatches();
+			}
+		}
+		return -1;
+	}
+
+	MidiBankNumber Synth::bankNumberFromInt(std::shared_ptr<Synth> synth, int zeroBasedBankNumber)
+	{
+		return MidiBankNumber::fromZeroBase(zeroBasedBankNumber, Synth::sizeOfBank(synth, zeroBasedBankNumber));
+	}
+
 }

@@ -316,19 +316,19 @@ namespace midikraft {
 		return jsonRep_;
 	}
 
-	std::shared_ptr<SourceInfo> SourceInfo::fromString(std::string const &str)
+	std::shared_ptr<SourceInfo> SourceInfo::fromString(std::shared_ptr<Synth> synth, std::string const &str)
 	{
 		try {
 			auto doc = nlohmann::json::parse(str);
 			if (doc.is_object()) {
 				if (doc.contains(kFileSource)) {
-                    return FromFileSource::fromString(str);
+                    return FromFileSource::fromString(synth, str);
 				}
 				else if (doc.contains(kSynthSource)) {
 					return FromSynthSource::fromString(str);
 				}
 				else if (doc.contains(kBulkSource)) {
-					return FromBulkImportSource::fromString(str);
+					return FromBulkImportSource::fromString(synth, str);
 				}
 			}
 			spdlog::error("Json string does not contain correct source info type: {}", str);
@@ -462,7 +462,7 @@ namespace midikraft {
 		return fmt::format("Imported from file {}", filename_);
 	}
 
-	std::shared_ptr<FromFileSource> FromFileSource::fromString(std::string const &jsonString)
+	std::shared_ptr<FromFileSource> FromFileSource::fromString(std::shared_ptr<Synth> synth, std::string const &jsonString)
 	{
 		auto obj = nlohmann::json::parse(jsonString);
 		if (obj.contains(kFileSource)) {
@@ -470,9 +470,10 @@ namespace midikraft {
 			std::string fullpath = obj[kFullPath].get<std::string>();
 			MidiProgramNumber program = MidiProgramNumber::invalidProgram();
 			if (obj.contains(kBankNumber)) {
-				jassertfalse;
-				MidiBankNumber bank = MidiBankNumber::fromZeroBase(obj[kBankNumber].get<int>(), -1);
-				program = MidiProgramNumber::fromZeroBaseWithBank(bank, obj[kProgramNo].get<int>());
+				int bankNo = obj[kBankNumber].get<int>();
+				// Need to determine the size of the bank
+				MidiBankNumber bank = Synth::bankNumberFromInt(synth, bankNo);
+				program = MidiProgramNumber::fromZeroBaseWithBank(bank, bankNo);
 			}
 			else {
 				program = MidiProgramNumber::fromZeroBase(obj[kProgramNo].get<int>());
@@ -517,7 +518,7 @@ namespace midikraft {
 		return "Bulk file import";
 	}
 
-	std::shared_ptr<FromBulkImportSource> FromBulkImportSource::fromString(std::string const &jsonString)
+	std::shared_ptr<FromBulkImportSource> FromBulkImportSource::fromString(std::shared_ptr<Synth> synth, std::string const &jsonString)
 	{
 		auto obj = nlohmann::json::parse(jsonString);
 		if (obj.contains(kBulkSource)) {
@@ -530,11 +531,11 @@ namespace midikraft {
 			if (obj.contains(kFileInBulk)) {
 				auto &subinfoJson = obj[kFileInBulk];
 				if (subinfoJson.is_string()) {
-					individualInfo = SourceInfo::fromString(subinfoJson);
+					individualInfo = SourceInfo::fromString(synth, subinfoJson);
 				}
 				else {
 					std::string subinfo = subinfoJson.dump();
-					individualInfo = SourceInfo::fromString(subinfo);
+					individualInfo = SourceInfo::fromString(synth, subinfo);
 				}
 			}
 			return std::make_shared<FromBulkImportSource>(timestamp, individualInfo);

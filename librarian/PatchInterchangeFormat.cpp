@@ -249,9 +249,9 @@ namespace midikraft {
 						std::shared_ptr<midikraft::SourceInfo> importInfo;
 						if (item->contains(kSourceInfo)) {
 							if ((*item)[kSourceInfo].is_string())
-								importInfo = SourceInfo::fromString((*item)[kSourceInfo]);
+								importInfo = SourceInfo::fromString(activeSynth, (*item)[kSourceInfo]);
 							else
-								importInfo = SourceInfo::fromString((*item)[kSourceInfo].dump());
+								importInfo = SourceInfo::fromString(activeSynth, (*item)[kSourceInfo].dump());
 						}
 
 						std::string comment;

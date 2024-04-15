@@ -759,7 +759,7 @@ namespace midikraft {
 			if (newPatch) {
 				auto sourceColumn = query.getColumn("sourceInfo");
 				if (sourceColumn.isText()) {
-					PatchHolder holder(synth, SourceInfo::fromString(sourceColumn.getString()), newPatch);
+					PatchHolder holder(synth, SourceInfo::fromString(synth, sourceColumn.getString()), newPatch);
 					holder.setBank(bank);
 					holder.setPatchNumber(program);
 

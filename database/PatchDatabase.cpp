@@ -152,6 +152,7 @@ namespace midikraft {
 
 		void migrateSchema(int currentVersion) {
 			bool hasBackuped = false;
+			bool hasRecreatedPatchTable = false;
 
 			if (currentVersion < 2) {
 				backupIfNecessary(hasBackuped);
@@ -229,6 +230,7 @@ namespace midikraft {
 					{ "synth", "md5", "name", "data", "favorite", "sourceID", "sourceName", "sourceInfo", "midiProgramNo", "categories", "categoryUserDecision", "hidden", "type", "midiBankNo" });
 				auto table2 = migrateTable("patch_in_list", std::bind(&PatchDataBaseImpl::createPatchInListTable, this),
 					{ "id", "synth", "md5", "order_num" });
+				hasRecreatedPatchTable = true;
 				db_.exec("UPDATE schema_version SET number = 9");
 				transaction.commit();
 			}
@@ -262,7 +264,9 @@ namespace midikraft {
 			if (currentVersion < 13) {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
-				db_.exec("ALTER TABLE patches ADD COLUMN comment TEXT");
+				if (!hasRecreatedPatchTable) {
+					db_.exec("ALTER TABLE patches ADD COLUMN comment TEXT");
+				}
 				db_.exec("UPDATE schema_version SET number = 13");
 				transaction.commit();
 			}

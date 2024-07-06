@@ -16,7 +16,9 @@ namespace midikraft {
 		No_ordering,
 		Order_by_Name, // then bank, then program
 		Order_by_Import_id, // then bank, then program. This is the default, but not really useful?
-		Order_by_Place_in_List
+		Order_by_Place_in_List,
+		Order_by_ProgramNo, // then name
+		Order_by_BankNo, // then program number, then name
 	};
 
 	class PatchFilter {

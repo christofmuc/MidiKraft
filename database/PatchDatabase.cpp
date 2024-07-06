@@ -553,6 +553,8 @@ namespace midikraft {
 			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY sourceID, midiBankNo, midiProgramNo ";; break;
 			case PatchOrdering::Order_by_Name: orderByClause = " ORDER BY name, midiBankNo, midiProgramNo "; break;
 			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY order_num"; break;
+			case PatchOrdering::Order_by_ProgramNo: orderByClause = " ORDER BY midiProgramNo, name"; break;
+			case PatchOrdering::Order_by_BankNo: orderByClause = " ORDER BY midiBankNo, midiProgramNo, name"; break;
 			default:
 				jassertfalse;
 				spdlog::error("Program error - encountered invalid ordering field in buildOrderClause");

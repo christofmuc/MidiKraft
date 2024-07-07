@@ -19,7 +19,7 @@ namespace midikraft {
 		MTSFile(int dataTypeID, Synth::PatchData const &data) : DataFile(dataTypeID, data) {}
 
         virtual std::string name() const override;
-        virtual void setName(std::string const& name) override;
+        virtual bool changeNameStoredInPatch(std::string const& name) override;
 
 		std::vector<MidiMessage> createMidiMessagesFromDataFile(MidiProgramNumber placeToStore);
 	};

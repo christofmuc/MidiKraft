@@ -75,9 +75,8 @@ namespace midikraft {
 	void PatchHolder::setName(std::string const &newName)
 	{
 		auto storedInPatch = midikraft::Capability::hasCapability<StoredPatchNameCapability>(patch());
-		if (storedInPatch) {
+		if (storedInPatch && storedInPatch->changeNameStoredInPatch(newName)) {
 			// If the Patch can do it, poke the name into the patch, and then use the result (limited to the characters the synth can do) for the patch holder as well
-			storedInPatch->setName(newName);
 			name_ = storedInPatch->name();
 		}
 		else {

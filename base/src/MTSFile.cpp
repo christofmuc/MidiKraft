@@ -23,10 +23,11 @@ std::string midikraft::MTSFile::name() const
 	}
 }
 
-void midikraft::MTSFile::setName(std::string const& name)
+bool midikraft::MTSFile::changeNameStoredInPatch(std::string const& name)
 {
 	ignoreUnused(name);
 	spdlog::error("Error - renaming of Midi Tuning Files not implemented yet!");
+	return false;
 }
 
 std::vector<juce::MidiMessage> midikraft::MTSFile::createMidiMessagesFromDataFile(MidiProgramNumber placeToStore)

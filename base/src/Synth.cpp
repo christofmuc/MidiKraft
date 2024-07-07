@@ -301,7 +301,8 @@ namespace midikraft {
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
 			if (midiLocation && !messages.empty()) {
 				if (midiLocation->channel().isValid()) {
-					spdlog::debug("Data file sent is '{}' for synth {}", nameForPatch(dataFile), getName());
+					auto outputName = midiLocation->midiOutput().name.toStdString();
+					spdlog::debug("Data file sent is '{}' for synth {} to device {}", nameForPatch(dataFile), getName(), outputName);
 					MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
 					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
 				}

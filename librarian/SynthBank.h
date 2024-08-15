@@ -56,6 +56,10 @@ namespace midikraft {
 			dirtyPositions_.clear();
 		}
 
+		int patchCapacity() {
+			return numberOfPatchesInBank(synth_, bankNo_);
+		}
+
 		static std::string friendlyBankName(std::shared_ptr<Synth> synth, MidiBankNumber bankNo);
 		static int numberOfPatchesInBank(std::shared_ptr<Synth> synth, MidiBankNumber bankNo);
 		static int numberOfPatchesInBank(std::shared_ptr<Synth> synth, int bankNoZeroBased);

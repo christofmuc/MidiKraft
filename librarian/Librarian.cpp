@@ -31,6 +31,9 @@
 
 namespace midikraft {
 
+	Librarian::~Librarian() {
+		clearHandlers();
+	}
 
 	void Librarian::startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo,
 		ProgressHandler* progressHandler, TFinishedHandler onFinished) {

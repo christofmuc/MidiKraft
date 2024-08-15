@@ -30,6 +30,7 @@ namespace midikraft {
 		typedef std::function<void(std::vector<std::shared_ptr<DataFile>>)> TStepSequencerFinishedHandler;
 
 		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), currentDownloadBank_(MidiBankNumber::invalid()), downloadNumber_(0), startDownloadNumber_(0), endDownloadNumber_(0) {}
+		~Librarian();
 
 		BankDownloadMethod determineBankDownloadMethod(std::shared_ptr<Synth> synth);
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);

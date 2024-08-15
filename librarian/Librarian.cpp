@@ -284,7 +284,7 @@ namespace midikraft {
 		currentDownload_.clear();
 		onSequencerFinished_ = onFinished;
 
-		auto handle = MidiController::makeOneHandle(); //TODO This will crash on exit when the download was not finished
+		auto handle = MidiController::makeOneHandle(); 
 		MidiController::instance()->addMessageHandler(handle, [this, sequencer, progressHandler, midiOutput, dataFileIdentifier](MidiInput* source, const MidiMessage& message) {
 			ignoreUnused(source);
 			if (sequencer->isDataFile(message, dataFileIdentifier)) {

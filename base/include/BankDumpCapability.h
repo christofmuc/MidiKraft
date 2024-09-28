@@ -27,5 +27,9 @@ namespace midikraft {
 		virtual std::vector<MidiMessage> requestBankDump(MidiBankNumber bankNo) const = 0;
 	};
 
+	class BankDumpCreationCapability {
+	public:
+		virtual std::vector<MidiMessage> createBankDumpMessages(TPatchVector const& patches) const = 0;
+	};
 
 }

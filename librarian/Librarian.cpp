@@ -509,6 +509,12 @@ namespace midikraft {
 			return;
 		}
 
+		auto location = midikraft::Capability::hasCapability<midikraft::MidiLocationCapability>(synth);
+		if (!location || !location->channel().isValid() /* || !synth->wasDetected()*/) {
+			spdlog::warn("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName());
+			return;
+		}
+
 		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
 		if (programDumpCapability) {
 			// Count how many to send first
@@ -519,12 +525,6 @@ namespace midikraft {
 				if (fullBank || synthBank.isPositionDirty(i++)) {
 					count++;
 				}
-			}
-
-			auto location = midikraft::Capability::hasCapability<midikraft::MidiLocationCapability>(synth);
-			if (!location || !location->channel().isValid() /* || !synth->wasDetected()*/) {
-				spdlog::warn("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName());
-				return;
 			}
 
 			// Now to send and update the progressHandler
@@ -551,6 +551,14 @@ namespace midikraft {
 			if (finishedHandler) {
 				finishedHandler(true);
 			}
+		}
+		else if (auto createBankDumpCapability = midikraft::Capability::hasCapability<BankDumpCreationCapability>(synth)) {
+			TPatchVector patches;
+			for (auto const& patch : synthBank.patches()) {
+				patches.push_back(patch.patch());
+			}
+			auto bankMessages = createBankDumpCapability->createBankDumpMessages(patches);
+			synth->sendBlockOfMessagesToSynth(location->midiOutput(), bankMessages);
 		}
 		else {
 			spdlog::warn("Sending banks to {} is not implemented yet", synth->getName());

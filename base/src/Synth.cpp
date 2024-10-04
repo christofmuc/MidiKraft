@@ -80,7 +80,18 @@ namespace midikraft {
 
 	TPatchVector Synth::loadSysex(std::vector<MidiMessage> const &sysexMessages)
 	{
-		size_t maxNumberMessagesPerPatch = 10;
+		size_t maxNumberMessagesPerPatch = 14;
+		auto userValue = juce::SystemStats::getEnvironmentVariable("ORM_MAX_MSG_PER_PATCH", "NOTSET");
+		if (userValue != "NOTSET") {
+			int numMessages = userValue.getIntValue();
+			if (numMessages > 0) {
+				spdlog::info("Overriding maximum number of messages per patch via environment variable ORM_MAX_MSG_PER_PATCH, value is now {}", numMessages);
+				maxNumberMessagesPerPatch = numMessages;
+			}
+			else {
+				spdlog::error("ORM_MAX_MSG_PER_PATCH environment variable is set, but cannot extract integer from value '{}', ignoring it!", userValue);
+			}
+		}
 
 		// Now that we have a list of messages, let's see if there are (hopefully) any patches between them
 		auto editBufferSynth = midikraft::Capability::hasCapability<EditBufferCapability>(this);

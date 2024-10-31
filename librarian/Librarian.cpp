@@ -502,7 +502,7 @@ namespace midikraft {
 			}, automaticCategories);
 	}
 
-	void Librarian::sendBankToSynth(SynthBank const& synthBank, bool fullBank, ProgressHandler* progressHandler, std::function<void(bool completed)> finishedHandler)
+	void Librarian::sendBankToSynth(SynthBank const& synthBank, ProgressHandler* progressHandler, std::function<void(bool completed)> finishedHandler)
 	{
 		auto synth = synthBank.synth();
 		if (!synth) {
@@ -516,7 +516,7 @@ namespace midikraft {
 			int i = 0;
 			for (auto const& patch : synthBank.patches()) {
 				ignoreUnused(patch);
-				if (fullBank || synthBank.isPositionDirty(i++)) {
+				if (synthBank.isPositionDirty(i++)) {
 					count++;
 				}
 			}
@@ -532,7 +532,7 @@ namespace midikraft {
 			i = 0;
 			for (auto const& patch : synthBank.patches()) {
 				if (progressHandler) progressHandler->setMessage(fmt::format("Sending patch {} to {}", patch.name(), synth->friendlyProgramName(patch.patchNumber())));
-				if (fullBank || synthBank.isPositionDirty(i++)) {
+				if (synthBank.isPositionDirty(i++)) {
 					auto messages = programDumpCapability->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
 					synth->sendBlockOfMessagesToSynth(location->midiOutput(), messages);
 				}

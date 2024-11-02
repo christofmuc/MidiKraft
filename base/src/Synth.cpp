@@ -27,7 +27,23 @@
 #include <spdlog/spdlog.h>
 #include "SpdLogJuce.h"
 
+#include "Logger.h"
+
 namespace midikraft {
+
+	Synth::Synth() : maxNumberMessagesPerPatch_(14) {
+		auto userValue = juce::SystemStats::getEnvironmentVariable("ORM_MAX_MSG_PER_PATCH", "NOTSET");
+		if (userValue != "NOTSET") {
+			int numMessages = userValue.getIntValue();
+			if (numMessages > 0) {
+				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding maximum number of messages per patch via environment variable ORM_MAX_MSG_PER_PATCH, value is now {}", numMessages));
+				maxNumberMessagesPerPatch_ = numMessages;
+			}
+			else {
+				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("ORM_MAX_MSG_PER_PATCH environment variable is set, but cannot extract integer from value '{}', ignoring it!", userValue));
+			}
+		}
+	}
 
 	std::string Synth::friendlyProgramName(MidiProgramNumber programNo) const
 	{
@@ -80,7 +96,7 @@ namespace midikraft {
 
 	TPatchVector Synth::loadSysex(std::vector<MidiMessage> const &sysexMessages)
 	{
-		size_t maxNumberMessagesPerPatch = 10;
+		
 
 		// Now that we have a list of messages, let's see if there are (hopefully) any patches between them
 		auto editBufferSynth = midikraft::Capability::hasCapability<EditBufferCapability>(this);
@@ -103,7 +119,8 @@ namespace midikraft {
 					// Try to parse and load these messages as program dumps
 					if (programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
 						currentProgramDumps.push_back(message);
-						while (currentProgramDumps.size() > maxNumberMessagesPerPatch) {
+						while (currentProgramDumps.size() > maxNumberMessagesPerPatch_) {
+							spdlog::debug("Dropping message during parsing as potential number of MIDI messages per patch is larger than {}", maxNumberMessagesPerPatch_);
 							currentProgramDumps.pop_front();
 						}
 						std::vector<MidiMessage> slidingWindow(currentProgramDumps.begin(), currentProgramDumps.end());
@@ -130,7 +147,8 @@ namespace midikraft {
 				for (auto message : sysexMessages) {
 					if (editBufferSynth->isMessagePartOfEditBuffer(message).isPartOfEditBufferDump) {
 						currentEditBuffers.push_back(message);
-						if (currentEditBuffers.size() > maxNumberMessagesPerPatch) {
+						if (currentEditBuffers.size() > maxNumberMessagesPerPatch_) {
+							spdlog::debug("Dropping message during parsing as potential number of MIDI messages per patch is larger than {}", maxNumberMessagesPerPatch_);
 							currentEditBuffers.pop_front();
 						}
 						std::vector<MidiMessage> slidingWindow(currentEditBuffers.begin(), currentEditBuffers.end());
@@ -162,7 +180,8 @@ namespace midikraft {
 				for (auto message : sysexMessages) {
 					if (bankDumpSynth->isBankDump(message)) {
 						currentBank.push_back(message);
-						if (currentBank.size() > maxNumberMessagesPerPatch) {
+						if (currentBank.size() > maxNumberMessagesPerPatch_) {
+							spdlog::debug("Dropping message during parsing as potential number of MIDI messages per patch is larger than {}", maxNumberMessagesPerPatch_);
 							currentBank.pop_front();
 						}
 						std::vector<MidiMessage> slidingWindow(currentBank.begin(), currentBank.end());

@@ -467,13 +467,13 @@ namespace midikraft {
 			// If then synth has a stored program number - currently this is tied to the ProgramDumpCapability - use that. 
 			// Alternatively, use the running number to just enumerate patches as they come in. 
 			auto programDumpCapability = Capability::hasCapability<ProgramDumpCabability>(synth);
-			if (programDumpCapability) {
-				// We cannot use the program dump capability directly here, because there is no guarantee that the patch is stored as a list of MIDI messages. We need to delegate to the synth to do the right thing
-				auto storedProgram = synth->numberForPatch(patch);
-				patchHolder.setBank(storedProgram.bank());
-				patchHolder.setPatchNumber(storedProgram);
-				patchHolder.setSourceInfo(generateSourceinfo(bankNo, storedProgram));
-			}
+            // We cannot use the program dump capability directly here, because there is no guarantee that the patch is stored as a list of MIDI messages. We need to delegate to the synth to do the right thing
+            auto storedProgram = synth->numberForPatch(patch);
+            if (programDumpCapability && storedProgram.isValid()) {
+                patchHolder.setBank(storedProgram.bank());
+                patchHolder.setPatchNumber(storedProgram);
+                patchHolder.setSourceInfo(generateSourceinfo(bankNo, storedProgram));
+            }
 			else
 			{
 				patchHolder.setBank(bankNo);

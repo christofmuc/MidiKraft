@@ -300,13 +300,14 @@ namespace midikraft {
 		// Old school real patch?
 		auto realPatch = std::dynamic_pointer_cast<Patch>(dataFile);
 		if (realPatch) {
+            // This should be the code path for the C++ synth implementations only.
 			return realPatch->patchNumber();
 		}
 		else {
 			// Let's check if we have program dump capability
 			const auto programDumpCapa = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
 			if (programDumpCapa) {
-				// We assume we can interprete the data file as a list of MidiMessages!
+				// We assume we can interpret the data file as a list of MidiMessages!
 				return programDumpCapa->getProgramNumber(dataFile->asMidiMessages());
 			}
 		}

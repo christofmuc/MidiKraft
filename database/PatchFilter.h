@@ -34,7 +34,6 @@ namespace midikraft {
 
 		std::map<std::string, std::weak_ptr<Synth>> synths;
 		PatchOrdering orderBy;
-		std::string importID;
 		std::string listID;
 		std::string name;
 		bool onlyFaves;

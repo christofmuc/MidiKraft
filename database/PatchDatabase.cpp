@@ -37,7 +37,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 13;
+	const int SCHEMA_VERSION = 14;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -52,6 +52,7 @@ namespace midikraft {
 	/* 11 - adding an index to speed up the duplicate name search, as suggested by chatGPT */
 	/* 12 - adding an index to speed up the import list building */
 	/* 13 - adding comment to the patch table */
+	/* 14 - move the imports information into the list table, and create the corresponding patch_in_list entries. Add list type for quick filtering. */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -270,6 +271,26 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 13");
 				transaction.commit();
 			}
+			if (currentVersion < 14) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				// Set list type: 0 is normal user list, 1 is synth bank, 2 is user bank
+				db_.exec("UPDATE lists SET list_type = CASE WHEN synth IS NULL THEN 0 "
+					"WHEN id LIKE synth || '%' THEN 1 "
+					"ELSE 2 "
+					"END;");
+				// Now create list type 3 - import
+				db_.exec("INSERT INTO lists (id, name, synth, last_synced, list_type) SELECT id, name, synth, strftime('%s', date) AS last_synced, 3 FROM imports");
+				// Now create the list entries for the impor lists
+				db_.exec("INSERT INTO patch_in_list (id, synth, md5, order_num) "
+					"SELECT sourceID AS id, synth, md5, "
+					"ROW_NUMBER() OVER(PARTITION BY sourceID ORDER BY midiBankNo, midiProgramNo) AS order_num  "
+					"FROM patches "
+					"WHERE sourceID IS NOT NULL; ");
+				// Update schema and commit
+				db_.exec("UPDATE schema_version SET number = 14");
+				transaction.commit();
+			}
 		}
 
 		void insertDefaultCategories() {
@@ -306,9 +327,9 @@ namespace midikraft {
 			if (!db_.tableExists("patches")) {
 				createPatchTable();
 			}
-			if (!db_.tableExists("imports")) {
+			/*if (!db_.tableExists("imports")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
-			}
+			}*/
 			if (!db_.tableExists("categories")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER)");
 				insertDefaultCategories();
@@ -413,7 +434,8 @@ namespace midikraft {
 		}
 
 		std::vector<ImportInfo> getImportsList(Synth* activeSynth) {
-			SQLite::Statement query(db_, "SELECT imports.name, id, count(patches.md5) AS patchCount FROM imports JOIN patches on imports.id == patches.sourceID WHERE patches.synth = :SYN AND imports.synth = :SYN GROUP BY imports.id ORDER BY date");
+			//SQLite::Statement query(db_, "SELECT imports.name, id, count(patches.md5) AS patchCount FROM imports JOIN patches on imports.id == patches.sourceID WHERE patches.synth = :SYN AND imports.synth = :SYN GROUP BY imports.id ORDER BY date");
+			SQLite::Statement query(db_, "SELECT lists.name, lists.id, count(patch_in_list.md5) AS patchCount FROM lists JOIN patch_in_list on lists.id == patch_in_list.id where lists.synth = :SYN AND patch_in_list.synth = :SYN AND lists.list_type = 3 GROUP BY lists.id ORDER BY lists.last_synced");
 			query.bind(":SYN", activeSynth->getName());
 			std::vector<ImportInfo> result;
 			while (query.executeStep()) {
@@ -424,6 +446,7 @@ namespace midikraft {
 
 		bool renameImport(std::string synthName, std::string importID, std::string newName) {
 			try {
+				assert(false);
 				SQLite::Transaction transaction(db_);
 				SQLite::Statement update(db_, "UPDATE imports set name = :NAM where id = :IID and synth = :SYN");
 				update.bind(":NAM", newName);
@@ -462,9 +485,9 @@ namespace midikraft {
 				}
 				where += " ) ";
 			}
-			if (!filter.importID.empty()) {
+			/*if (!filter.importID.empty()) {
 				where += " AND sourceID = :SID";
-			}
+			}*/
 			if (!filter.name.empty()) {
 				where += " AND (name LIKE :NAM or comment LIKE :NAM)";
 				if (needsCollate) {
@@ -607,9 +630,9 @@ namespace midikraft {
 			for (auto const& synth : filter.synths) {
 				query.bind(synthVariable(s++), synth.second.lock()->getName());
 			}
-			if (!filter.importID.empty()) {
+			/*if (!filter.importID.empty()) {
 				query.bind(":SID", filter.importID);
-			}
+			}*/
 			if (!filter.listID.empty()) {
 				query.bind(":LID", filter.listID);
 			}

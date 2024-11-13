@@ -446,7 +446,6 @@ namespace midikraft {
 
 		bool renameList(std::string listID, std::string newName) {
 			try {
-				assert(false);
 				SQLite::Transaction transaction(db_);
 				SQLite::Statement update(db_, "UPDATE lists set name = :NAM where id = :IID");
 				update.bind(":NAM", newName);

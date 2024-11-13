@@ -444,14 +444,13 @@ namespace midikraft {
 			return result;
 		}
 
-		bool renameImport(std::string synthName, std::string importID, std::string newName) {
+		bool renameList(std::string listID, std::string newName) {
 			try {
 				assert(false);
 				SQLite::Transaction transaction(db_);
-				SQLite::Statement update(db_, "UPDATE imports set name = :NAM where id = :IID and synth = :SYN");
+				SQLite::Statement update(db_, "UPDATE lists set name = :NAM where id = :IID");
 				update.bind(":NAM", newName);
-				update.bind(":IID", importID);
-				update.bind(":SYN", synthName);
+				update.bind(":IID", listID);
 				int rowsModified = update.exec();
 				if (rowsModified == 1) {
 					// Success
@@ -459,16 +458,16 @@ namespace midikraft {
 					return true;
 				}
 				else if (rowsModified == 0) {
-					spdlog::error("Failed to update import - not found with ID {}", importID);
+					spdlog::error("Failed to update name of list - not found with ID {}", listID);
 					return false;
 				}
 				else {
-					spdlog::error("Failed to update import, abort - more than one row found with ID {}", importID);
+					spdlog::error("Failed to update name of list, abort - more than one row found with ID {}", listID);
 					return false;
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				spdlog::error("DATABASE ERROR in renameImport: SQL Exception {}", ex.what());
+				spdlog::error("DATABASE ERROR in renameList: SQL Exception {}", ex.what());
 				return false;
 			}
 		}
@@ -1981,8 +1980,8 @@ namespace midikraft {
 		PatchDataBaseImpl::makeDatabaseBackup(databaseFile, backupFileToCreate);
 	}
 
-	bool PatchDatabase::renameImport(std::string synthName, std::string importID, std::string newName) {
-		return impl->renameImport(synthName, importID, newName);
+	bool PatchDatabase::renameList(std::string listID, std::string newName) {
+		return impl->renameList(listID, newName);
 	}
 
 	std::vector<Category> PatchDatabase::getCategories() const {

@@ -84,7 +84,7 @@ namespace midikraft {
 		void makeDatabaseBackup(File backupFileToCreate);
 		static void makeDatabaseBackup(File databaseFile, File backupFileToCreate);
 
-		bool renameImport(std::string synthName, std::string importID, std::string newName);
+		bool renameList(std::string listID, std::string newName);
 
 		std::vector<Category> getCategories() const;
 		std::shared_ptr<AutomaticCategory> getCategorizer();

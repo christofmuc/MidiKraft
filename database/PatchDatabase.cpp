@@ -13,6 +13,7 @@
 #include "SynthBank.h"
 #include "StoredPatchNameCapability.h"
 #include "HasBanksCapability.h"
+#include "ImportList.h"
 
 #include "JsonSchema.h"
 #include "JsonSerialization.h"
@@ -53,6 +54,14 @@ namespace midikraft {
 	/* 12 - adding an index to speed up the import list building */
 	/* 13 - adding comment to the patch table */
 	/* 14 - move the imports information into the list table, and create the corresponding patch_in_list entries. Add list type for quick filtering. */
+
+	// This is stored in the list_type column
+	enum PatchListType {
+		NORMAL_LIST = 0,
+		SYNTH_BANK = 1,
+		USER_BANK = 2,
+		IMPORT_LIST = 3
+	};
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -137,7 +146,7 @@ namespace midikraft {
 
 		std::string migrateTable(std::string table_name, std::function<void()> create_new_table, std::vector<std::string> const& column_list) {
 			auto old_table_name = table_name + "_old";
-			db_.exec(fmt::format("ALTER TABLE {} RENAME TO {}", table_name, old_table_name ).c_str());
+			db_.exec(fmt::format("ALTER TABLE {} RENAME TO {}", table_name, old_table_name).c_str());
 			create_new_table();
 			std::string column_names;
 			for (auto const& name : column_list) {
@@ -146,8 +155,8 @@ namespace midikraft {
 				}
 				column_names += name;
 			}
-			auto query = fmt::format("INSERT INTO {}({}) SELECT {} FROM {}",  table_name, column_names, column_names, old_table_name);
-			db_.exec(query.c_str());			
+			auto query = fmt::format("INSERT INTO {}({}) SELECT {} FROM {}", table_name, column_names, column_names, old_table_name);
+			db_.exec(query.c_str());
 			return old_table_name;
 		}
 
@@ -274,19 +283,23 @@ namespace midikraft {
 			if (currentVersion < 14) {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
-				// Set list type: 0 is normal user list, 1 is synth bank, 2 is user bank
+				// Add list type column
+				db_.exec("ALTER TABLE lists ADD COLUMN list_type INTEGER");
+				// Set list type
 				db_.exec("UPDATE lists SET list_type = CASE WHEN synth IS NULL THEN 0 "
 					"WHEN id LIKE synth || '%' THEN 1 "
 					"ELSE 2 "
 					"END;");
 				// Now create list type 3 - import
 				db_.exec("INSERT INTO lists (id, name, synth, last_synced, list_type) SELECT id, name, synth, strftime('%s', date) AS last_synced, 3 FROM imports");
-				// Now create the list entries for the impor lists
+				// Now create the list entries for the import lists
 				db_.exec("INSERT INTO patch_in_list (id, synth, md5, order_num) "
 					"SELECT sourceID AS id, synth, md5, "
 					"ROW_NUMBER() OVER(PARTITION BY sourceID ORDER BY midiBankNo, midiProgramNo) AS order_num  "
 					"FROM patches "
 					"WHERE sourceID IS NOT NULL; ");
+				// TODO - Fix editbuffer IDs, they must be unique and contain the synth name
+				// TODO - speed. which indexes do I need?
 				// Update schema and commit
 				db_.exec("UPDATE schema_version SET number = 14");
 				transaction.commit();
@@ -327,9 +340,6 @@ namespace midikraft {
 			if (!db_.tableExists("patches")) {
 				createPatchTable();
 			}
-			/*if (!db_.tableExists("imports")) {
-				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
-			}*/
 			if (!db_.tableExists("categories")) {
 				db_.exec("CREATE TABLE IF NOT EXISTS categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER)");
 				insertDefaultCategories();
@@ -339,9 +349,9 @@ namespace midikraft {
 				db_.exec("CREATE TABLE IF NOT EXISTS schema_version (number INTEGER)");
 			}
 			if (!db_.tableExists("lists")) {
-				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL, synth TEXT, midi_bank_number INTEGER, last_synced INTEGER)");
+				db_.exec("CREATE TABLE IF NOT EXISTS lists(id TEXT PRIMARY KEY, name TEXT NOT NULL, synth TEXT, midi_bank_number INTEGER, last_synced INTEGER, list_type INTEGER)");
 			}
-			
+
 			if (!db_.tableExists("patch_in_list")) {
 				createPatchInListTable();
 			}
@@ -397,10 +407,10 @@ namespace midikraft {
 			}
 		}
 
-		bool putPatch(PatchHolder const& patch, std::string const& sourceID) {
+		bool putPatch(PatchHolder const& patch) {
 			try {
-				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, hidden, sourceID, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision, comment)"
-					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :HID, :SID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD, :COM)");
+				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, hidden, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision, comment)"
+					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :HID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD, :COM)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", patch.synth()->getName().c_str());
@@ -410,19 +420,18 @@ namespace midikraft {
 				sql.bind(":DAT", patch.patch()->data().data(), (int)patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
 				sql.bind(":HID", patch.isHidden());
-				sql.bind(":SID", sourceID);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
-                if (patch.bankNumber().isValid()) {
-                    sql.bind(":BNK", patch.bankNumber().toZeroBased());
-                }
-                else
-                {
-                    sql.bind(":BNK");
-                }
+				if (patch.bankNumber().isValid()) {
+					sql.bind(":BNK", patch.bankNumber().toZeroBased());
+				}
+				else
+				{
+					sql.bind(":BNK");
+				}
 				sql.bind(":PRG", patch.patchNumber().toZeroBasedWithBank());
-				sql.bind(":CAT", (int64_t) bitfield.categorySetAsBitfield(patch.categories()));
-				sql.bind(":CUD", (int64_t) bitfield.categorySetAsBitfield(patch.userDecisionSet()));
+				sql.bind(":CAT", (int64_t)bitfield.categorySetAsBitfield(patch.categories()));
+				sql.bind(":CUD", (int64_t)bitfield.categorySetAsBitfield(patch.userDecisionSet()));
 				sql.bind(":COM", patch.comment());
 
 				sql.exec();
@@ -434,7 +443,6 @@ namespace midikraft {
 		}
 
 		std::vector<ImportInfo> getImportsList(Synth* activeSynth) {
-			//SQLite::Statement query(db_, "SELECT imports.name, id, count(patches.md5) AS patchCount FROM imports JOIN patches on imports.id == patches.sourceID WHERE patches.synth = :SYN AND imports.synth = :SYN GROUP BY imports.id ORDER BY date");
 			SQLite::Statement query(db_, "SELECT lists.name, lists.id, count(patch_in_list.md5) AS patchCount FROM lists JOIN patch_in_list on lists.id == patch_in_list.id where lists.synth = :SYN AND patch_in_list.synth = :SYN AND lists.list_type = 3 GROUP BY lists.id ORDER BY lists.last_synced");
 			query.bind(":SYN", activeSynth->getName());
 			std::vector<ImportInfo> result;
@@ -641,7 +649,7 @@ namespace midikraft {
 				query.bind(":TYP", filter.typeID);
 			}
 			if (!filter.onlyUntagged && !filter.categories.empty()) {
-				query.bind(":CAT", (int64_t) bitfield.categorySetAsBitfield(filter.categories));
+				query.bind(":CAT", (int64_t)bitfield.categorySetAsBitfield(filter.categories));
 			}
 		}
 
@@ -782,9 +790,9 @@ namespace midikraft {
 
 			// Load the BLOB
 			if (dataColumn.isBlob()) {
-			std::vector<uint8> patchData((uint8*)dataColumn.getBlob(), ((uint8*)dataColumn.getBlob()) + dataColumn.getBytes());
-			//TODO I should not need the midiProgramNumber here
-			newPatch = synth->patchFromPatchData(patchData, program);
+				std::vector<uint8> patchData((uint8*)dataColumn.getBlob(), ((uint8*)dataColumn.getBlob()) + dataColumn.getBytes());
+				//TODO I should not need the midiProgramNumber here
+				newPatch = synth->patchFromPatchData(patchData, program);
 			}
 
 			// We need the current categories
@@ -1023,8 +1031,8 @@ namespace midikraft {
 					SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5 and synth = :SYN");
 					if (updateChoices & UPDATE_CATEGORIES) {
 						calculateMergedCategories(newPatch, existingPatch);
-						sql.bind(":CAT", (int64_t) bitfield.categorySetAsBitfield(newPatch.categories()));
-						sql.bind(":CUD", (int64_t) bitfield.categorySetAsBitfield(newPatch.userDecisionSet()));
+						sql.bind(":CAT", (int64_t)bitfield.categorySetAsBitfield(newPatch.categories()));
+						sql.bind(":CUD", (int64_t)bitfield.categorySetAsBitfield(newPatch.userDecisionSet()));
 					}
 					if (updateChoices & UPDATE_NAME) {
 						sql.bind(":NAM", newPatch.name());
@@ -1066,31 +1074,51 @@ namespace midikraft {
 			return false;
 		}
 
-		bool insertImportInfo(std::string const& synthname, std::string const& source_id, std::string const& importName) {
-			// Check if this import already exists 
-			try {
-				SQLite::Statement query(db_, "SELECT count(*) AS numExisting FROM imports WHERE synth = :SYN and id = :SID");
-				query.bind(":SYN", synthname);
-				query.bind(":SID", source_id);
-				if (query.executeStep()) {
-					auto existing = query.getColumn("numExisting");
-					if (existing.getInt() == 1) {
-						return false;
-					}
+		void sortPatchesIntoImportLists(std::vector<PatchHolder>& patches) {
+			// Sort all patches into the existing or new lists. The lists will be saved after the patches themselves are saved.
+			std::map<std::string, std::shared_ptr<ImportList>> newImportLists;
+			std::map<std::string, std::shared_ptr<ImportList>> editBufferLists;
+			for (const auto& newPatch : patches) {
+				if (!newPatch.sourceInfo()) {
+					// Patch with no source info, probably very old or from 3rd party system
+					spdlog::warn("Encountered patch '{}' without source info, cannot record into import list", newPatch.name());
 				}
+				else if (SourceInfo::isEditBufferImport(newPatch.sourceInfo())) {
+					// In case this is an EditBuffer import (no bank known), always use the same "fake UUID" "EditBufferImport"
+					std::string synthName = newPatch.smartSynth()->getName();
+					if (editBufferLists.find(synthName) == editBufferLists.end())
+					{
+						// Check if it is already in the database
+						std::string editBufferID = fmt::format("EditBufferImport-{}", synthName);
+						std::map<std::string, std::weak_ptr<Synth>> allSynths;
+						allSynths[synthName] = newPatch.smartSynth();
+						auto editBufferList = getPatchList(editBufferID, allSynths);
+						if (!editBufferList) {
+							editBufferList = std::make_shared<ImportList>(newPatch.smartSynth(), editBufferID, "Edit buffer imports");
+						}
+					}
+					editBufferLists[synthName]->addPatch(newPatch);
+				}
+				else {
+					std::string importDisplayString = newPatch.sourceInfo()->toDisplayString(newPatch.synth(), true);;
+					std::string importUID = newPatch.sourceInfo()->md5(newPatch.synth());
+					if (newImportLists.find(importUID) == newImportLists.end()) {
+						// This is a new import list we haven't had before, create a new list!
+						newImportLists[importUID] = std::make_shared<ImportList>(newPatch.smartSynth(), importUID, importDisplayString);
+					}
+					newImportLists[importUID]->addPatch(newPatch);
+				}
+			}
 
-				// Record this import in the import table for later filtering! The name of the import might differ for different patches (bulk import), use the first patch to calculate it
-				SQLite::Statement sql(db_, "INSERT INTO imports (synth, name, id, date) VALUES (:SYN, :NAM, :SID, datetime('now'))");
-				sql.bind(":SYN", synthname);
-				sql.bind(":NAM", importName);
-				sql.bind(":SID", source_id);
-				sql.exec();
-				return true;
+			// Now store them in the database
+			for (auto list : newImportLists) {
+				spdlog::info("Storing import list {}", list.second->name());
+				this->putPatchList(list.second, false);
 			}
-			catch (SQLite::Exception& ex) {
-				spdlog::error("DATABASE ERROR in insertImportInfo: SQL Exception {}", ex.what());
+			for (auto list : editBufferLists) {
+				spdlog::info("Storing list of edit buffer imports for synth {}", list.second->synth()->getName());
+				this->putPatchList(list.second, false);
 			}
-			return false;
 		}
 
 		size_t mergePatchesIntoDatabase(std::vector<PatchHolder>& patches, std::vector<PatchHolder>& outNewPatches, ProgressHandler* progress, unsigned updateChoice, bool useTransaction) {
@@ -1147,33 +1175,8 @@ namespace midikraft {
 				spdlog::info("Updated {} patches in the database with new names", updatedNames);
 			}
 
-			// Check if all new patches are editBuffer patches (aka have an invalid MidiBank)
-			std::map<std::string, std::string> mapMD5_to_idOfImport;
-			std::set<std::tuple<std::string, std::string, std::string>> importsToBeCreated;
-			for (const auto& newPatch : outNewPatches) {
-				if (!newPatch.sourceInfo()) {
-					// Patch with no source info, probably very old or from 3rd party system
-				}
-				else if (SourceInfo::isEditBufferImport(newPatch.sourceInfo())) {
-					// EditBuffer, nothing to do
-					// In case this is an EditBuffer import (no bank known), always use the same "fake UUID" "EditBufferImport"
-					mapMD5_to_idOfImport[newPatch.md5()] = "EditBufferImport";
-					importsToBeCreated.emplace(newPatch.synth()->getName(), "EditBufferImport", "Edit buffer imports");
-				}
-				else {
-					std::string importDisplayString = newPatch.sourceInfo()->toDisplayString(newPatch.synth(), true);;
-					std::string importUID = newPatch.sourceInfo()->md5(newPatch.synth());
-					if (mapMD5_to_idOfImport.find(newPatch.md5()) == mapMD5_to_idOfImport.end()) {
-						// Only use the import ID of the first instance of the patch found, because the loop below will skip all duplicates!
-						mapMD5_to_idOfImport[newPatch.md5()] = importUID;
-						importsToBeCreated.emplace(newPatch.synth()->getName(), importUID, importDisplayString);
-					}
-				}
-			}
-
 			//TODO can be replaced by repaired bulkPut
 			std::map<String, PatchHolder> md5Inserted;
-			std::map<Synth*, int> synthsWithUploadedItems;
 			int sumOfAll = 0;
 			for (const auto& newPatch : outNewPatches) {
 				if (progress && progress->shouldAbort()) {
@@ -1189,30 +1192,19 @@ namespace midikraft {
 						spdlog::info("Updating patch name {} to better one: {}", duplicate.name(), newPatch.name());
 					}
 					else {
-						spdlog::info("Skipping patch {} because it is a duplicate of {}", newPatch.name(),  duplicate.name());
+						spdlog::info("Skipping patch {} because it is a duplicate of {}", newPatch.name(), duplicate.name());
 					}
 				}
 				else {
-					if (newPatch.sourceId().empty()) {
-						putPatch(newPatch, mapMD5_to_idOfImport[patchMD5]);
-						if (synthsWithUploadedItems.find(newPatch.synth()) == synthsWithUploadedItems.end()) {
-							// First time this synth sees an upload
-							synthsWithUploadedItems[newPatch.synth()] = 0;
-						}
-						synthsWithUploadedItems[newPatch.synth()] += 1;
-					}
-					else {
-						putPatch(newPatch, newPatch.sourceId());
-					}
+					putPatch(newPatch);
 					md5Inserted[patchMD5] = newPatch;
 					sumOfAll++;
 				}
 				if (progress) progress->setProgressPercentage(sumOfAll / (double)outNewPatches.size());
 			}
 
-			for (auto import : importsToBeCreated) {
-				insertImportInfo(std::get<0>(import), std::get<1>(import), std::get<2>(import));
-			}
+			// Now that all patches have been saved, create the import lists and their content
+			sortPatchesIntoImportLists(patches);
 
 			if (transaction) transaction->commit();
 
@@ -1504,54 +1496,69 @@ namespace midikraft {
 			return false;
 		}
 
-		std::shared_ptr<midikraft::PatchList> getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
+		std::shared_ptr<midikraft::PatchList> getPatchList(std::string listID, std::map<std::string, std::weak_ptr<Synth>> synths)
 		{
 			// First load the list
 			SQLite::Statement queryList(db_, "SELECT * FROM lists WHERE id = :ID");
-			queryList.bind(":ID", info.id);
+			queryList.bind(":ID", listID);
 			std::shared_ptr<midikraft::PatchList> list;
 			if (queryList.executeStep()) {
-				if (queryList.getColumn("synth").isNull()) {
-					list = std::make_shared<midikraft::PatchList>(info.id, queryList.getColumn("name").getText());
-				}
-				else {
+				std::shared_ptr<Synth> listSynth;
+				if (!queryList.getColumn("synth").isNull()) {
 					// Find synth
 					auto synthName = queryList.getColumn("synth").getText();
 					for (auto synth : synths) {
 						auto s = synth.second.lock();
 						if (s->getName() == synthName) {
-							int bankInt = queryList.getColumn("midi_bank_number").getInt();
-							if (info.id.find(synthName) != 0) {
-								// This is a stored user bank
-								list = std::make_shared<UserBank>(info.id, queryList.getColumn("name").getText(),
-									s
-									, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
-									);
-							}
-							else {
-								// This is an active bank
-								list = std::make_shared<ActiveSynthBank>(s
-									, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(s, bankInt))
-									, juce::Time(queryList.getColumn("last_synced").getInt64())
-									);
-							}
+							listSynth = s;
 							break;
 						}
 					}
-					if (!list) {
-						spdlog::error("Can't load list of synth that is not configured!");
+					if (!listSynth) {
+						spdlog::error("List is for synth {}, which is not provided. Can't load list!", synthName);
 						return nullptr;
 					}
 				}
+
+				if (queryList.getColumn("list_type").isNull()) {
+					spdlog::error("Failed to load list with ID {}, because type is NULL. Incomplete migration?", listID);
+					return nullptr;
+				}
+				switch (queryList.getColumn("list_type").getInt()) {
+				case PatchListType::NORMAL_LIST:
+					list = std::make_shared<midikraft::PatchList>(listID, queryList.getColumn("name").getText());
+					break;
+				case PatchListType::IMPORT_LIST:
+					list = std::make_shared<midikraft::ImportList>(listSynth, listID, queryList.getColumn("name").getText());
+					break;
+				case PatchListType::SYNTH_BANK: {
+					int bankInt = queryList.getColumn("midi_bank_number").getInt();
+					list = std::make_shared<UserBank>(listID, queryList.getColumn("name").getText(), listSynth
+						, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(listSynth, bankInt))
+						);
+					break;
+				}
+				case PatchListType::USER_BANK: {
+					int bankInt = queryList.getColumn("midi_bank_number").getInt();
+					list = std::make_shared<ActiveSynthBank>(listSynth
+						, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(listSynth, bankInt))
+						, juce::Time(queryList.getColumn("last_synced").getInt64())
+						);
+					break;
+				}
+				default:
+					spdlog::error("Got unknown list_type index {}, can't load list!", queryList.getColumn("list_type").getInt());
+					return nullptr;
+				}
 			}
 			if (!list) {
-				spdlog::error("Failed to create list!");
+				//spdlog::error("Failed to create list!");
 				return nullptr;
 			}
 
 			// Now load the patches in this list
 			SQLite::Statement query(db_, "SELECT * from patch_in_list where id=:ID order by order_num");
-			query.bind(":ID", info.id.c_str());
+			query.bind(":ID", listID.c_str());
 			std::vector<std::pair<std::string, std::string>> md5s;
 			while (query.executeStep()) {
 				md5s.push_back({ query.getColumn("synth").getText(), query.getColumn("md5").getText() });
@@ -1641,15 +1648,18 @@ namespace midikraft {
 			}
 		}
 
-		void putPatchList(std::shared_ptr<PatchList> patchList)
+		void putPatchList(std::shared_ptr<PatchList> patchList, bool with_transaction = true)
 		{
 			try {
 				// Check if it exists
-				SQLite::Transaction transaction(db_);
+				std::unique_ptr<SQLite::Transaction> transaction;
+				if (with_transaction)
+					transaction = std::make_unique< SQLite::Transaction>(db_);
 				SQLite::Statement search(db_, "SELECT * FROM lists WHERE id = :ID");
 				search.bind(":ID", patchList->id());
 				auto isSynthBank = std::dynamic_pointer_cast<SynthBank>(patchList);
 				if (search.executeStep()) {
+					// List already exists, just update the name (or touch the last sync timestamp in case of synth banks)
 					if (!isSynthBank) {
 						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM WHERE id = :ID");
 						update.bind(":ID", patchList->id());
@@ -1661,7 +1671,7 @@ namespace midikraft {
 						update.bind(":ID", patchList->id());
 						update.bind(":NAM", patchList->name());
 						if (auto activeBank = std::dynamic_pointer_cast<midikraft::ActiveSynthBank>(patchList)) {
-							update.bind(":LSY", (int64_t) activeBank->lastSynced().toMilliseconds());
+							update.bind(":LSY", (int64_t)activeBank->lastSynced().toMilliseconds());
 						}
 						else {
 							update.bind(":LSY", 0);
@@ -1674,18 +1684,33 @@ namespace midikraft {
 					removeEntries.exec();
 				}
 				else {
-					SQLite::Statement insert(db_, "INSERT INTO lists (id, name, synth, midi_bank_number, last_synced) VALUES (:ID, :NAM, :SYN, :BNK, :LSY)");
+					SQLite::Statement insert(db_, "INSERT INTO lists (id, name, synth, midi_bank_number, last_synced, list_type) VALUES (:ID, :NAM, :SYN, :BNK, :LSY, :LTY)");
+					int list_type = PatchListType::NORMAL_LIST;
 					insert.bind(":ID", patchList->id());
 					insert.bind(":NAM", patchList->name());
+					auto isImportList = std::dynamic_pointer_cast<ImportList>(patchList);
 					if (isSynthBank) {
 						insert.bind(":SYN", isSynthBank->synth()->getName());
 						insert.bind(":BNK", isSynthBank->bankNumber().toZeroBased());
 						if (auto activeBank = std::dynamic_pointer_cast<midikraft::ActiveSynthBank>(patchList)) {
-							insert.bind(":LSY", (int64_t) activeBank->lastSynced().toMilliseconds()); // Storing UNIX epoch here
+							insert.bind(":LSY", (int64_t)activeBank->lastSynced().toMilliseconds()); // Storing UNIX epoch here
 						}
 						else {
 							insert.bind(":LSY", 0);
 						}
+						if (std::dynamic_pointer_cast<UserBank>(patchList)) {
+							// TODO This should be part of the polymorphic behavior of the PatchList
+							list_type = PatchListType::USER_BANK;
+						}
+						else {
+							list_type = PatchListType::SYNTH_BANK;
+						}
+					}
+					else if (isImportList) {
+						list_type = PatchListType::IMPORT_LIST;
+						insert.bind(":SYN", isImportList->synth()->getName());
+						insert.bind(":BNK");
+						insert.bind(":LSY", (int64_t) juce::Time::currentTimeMillis());
 					}
 					else {
 						// Insert NULLs for those three columns
@@ -1693,6 +1718,7 @@ namespace midikraft {
 						insert.bind(":BNK");
 						insert.bind(":LSY");
 					}
+					insert.bind(":LTY", list_type);
 					insert.exec();
 				}
 				// If this list already has a list of patches, make sure to add them into the patch list as well!
@@ -1701,7 +1727,8 @@ namespace midikraft {
 					addPatchToListInternal(patchList->id(), patch.synth()->getName(), patch.md5(), i++);
 				}
 
-				transaction.commit();
+				if (transaction)
+					transaction->commit();
 			}
 			catch (SQLite::Exception& ex) {
 				spdlog::error("DATABASE ERROR in putPatchList: SQL Exception {}", ex.what());
@@ -1874,7 +1901,7 @@ namespace midikraft {
 
 	std::shared_ptr<midikraft::PatchList> PatchDatabase::getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths)
 	{
-		return impl->getPatchList(info, synths);
+		return impl->getPatchList(info.id, synths);
 	}
 
 	void PatchDatabase::putPatchList(std::shared_ptr<PatchList> patchList)

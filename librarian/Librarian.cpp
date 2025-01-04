@@ -313,7 +313,6 @@ namespace midikraft {
 					}
 				} while (std::chrono::steady_clock::now() - startTime < std::chrono::milliseconds(1500));
 				spdlog::error("Timeout while waiting for messages to download edit buffer via program dump request from {}", synth->getName());
-				co_return{};
 			}
 			else {
 				spdlog::error("No way to defined for the {} to send a program change, can't download edit buffer", synth->getName());
@@ -322,6 +321,7 @@ namespace midikraft {
 		else {
 			spdlog::error("The {} has no way to request the edit buffer or program place", synth->getName());
 		}
+		co_return{};
 	}
 
 	void Librarian::startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability* sequencer, int dataFileIdentifier, ProgressHandler* progressHandler, TStepSequencerFinishedHandler onFinished)

@@ -229,6 +229,8 @@ namespace midikraft {
 
 	MidiCoroutine<std::vector<PatchHolder>>  Librarian::downloadEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, TFinishedHandler onFinished)
 	{
+		ignoreUnused(onFinished);
+
 		using this_coroutine = MidiCoroutine<std::vector<PatchHolder>>;
 		std::vector<MidiMessage> download;
 		auto startTime = std::chrono::steady_clock::now(); // To timeout operations accordingly

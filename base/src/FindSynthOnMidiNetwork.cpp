@@ -9,6 +9,8 @@
 #include "MidiHelpers.h"
 #include "MidiCoroutine.h"
 
+#include "Capability.h"
+
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 #include "SpdLogJuce.h"
@@ -164,7 +166,13 @@ namespace midikraft {
 				spdlog::debug("Got message: {}", singleMessage.message.getDescription());
 				auto detectionResult = synth.channelIfValidDeviceResponse(singleMessage.message);
 				if (detectionResult.isValid()) {
-					spdlog::info("Detected device {} with MIDI Output/Input pair '{}','{}'", synth.getName(), outputDevice.name, singleMessage.device.name);
+					auto namedDevice = Capability::hasCapability<NamedDeviceCapability>(&synth);
+					if (namedDevice) {
+						spdlog::info("Detected device {} with MIDI Output/Input pair '{}','{}'", namedDevice->getName(), outputDevice.name, singleMessage.device.name);
+					}
+					else {
+						spdlog::info("Detected anonymous device with MIDI Output/Input pair '{}','{}'", outputDevice.name, singleMessage.device.name);
+					}
 					synth.setWasDetected(true);
 					locationsFound.push_back({ singleMessage.device, outputDevice, detectionResult});
 

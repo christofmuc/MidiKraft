@@ -257,7 +257,6 @@ namespace midikraft {
 			} while ((std::chrono::steady_clock::now() - startTime) < std::chrono::milliseconds(1500));
 			spdlog::error("Timeout while waiting for messages to download edit buffer via stream loading from {}", synth->getName());
 			co_return{};
-				});
 		}
 		else if (auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth)) {
 			// Get all commands
@@ -289,7 +288,7 @@ namespace midikraft {
 		}
 		else if (auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth)) {
 			if (auto programChangeCapability = midikraft::Capability::hasCapability<SendsProgramChangeCapability>(synth)) {
-				auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBased());
+				auto messages = programDumpCapability->requestPatch(programChangeCapability->lastProgramChange().toZeroBasedDiscardingBank());
 				synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), messages);
 				do {
 					auto programDumpMessage = co_await this_coroutine::IncomingMidiMessage{};

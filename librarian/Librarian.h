@@ -39,7 +39,7 @@ namespace midikraft {
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 
-		static MidiCoroutine<std::vector<PatchHolder>> downloadEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler);
+		static MidiCoroutine<std::vector<PatchHolder>>  downloadEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, TFinishedHandler onFinished);
 		//void downloadEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 
 		void startDownloadingSequencerData(std::shared_ptr<SafeMidiOutput> midiOutput, DataFileLoadCapability *sequencer, int dataFileIdentifier, ProgressHandler *progressHandler, TStepSequencerFinishedHandler onFinished);
@@ -81,8 +81,7 @@ namespace midikraft {
 		void handleNextProgramBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& editBuffer, MidiBankNumber bankNo);
 		void handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& bankDump, MidiBankNumber bankNo);
 
-		std::vector<PatchHolder> createPatchHoldersFromPatchList(std::shared_ptr<Synth> synth, TPatchVector const& patches, MidiBankNumber bankNo, std::function<std::shared_ptr<SourceInfo>(MidiBankNumber, MidiProgramNumber)> generateSourceinfo, std::shared_ptr<AutomaticCategory> automaticCategories);
-		std::vector<PatchHolder> tagPatchesWithImportFromSynth(std::shared_ptr<Synth> synth, TPatchVector &patches, MidiBankNumber bankNo);
+		static std::vector<PatchHolder> createPatchHoldersFromPatchList(std::shared_ptr<Synth> synth, TPatchVector const& patches, MidiBankNumber bankNo, std::function<std::shared_ptr<SourceInfo>(MidiBankNumber, MidiProgramNumber)> generateSourceinfo, std::shared_ptr<AutomaticCategory> automaticCategories);
 		void tagPatchesWithMultiBulkImport(std::vector<PatchHolder> &patches);
 
 		void updateLastPath(std::string &lastPathVariable, std::string const &settingsKey);

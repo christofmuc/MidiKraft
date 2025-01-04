@@ -9,10 +9,23 @@
 #include "JuceHeader.h"
 
 #include <spdlog/spdlog.h>
-#ifdef __APPLE__
-#include <experimental/coroutine>
-#else
+
+#if __has_include(<coroutine>)
 #include <coroutine>
+namespace stdx {
+    using std::coroutine_handle;
+    using std::suspend_never;
+    using std::suspend_always;
+}
+#elif __has_include(<experimental/coroutine>)
+#include <experimental/coroutine>
+namespace stdx {
+    using std::experimental::coroutine_handle;
+    using std::experimental::suspend_never;
+    using std::experimental::suspend_always;
+}
+#else
+    #error "an implementation of coroutine is required!"
 #endif
 
 namespace midikraft {
@@ -39,10 +52,10 @@ namespace midikraft {
 		struct promise_type {
 			// This creates the Coroutine frame
 			MidiCoroutine get_return_object() { 
-				return MidiCoroutine{ std::coroutine_handle<promise_type>::from_promise(*this) };
+				return MidiCoroutine{ stdx::coroutine_handle<promise_type>::from_promise(*this) };
 			}
 
-			std::suspend_never initial_suspend() {
+			stdx::suspend_never initial_suspend() {
 				// Do immediately start MidiCoroutines until their first await, so return suspend_never
 				return {};
 			}
@@ -57,7 +70,7 @@ namespace midikraft {
 				spdlog::error("Caught unhandled exception in MidiCoroutine!");
 			}
 
-			std::suspend_always final_suspend() noexcept {
+			stdx::suspend_always final_suspend() noexcept {
 				// Last thing before we are shutdown
 				return {};
 			}
@@ -137,7 +150,7 @@ namespace midikraft {
 			std::queue<MidiMessageWithDevice> incomingMessages_;
 		};
 
-		std::coroutine_handle<promise_type> handle;
+		stdx::coroutine_handle<promise_type> handle;
 
 		explicit MidiCoroutine(std::coroutine_handle<promise_type> handle_) : handle(handle_) {
 			callbackHandle_ = MidiController::instance()->makeOneHandle();

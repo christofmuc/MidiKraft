@@ -88,13 +88,13 @@ namespace midikraft {
 
 	bool SafeMidiOutput::isValid() const
 	{
-		return midiOut_ != nullptr;
+		return midiOut_ != nullptr && midiOut_->getIdentifier().isNotEmpty();
 	}
 
-	MidiController::MidiController()
+	MidiController::MidiController() : midiLogLevel_(MidiLogLevel::SYSEX_ONLY)
 	{
 		if (instance_ != nullptr) {
-			throw new std::runtime_error("This is a singleton, can't create twice");
+			throw std::runtime_error("This is a singleton, can't create twice");
 		}
 		instance_ = this;
 
@@ -121,7 +121,21 @@ namespace midikraft {
 
 	void MidiController::logMidiMessage(const MidiMessage& message, const String& source, bool isOut) {
 		if (midiLogFunction_) {
-			midiLogFunction_(message, source, isOut);
+			bool doLog = false;
+			switch (midiLogLevel_) {
+			case MidiLogLevel::SYSEX_ONLY:
+				doLog = message.isSysEx();
+				break;
+			case MidiLogLevel::ALL_BUT_REALTIME:
+				doLog = !message.isActiveSense() && !message.isMidiClock();
+				break;
+			default:
+				doLog = true;
+			}
+			if (doLog)
+			{
+				midiLogFunction_(message, source, isOut);
+			}
 		}
 	}
 
@@ -145,6 +159,8 @@ namespace midikraft {
 					return false;
 				}
 			}
+			spdlog::info("Could not find MIDI output {}, device disconnected?", newOutput.name);
+			return false;
 		}
 		return true;
 	}
@@ -193,7 +209,7 @@ namespace midikraft {
 				else {
 					// Make sure it is still open and running. This could happen when e.g. a MIDI USB device is removed and inserted back in
 					inputsOpen_[toEnable.identifier]->start();
-					spdlog::trace("MIDI input device {} restarted", toEnable.name);
+					spdlog::trace("MIDI input device {} restarted, id is {}", toEnable.name, toEnable.identifier);
 					return true;
 				}
 			}
@@ -210,16 +226,14 @@ namespace midikraft {
 			spdlog::error("MIDI input {} never was opened, can't disable! Program error?", toDisable.name);
 		}
 		else {
-			spdlog::trace("MIDI input" + toDisable.name + " stopped");
+			spdlog::trace("MIDI input {} stopped, id {}", toDisable.name, toDisable.identifier);
 			inputsOpen_[toDisable.identifier]->stop();
 		}
 	}
 
 	// These methods handle callbacks from the midi device
 	void MidiController::handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) {
-		if (!message.isActiveSense() && !message.isMidiClock()) {
-			logMidiMessage(message, source->getName(), false);
-		}
+		logMidiMessage(message, source->getName(), false);
 
 		// Call all currently registered handlers, but make sure to iterate over a copy of the list as it might get modified while the handlers run
 		// First the new style handlers;
@@ -235,6 +249,7 @@ namespace midikraft {
 		}
 	}
 
+	//TODO This can be replaced by a MidiDeviceListConnection now
 	void MidiController::timerCallback()
 	{
 		 // Check if all devices are still there. We won't get notified, so better be safe than sorry and let's count them!
@@ -275,7 +290,7 @@ namespace midikraft {
 		auto outputDevices = currentOutputs(false);
 		for (auto output = outputsOpen_.begin(); output != outputsOpen_.end(); output++) {
 			if (std::none_of(outputDevices.cbegin(), outputDevices.cend(), [output](juce::MidiDeviceInfo const& info) { return info.identifier == output->first;  })) {
-				spdlog::info("MIDI Output {} unplugged", output->first);
+				spdlog::info("MIDI Output {} unplugged", output->second->getName());
 				output->second.reset();
 				toDeleteOutput.push_back(output->first);
 				dirty = true;
@@ -300,6 +315,7 @@ namespace midikraft {
 		historyOfAllOutpus_.insert(knownOutputs_.begin(), knownOutputs_.end());
 
 		if (dirty) {
+			spdlog::debug("Detected change in MIDI device list, notifying listeners");
 			sendChangeMessage();
 		}
 	}
@@ -324,6 +340,10 @@ namespace midikraft {
 			outputDevices.insert(historyOfAllOutpus_.begin(), historyOfAllOutpus_.end());
 		}
 		return outputDevices;
+	}
+
+	void MidiController::setMidiLogLevel(MidiLogLevel level) {
+		midiLogLevel_ = level;
 	}
 
     juce::MidiDeviceInfo MidiController::getMidiOutputByIdentifier(const String &identifier)
@@ -359,7 +379,7 @@ namespace midikraft {
 				return output;
 			}
 		}
-		return MidiDeviceInfo();
+		return MidiDeviceInfo(name, "");
 	}
 
 	juce::MidiDeviceInfo MidiController::getMidiInputByName(const String &name)
@@ -371,7 +391,7 @@ namespace midikraft {
 				return output;
 			}
 		}
-		return MidiDeviceInfo();
+		return MidiDeviceInfo(name, "");
 	}
 
 	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler) {

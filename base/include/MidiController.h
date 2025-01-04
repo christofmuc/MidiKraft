@@ -57,6 +57,11 @@ namespace midikraft {
 		DebounceTimer debouncer_;
 	};
 
+	enum class MidiLogLevel {
+		SYSEX_ONLY,
+		ALL_BUT_REALTIME
+	};
+
 	// TODO - another example of bad naming. This is rather the "MidiDeviceManager"
 	class MidiController : public ChangeBroadcaster, private MidiInputCallback, private Timer
 	{
@@ -90,6 +95,8 @@ namespace midikraft {
 		std::set<juce::MidiDeviceInfo> currentInputs(bool withHistory);
 		std::set<juce::MidiDeviceInfo> currentOutputs(bool withHistory);
 
+		void setMidiLogLevel(MidiLogLevel level);
+
 	private:
 		// Implementation of Callback
 		virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
@@ -108,6 +115,8 @@ namespace midikraft {
 		std::map<String, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
 		std::map<String, std::unique_ptr<MidiInput>> inputsOpen_;
 		std::function<void(const MidiMessage& message, const String& source, bool)> midiLogFunction_;
+
+		MidiLogLevel midiLogLevel_;
 	};
 	
 }

@@ -12,7 +12,7 @@
 
 namespace midikraft {
 
-	class SimpleDiscoverableDevice : public DiscoverableDevice, public MidiLocationCapability {
+	class SimpleDiscoverableDevice : public DiscoverableDevice, public MidiLocationCapability, virtual public NamedDeviceCapability {
 	public:
 		virtual void setCurrentChannelZeroBased(juce::MidiDeviceInfo const &midiInput, juce::MidiDeviceInfo const &midiOutput, int midiChannel);
 		virtual void setChannel(MidiChannel newChannel);

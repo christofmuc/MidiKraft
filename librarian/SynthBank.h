@@ -28,6 +28,7 @@ namespace midikraft {
 		virtual void fillWithPatch(PatchHolder patch);
 		
 		virtual void changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
+		virtual void updatePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
 		
 		void copyListToPosition(MidiProgramNumber programPlace, PatchList const& list);
 
@@ -53,6 +54,10 @@ namespace midikraft {
 		void clearDirty()
 		{
 			dirtyPositions_.clear();
+		}
+
+		int patchCapacity() {
+			return numberOfPatchesInBank(synth_, bankNo_);
 		}
 
 		static std::string friendlyBankName(std::shared_ptr<Synth> synth, MidiBankNumber bankNo);

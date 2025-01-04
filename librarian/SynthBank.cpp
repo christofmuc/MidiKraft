@@ -40,7 +40,17 @@ namespace midikraft {
 		}
 		// In case the bank was not full (could be a brand new user bank), fill it up with empty holders
 		for (size_t j = patches.size(); static_cast<int>(j) < bankNo_.bankSize(); j++) {
-			patches.push_back(midikraft::PatchHolder(synth_, nullptr, nullptr, bankNo_, MidiProgramNumber::fromZeroBaseWithBank(bankNo_, (int)j)));
+			auto initPatch = midikraft::PatchHolder(synth_, nullptr, nullptr);
+			initPatch.setBank(bankNo_);
+			auto patchNo = MidiProgramNumber::fromZeroBaseWithBank(bankNo_, (int)j);
+			initPatch.setPatchNumber(patchNo);
+			if (initPatch.name().empty())
+			{
+				if (j < patches.size()) {
+					initPatch.setName(patches[j].smartSynth()->friendlyProgramAndBankName(bankNo_, patchNo));
+				}
+			}
+			patches.push_back(initPatch);
 		}
 
 		// Validate everything worked
@@ -88,7 +98,7 @@ namespace midikraft {
 				patch->setBank(old.bankNumber());
 				patch->setPatchNumber(old.patchNumber());
 				modified = true;
-				dirtyPositions_.insert(old.patchNumber().toZeroBased());
+				dirtyPositions_.insert(old.patchNumber().toZeroBasedDiscardingBank());
 			}
 		}
 		if (modified) {
@@ -98,16 +108,26 @@ namespace midikraft {
 
 	void SynthBank::changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch)
 	{
-		auto currentList = patches();
-		int position = programPlace.toZeroBased();
-		if (position < static_cast<int>(currentList.size())) {
-			// Check that we are not dropping a patch onto itself
-			if (currentList[position].md5() != patch.md5()) {
-				currentList[position] = patch;
-				setPatches(currentList);
-				dirtyPositions_.insert(position);
-			}
+        updatePatchAtPosition(programPlace, patch);
+		int position = programPlace.toZeroBasedDiscardingBank();
+		if (position < static_cast<int>(patches().size())) {
 			fillWithPatch(patch);
+		}
+		else {
+			jassertfalse;
+		}
+	}
+
+	void SynthBank::updatePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch)
+	{
+		auto currentList = patches();
+		int position = programPlace.toZeroBasedDiscardingBank();
+		if (position < static_cast<int>(currentList.size())) {
+            if (currentList[position].md5() != patch.md5() || currentList[position].name() != patch.name()) {
+				dirtyPositions_.insert(position);
+            }
+			currentList[position] = patch;
+			setPatches(currentList);
 		}
 		else {
 			jassertfalse;
@@ -117,7 +137,7 @@ namespace midikraft {
 	void SynthBank::copyListToPosition(MidiProgramNumber programPlace, PatchList const& list)
 	{
 		auto currentList = patches();
-		int position = programPlace.toZeroBased();
+		int position = programPlace.toZeroBasedDiscardingBank();
 		if (position < static_cast<int>(currentList.size())) {
 			auto listToCopy = list.patches();
 			int read_pos = 0;
@@ -128,7 +148,7 @@ namespace midikraft {
 					dirtyPositions_.insert(write_pos++);
 				}
 				else {
-					spdlog::info("Skipping patch %s because it is for synth %s and cannot be put into the bank", listToCopy[read_pos].name(), listToCopy[read_pos].synth()->getName());
+					spdlog::info("Skipping patch {} because it is for synth {} and cannot be put into the bank", listToCopy[read_pos].name(), listToCopy[read_pos].synth()->getName());
 					read_pos++;
 				}
 			}

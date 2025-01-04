@@ -32,6 +32,7 @@ namespace midikraft {
 	public:
 		typedef std::vector<uint8> PatchData;
 
+		Synth();
 		virtual ~Synth() = default;
 
 		virtual std::shared_ptr<DataFile> patchFromPatchData(const Synth::PatchData &data, MidiProgramNumber place) const = 0;
@@ -45,6 +46,7 @@ namespace midikraft {
 		virtual std::string friendlyProgramAndBankName(MidiBankNumber bankNo, MidiProgramNumber programNo) const;
 
 		virtual std::string nameForPatch(std::shared_ptr<DataFile> dataFile) const;
+		virtual MidiProgramNumber numberForPatch(std::shared_ptr<DataFile> dataFile);
 
 		// Override this in case not all bytes contribute to the sound of the patch
 		virtual PatchData filterVoiceRelevantData(std::shared_ptr<DataFile> unfilteredData) const;
@@ -61,6 +63,27 @@ namespace midikraft {
 		virtual std::vector<MidiMessage> dataFileToSysex(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
 		virtual void sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
 		virtual void sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const &midiOutput, std::vector<MidiMessage> const& buffer);
+
+		// Helper methods
+		static int sizeOfBank(std::shared_ptr<Synth>, int zeroBasedBankNumber);
+		static MidiBankNumber bankNumberFromInt(std::shared_ptr<Synth>, int zeroBasedBankNumber);
+
+	private:
+		size_t maxNumberMessagesPerPatch_; // UGLY global configuration which can be overriden by environment variable ORM_MAX_MSG_PER_PATCH. Default was 10, which was large enough for refaceDX but too small for other synths.
+	};
+
+	enum class BankDownloadMethod {
+		UNKNOWN,
+		STREAMING,
+		HANDSHAKES,
+		BANKS,
+		EDIT_BUFFERS,
+		PROGRAM_BUFFERS
+	};
+
+	class BankDownloadMethodIndicationCapability {
+	public:
+		virtual BankDownloadMethod bankDownloadMethod() const = 0;
 	};
 
 }

@@ -24,7 +24,7 @@ namespace midikraft {
 		}
 		else {
 			std::cerr << "Timeout while waiting for MidiRequest result" << std::endl;
-			throw new std::runtime_error("PyTschirp: Timeout while waiting for midi request");
+			throw std::runtime_error("PyTschirp: Timeout while waiting for midi request");
 		}
 	}
 
@@ -49,7 +49,7 @@ namespace midikraft {
 		catch (std::runtime_error &e) {
 			ignoreUnused(e);
 			midikraft::MidiController::instance()->removeMessageHandler(handler);
-			throw new std::runtime_error("PyTschirp: Timeout while waiting for edit buffer midi message");
+			throw std::runtime_error("PyTschirp: Timeout while waiting for edit buffer midi message");
 		}
 	}
 

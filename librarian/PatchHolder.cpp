@@ -31,45 +31,21 @@ namespace midikraft {
 		*kProgramNo = "program";
 
 	PatchHolder::PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch, 
-		MidiBankNumber bank, MidiProgramNumber place, std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
+		std::shared_ptr<AutomaticCategory> detector /* = nullptr */)
 		: patch_(patch)
             , synth_(activeSynth)
             , isFavorite_(Favorite())
             , isHidden_(false)
-            , bankNumber_(bank)
-            , patchNumber_(place)
+            , bankNumber_(MidiBankNumber::invalid())
+            , patchNumber_(MidiProgramNumber::invalidProgram())
             , sourceInfo_(sourceInfo)
     {
 		if (patch) {
 			name_ = activeSynth->nameForPatch(patch);
-			if (name_.empty()) {
-				// No information on the patch name from the data. We need to make one up from the Program Place given to this Meta Data constructor
-				name_ = activeSynth->friendlyProgramAndBankName(bank, place);
-			}
 			if (detector) {
 				categories_ = detector->determineAutomaticCategories(*this);
 			}
 		}
-		/*if (sourceInfo && !bankNumber_.isValid() && patchNumber_.toZeroBased() == 0) {
-			// Bug fix for old data - the bank/program columns might contain nothing while the file source actually has the correct data.
-			// Apply this
-			auto filesource = std::dynamic_pointer_cast<FromFileSource>(sourceInfo);
-			if (filesource) {
-				patchNumber_ = filesource->programNumber();
-				if (patchNumber_.bank().isValid()) {
-					bankNumber_ = patchNumber_.bank();
-				}
-			}
-			else if (auto bulksource = std::dynamic_pointer_cast<FromBulkImportSource>(sourceInfo)) {
-				filesource = std::dynamic_pointer_cast<FromFileSource>(bulksource->individualInfo());
-				if (filesource) {
-					patchNumber_ = filesource->programNumber();
-					if (patchNumber_.bank().isValid()) {
-						bankNumber_ = patchNumber_.bank();
-					}
-				}
-			}
-		}*/
 	}
 
 	PatchHolder::PatchHolder() : isFavorite_(Favorite()), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())
@@ -99,9 +75,8 @@ namespace midikraft {
 	void PatchHolder::setName(std::string const &newName)
 	{
 		auto storedInPatch = midikraft::Capability::hasCapability<StoredPatchNameCapability>(patch());
-		if (storedInPatch) {
+		if (storedInPatch && storedInPatch->changeNameStoredInPatch(newName)) {
 			// If the Patch can do it, poke the name into the patch, and then use the result (limited to the characters the synth can do) for the patch holder as well
-			storedInPatch->setName(newName);
 			name_ = storedInPatch->name();
 		}
 		else {
@@ -217,6 +192,16 @@ namespace midikraft {
 		return sourceInfo_;
 	}
 
+	std::string PatchHolder::comment() const
+	{
+		return comment_;
+	}
+
+	void PatchHolder::setComment(std::string const& newComment)
+	{
+		comment_ = newComment;
+	}
+
 	bool PatchHolder::autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector)
 	{
 		auto previous = categories();
@@ -330,19 +315,19 @@ namespace midikraft {
 		return jsonRep_;
 	}
 
-	std::shared_ptr<SourceInfo> SourceInfo::fromString(std::string const &str)
+	std::shared_ptr<SourceInfo> SourceInfo::fromString(std::shared_ptr<Synth> synth, std::string const &str)
 	{
 		try {
 			auto doc = nlohmann::json::parse(str);
 			if (doc.is_object()) {
 				if (doc.contains(kFileSource)) {
-                    return FromFileSource::fromString(str);
+                    return FromFileSource::fromString(synth, str);
 				}
 				else if (doc.contains(kSynthSource)) {
 					return FromSynthSource::fromString(str);
 				}
 				else if (doc.contains(kBulkSource)) {
-					return FromBulkImportSource::fromString(str);
+					return FromBulkImportSource::fromString(synth, str);
 				}
 			}
 			spdlog::error("Json string does not contain correct source info type: {}", str);
@@ -458,7 +443,7 @@ namespace midikraft {
 		}
 		else
 		{
-			doc[kProgramNo] = program.toZeroBased();
+			doc[kProgramNo] = program.toZeroBasedDiscardingBank();
 		}
 		jsonRep_ = doc.dump();
 
@@ -476,7 +461,7 @@ namespace midikraft {
 		return fmt::format("Imported from file {}", filename_);
 	}
 
-	std::shared_ptr<FromFileSource> FromFileSource::fromString(std::string const &jsonString)
+	std::shared_ptr<FromFileSource> FromFileSource::fromString(std::shared_ptr<Synth> synth, std::string const &jsonString)
 	{
 		auto obj = nlohmann::json::parse(jsonString);
 		if (obj.contains(kFileSource)) {
@@ -484,9 +469,10 @@ namespace midikraft {
 			std::string fullpath = obj[kFullPath].get<std::string>();
 			MidiProgramNumber program = MidiProgramNumber::invalidProgram();
 			if (obj.contains(kBankNumber)) {
-				jassertfalse;
-				MidiBankNumber bank = MidiBankNumber::fromZeroBase(obj[kBankNumber].get<int>(), -1);
-				program = MidiProgramNumber::fromZeroBaseWithBank(bank, obj[kProgramNo].get<int>());
+				int bankNo = obj[kBankNumber].get<int>();
+				// Need to determine the size of the bank
+				MidiBankNumber bank = Synth::bankNumberFromInt(synth, bankNo);
+				program = MidiProgramNumber::fromZeroBaseWithBank(bank, bankNo);
 			}
 			else {
 				program = MidiProgramNumber::fromZeroBase(obj[kProgramNo].get<int>());
@@ -531,7 +517,7 @@ namespace midikraft {
 		return "Bulk file import";
 	}
 
-	std::shared_ptr<FromBulkImportSource> FromBulkImportSource::fromString(std::string const &jsonString)
+	std::shared_ptr<FromBulkImportSource> FromBulkImportSource::fromString(std::shared_ptr<Synth> synth, std::string const &jsonString)
 	{
 		auto obj = nlohmann::json::parse(jsonString);
 		if (obj.contains(kBulkSource)) {
@@ -544,11 +530,11 @@ namespace midikraft {
 			if (obj.contains(kFileInBulk)) {
 				auto &subinfoJson = obj[kFileInBulk];
 				if (subinfoJson.is_string()) {
-					individualInfo = SourceInfo::fromString(subinfoJson);
+					individualInfo = SourceInfo::fromString(synth, subinfoJson);
 				}
 				else {
 					std::string subinfo = subinfoJson.dump();
-					individualInfo = SourceInfo::fromString(subinfo);
+					individualInfo = SourceInfo::fromString(synth, subinfo);
 				}
 			}
 			return std::make_shared<FromBulkImportSource>(timestamp, individualInfo);

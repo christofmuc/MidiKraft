@@ -25,8 +25,7 @@ namespace midikraft {
 			*kBank,
 			*kPlace,
 			*kFavorite,
-			*kCategory,
-			*kSessionPatchID
+			*kCategory
 			;
 	};
 

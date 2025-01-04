@@ -53,10 +53,11 @@ namespace midikraft {
 			UPDATE_HIDDEN = 4,
 			UPDATE_DATA = 8,
 			UPDATE_FAVORITE = 16,
-			UPDATE_ALL = UPDATE_NAME | UPDATE_CATEGORIES | UPDATE_HIDDEN | UPDATE_DATA | UPDATE_FAVORITE
+			UPDATE_COMMENT = 32,
+			UPDATE_ALL = UPDATE_NAME | UPDATE_CATEGORIES | UPDATE_HIDDEN | UPDATE_DATA | UPDATE_FAVORITE | UPDATE_COMMENT
 		};
 
-		PatchDatabase(); // Default location
+		explicit PatchDatabase(bool overwrite); // Default location
 		PatchDatabase(std::string const &databaseFile, OpenMode mode); // Specific file
 		~PatchDatabase();
 
@@ -83,7 +84,7 @@ namespace midikraft {
 		void makeDatabaseBackup(File backupFileToCreate);
 		static void makeDatabaseBackup(File databaseFile, File backupFileToCreate);
 
-		bool renameImport(std::string importID, std::string newName);
+		bool renameImport(std::string synthName, std::string importID, std::string newName);
 
 		std::vector<Category> getCategories() const;
 		std::shared_ptr<AutomaticCategory> getCategorizer();

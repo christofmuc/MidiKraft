@@ -33,7 +33,9 @@ namespace midikraft {
 		typedef std::function<void(std::vector<std::shared_ptr<DataFile>>)> TStepSequencerFinishedHandler;
 
 		Librarian(std::vector<SynthHolder> const &synths) : synths_(synths), currentDownloadBank_(MidiBankNumber::invalid()), downloadNumber_(0), startDownloadNumber_(0), endDownloadNumber_(0) {}
+		~Librarian();
 
+		BankDownloadMethod determineBankDownloadMethod(std::shared_ptr<Synth> synth);
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, MidiBankNumber bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 		void startDownloadingAllPatches(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, std::vector<MidiBankNumber> bankNo, ProgressHandler *progressHandler, TFinishedHandler onFinished);
 
@@ -78,7 +80,9 @@ namespace midikraft {
 		void handleNextEditBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler *progressHandler, const juce::MidiMessage &editBuffer, MidiBankNumber bankNo);
 		void handleNextProgramBuffer(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& editBuffer, MidiBankNumber bankNo);
 		void handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& bankDump, MidiBankNumber bankNo);
-		
+
+		std::vector<PatchHolder> createPatchHoldersFromPatchList(std::shared_ptr<Synth> synth, TPatchVector const& patches, MidiBankNumber bankNo, std::function<std::shared_ptr<SourceInfo>(MidiBankNumber, MidiProgramNumber)> generateSourceinfo, std::shared_ptr<AutomaticCategory> automaticCategories);
+		std::vector<PatchHolder> tagPatchesWithImportFromSynth(std::shared_ptr<Synth> synth, TPatchVector &patches, MidiBankNumber bankNo);
 		void tagPatchesWithMultiBulkImport(std::vector<PatchHolder> &patches);
 
 		void updateLastPath(std::string &lastPathVariable, std::string const &settingsKey);

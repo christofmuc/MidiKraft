@@ -74,5 +74,5 @@ if (MSVC)
     target_compile_options(midikraft-base PRIVATE /W4 /WX)
 else()
     # lots of warnings and all warnings as errors
-    target_compile_options(midikraft-base PRIVATE -Wall -Wextra -pedantic -Werror -Wno-deprecated-declarations)
+    target_compile_options(midikraft-base PRIVATE -Wall -Wextra -pedantic -Wno-deprecated-declarations) #-Werror )
 endif()

@@ -18,7 +18,7 @@ namespace midikraft {
 	void ReadonlySoundExpander::changeInputChannel(MidiController *controller, MidiChannel channel, std::function<void()> onFinished)
 	{
 		ignoreUnused(controller, channel, onFinished);
-		throw new std::runtime_error("Illegal state");
+		throw std::runtime_error("Illegal state");
 	}
 
 	bool ReadonlySoundExpander::hasMidiControl() const
@@ -34,7 +34,7 @@ namespace midikraft {
 	void ReadonlySoundExpander::setMidiControl(MidiController *controller, bool isOn)
 	{
 		ignoreUnused(controller, isOn);
-		throw new std::runtime_error("Illegal state");
+		throw std::runtime_error("Illegal state");
 	}
 
 }

@@ -16,7 +16,8 @@
 namespace midikraft {
 
 	std::string colorSynthKey(std::shared_ptr<DiscoverableDevice> synth) {
-		return fmt::format("{}-color",  synth->getName());
+		auto nameCap = std::dynamic_pointer_cast<NamedDeviceCapability>(synth);
+		return fmt::format("{}-color", nameCap ? nameCap->getName() : "invalid");
 	}
 
 	SynthHolder::SynthHolder(std::shared_ptr<SimpleDiscoverableDevice> synth, Colour const &color) : device_(synth)

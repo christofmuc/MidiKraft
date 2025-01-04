@@ -29,6 +29,8 @@ namespace midikraft {
 		virtual int at(int sysExIndex) const;
 		virtual void setAt(int sysExIndex, uint8 value);
 
+		std::vector<juce::MidiMessage> asMidiMessages() const;
+
 	protected:
 		// Just any ID you want to give it
 		int dataTypeID_;

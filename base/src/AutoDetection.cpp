@@ -20,7 +20,8 @@ namespace midikraft {
 		*kOutput = "output";
 
 	static std::string midiSetupKey(DiscoverableDevice *synth, std::string const &trait) {
-		return fmt::format("{}-{}", synth->getName(), trait);
+		auto nameCap = dynamic_cast<NamedDeviceCapability*>(synth);
+		return fmt::format("{}-{}", nameCap ? nameCap->getName() : "invalid", trait);
 	}
 
 	AutoDetection::AutoDetection() : handler_(MidiController::makeOneHandle())
@@ -39,6 +40,7 @@ namespace midikraft {
 
 	void AutoDetection::autoconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths, ProgressHandler *progressHandler)
 	{
+		spdlog::debug("Starting auto configure of all synths");
 		// For all devices that are discoverable, run the find method
 		for (auto synthHolder : allSynths) {
 			if (synthHolder) {
@@ -46,11 +48,13 @@ namespace midikraft {
 			}
 		}
 		listenerToAllFound(allSynths);
+		spdlog::debug("Auto configure of all synths done, notifying listeners");
 		sendChangeMessage();
 	}
 
 	void AutoDetection::quickconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths)
 	{
+		spdlog::debug("Starting quick configure of all synths");
 		// For all devices that are discoverable, run the find method
 		for (auto &synthHolder : allSynths) {
 			if (synthHolder) {
@@ -73,6 +77,7 @@ namespace midikraft {
 		}
 		}
 		listenerToAllFound(allSynths);
+		spdlog::debug("Quick configure of all synths done, notifying listeners");
 		sendChangeMessage();
 	}
 
@@ -81,16 +86,20 @@ namespace midikraft {
 		if (synth->channel().isValid()) {
 			Settings::instance().set(midiSetupKey(synth, kChannel), fmt::format("{}", synth->channel().toZeroBasedInt()));
 		}
-		Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput().identifier.toStdString());
-		Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput().identifier.toStdString());
+		if (synth->midiInput().name.isNotEmpty()) {
+			Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput().name.toStdString());
+		}
+		if (synth->midiOutput().name.isNotEmpty()) {
+			Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput().name.toStdString());
+		}
 	}
 
 	void AutoDetection::loadSettings(SimpleDiscoverableDevice *synth)
 	{
 		std::string input = Settings::instance().get(midiSetupKey(synth, kInput));
-		synth->setInput(MidiController::instance()->getMidiInputByIdentifier(input));
+		synth->setInput(MidiController::instance()->getMidiInputByName(input));
 		std::string output = Settings::instance().get(midiSetupKey(synth, kOutput));
-		synth->setOutput(MidiController::instance()->getMidiOutputByIdentifier(output));
+		synth->setOutput(MidiController::instance()->getMidiOutputByName(output));
 
 		synth->setChannel(MidiChannel::invalidChannel());
 		std::string channelString = Settings::instance().get(midiSetupKey(synth, kChannel));
@@ -144,7 +153,13 @@ namespace midikraft {
 		MidiController::instance()->enableMidiInput(synth->midiInput());
 
 		// Send the detect message
-		auto detectMessage = synth->deviceDetect(synth->channel().toZeroBasedInt() & 0x7f);
+		int deviceDetectId = 0x7f;
+		if (synth->needsChannelSpecificDetection())
+		{
+			// Only use the channel when the device needs a channel as parameter. Most synths react on the 0x7f generic device value.
+			deviceDetectId = synth->channel().toZeroBasedInt() & 0x7f;
+		}
+		auto detectMessage = synth->deviceDetect(deviceDetectId);
 		// As of Dec 2020 the only Synth that needs more than one message for detection seems to be the Matrix 6, which is fast. 
 		//TODO:  I cannot use the synth's sendBlockOfMessagesToSynth() here because I do not have a synth pointer. Smell?
 		MidiController::instance()->getMidiOutput(synth->midiOutput())->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));

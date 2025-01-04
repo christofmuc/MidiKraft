@@ -30,6 +30,7 @@ const char *kBank = "Bank";
 const char *kCategories = "Categories";
 const char *kNonCategories = "NonCategories";
 const char *kSourceInfo = "SourceInfo";
+const char *kComment= "Comment";
 const char *kLibrary = "Library";
 const char *kHeader = "Header";
 const char *kFileFormat = "FileFormat";
@@ -158,6 +159,9 @@ namespace midikraft {
 							if ((*item)[kFavorite].is_number_integer()) {
 								fav = Favorite((*item)[kFavorite] != 0);
 							}
+							else if ((*item)[kFavorite].is_null()) {
+								fav = Favorite(-1);
+							}
 							else {
 								std::string favoriteStr = (*item)[kFavorite];
 								try {
@@ -245,9 +249,14 @@ namespace midikraft {
 						std::shared_ptr<midikraft::SourceInfo> importInfo;
 						if (item->contains(kSourceInfo)) {
 							if ((*item)[kSourceInfo].is_string())
-								importInfo = SourceInfo::fromString((*item)[kSourceInfo]);
+								importInfo = SourceInfo::fromString(activeSynth, (*item)[kSourceInfo]);
 							else
-								importInfo = SourceInfo::fromString((*item)[kSourceInfo].dump());
+								importInfo = SourceInfo::fromString(activeSynth, (*item)[kSourceInfo].dump());
+						}
+
+						std::string comment;
+						if (item->contains(kComment)) {
+							comment = (*item)[kComment];
 						}
 
 						// All mandatory fields found, we can parse the data!
@@ -260,8 +269,10 @@ namespace midikraft {
 							auto patches = activeSynth->loadSysex(messages);
 							//jassert(patches.size() == 1);
 							if (patches.size() == 1) {
-								PatchHolder holder(activeSynth, fileSource, patches[0], bank, place, detector);
+								PatchHolder holder(activeSynth, fileSource, patches[0], detector);
 								holder.setFavorite(fav);
+								holder.setBank(bank);
+								holder.setPatchNumber(place);
 								holder.setName(patchName);
 								for (const auto& cat : categories) {
 									holder.setCategory(cat, true);
@@ -273,6 +284,7 @@ namespace midikraft {
 								if (importInfo) {
 									holder.setSourceInfo(importInfo);
 								}
+								holder.setComment(comment);
 								result.push_back(holder);
 							}
 						}
@@ -311,11 +323,25 @@ namespace midikraft {
 			nlohmann::json patchJson;
 			patchJson[kSynth] = patch.synth()->getName();
 			patchJson[kName] = patch.name();
-			patchJson[kFavorite] = patch.isFavorite() ? 1 : 0;
+			switch (patch.howFavorite().is()) {
+			case Favorite::TFavorite::DONTKNOW:
+				patchJson[kFavorite] = nlohmann::json();
+				break;
+			case Favorite::TFavorite::YES:
+				patchJson[kFavorite] = 1;
+				break;
+			case Favorite::TFavorite::NO:
+				patchJson[kFavorite] = 0;
+				break;
+			default:
+				spdlog::error("Missing code to write Favoriate value of {} to PIF, program error!", static_cast<int>(patch.howFavorite().is()));
+				patchJson[kFavorite] = nlohmann::json();
+			}
+			
 			if (patch.bankNumber().isValid()) {
 				patchJson[kBank] = patch.bankNumber().toZeroBased();
 			}
-			patchJson[kPlace] = patch.patchNumber().toZeroBased();
+			patchJson[kPlace] = patch.patchNumber().toZeroBasedDiscardingBank();
  			auto categoriesSet = patch.categories();
 			auto userDecisions = patch.userDecisionSet();
 			auto userDefinedCategories = category_intersection(categoriesSet, userDecisions);
@@ -339,6 +365,10 @@ namespace midikraft {
 
 			if (patch.sourceInfo()) {
 				patchJson[kSourceInfo] = nlohmann::json::parse(patch.sourceInfo()->toString());
+			}
+
+			if (!patch.comment().empty()) {
+				patchJson[kComment] = patch.comment();
 			}
 
 			// Now the fun part, pack the sysex for transport

@@ -43,7 +43,7 @@ namespace midikraft {
 		virtual std::string toString() const;
 		virtual std::string md5(Synth *synth) const = 0;
 		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const = 0;
-		static std::shared_ptr<SourceInfo> fromString(std::string const &str);
+		static std::shared_ptr<SourceInfo> fromString(std::shared_ptr<Synth> synth, std::string const &str);
 
 		static bool isEditBufferImport(std::shared_ptr<SourceInfo> sourceInfo);
 
@@ -72,7 +72,7 @@ namespace midikraft {
 		FromFileSource(std::string const &filename, std::string const &fullpath, MidiProgramNumber program);
 		virtual std::string md5(Synth *synth) const override;
 		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const override;
-		static std::shared_ptr<FromFileSource> fromString(std::string const &jsonString);
+		static std::shared_ptr<FromFileSource> fromString(std::shared_ptr<Synth> synth, std::string const &jsonString);
 
 		std::string filename() const {
 			return filename_;
@@ -97,7 +97,7 @@ namespace midikraft {
 		FromBulkImportSource(Time timestamp, std::shared_ptr<SourceInfo> individualInfo);
 		virtual std::string md5(Synth *synth) const override;
 		virtual std::string toDisplayString(Synth *synth, bool shortVersion) const override;
-		static std::shared_ptr<FromBulkImportSource> fromString(std::string const &jsonString);
+		static std::shared_ptr<FromBulkImportSource> fromString(std::shared_ptr<Synth> synth, std::string const &jsonString);
 		std::shared_ptr<SourceInfo> individualInfo() const;
 
 	private:
@@ -109,7 +109,6 @@ namespace midikraft {
 	public:		
 		PatchHolder();
 		PatchHolder(std::shared_ptr<Synth> activeSynth, std::shared_ptr<SourceInfo> sourceInfo, std::shared_ptr<DataFile> patch,
-			MidiBankNumber bank, MidiProgramNumber place, 
 			std::shared_ptr<AutomaticCategory> detector = nullptr);
 
 		std::shared_ptr<DataFile> patch() const;
@@ -149,6 +148,9 @@ namespace midikraft {
 
 		std::shared_ptr<SourceInfo> sourceInfo() const;
 
+		std::string comment() const;
+		void setComment(std::string const& newComment);
+
 		bool autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector); // Returns true if categories have changed!
 		
 		std::string md5() const;
@@ -171,6 +173,7 @@ namespace midikraft {
 		MidiBankNumber bankNumber_;
 		MidiProgramNumber patchNumber_;
 		std::shared_ptr<SourceInfo> sourceInfo_;
+		std::string comment_;
 	};
 
 }

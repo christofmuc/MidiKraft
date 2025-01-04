@@ -22,6 +22,7 @@ namespace midikraft {
 
 		virtual void setPatches(std::vector<PatchHolder> patches);
 		virtual void addPatch(PatchHolder patch);
+		virtual void insertPatchAtTopAndRemoveDuplicates(PatchHolder patch);
 
 		std::vector<PatchHolder> patches() const;
 		

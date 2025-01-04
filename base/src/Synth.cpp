@@ -11,6 +11,7 @@
 #include "MidiController.h"
 #include "MidiHelpers.h"
 #include "Logger.h"
+#include "Sysex.h"
 
 #include "HasBanksCapability.h"
 #include "EditBufferCapability.h"
@@ -26,16 +27,32 @@
 #include <spdlog/spdlog.h>
 #include "SpdLogJuce.h"
 
+#include "Logger.h"
+
 namespace midikraft {
+
+	Synth::Synth() : maxNumberMessagesPerPatch_(14) {
+		auto userValue = juce::SystemStats::getEnvironmentVariable("ORM_MAX_MSG_PER_PATCH", "NOTSET");
+		if (userValue != "NOTSET") {
+			int numMessages = userValue.getIntValue();
+			if (numMessages > 0) {
+				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding maximum number of messages per patch via environment variable ORM_MAX_MSG_PER_PATCH, value is now {}", numMessages));
+				maxNumberMessagesPerPatch_ = numMessages;
+			}
+			else {
+				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("ORM_MAX_MSG_PER_PATCH environment variable is set, but cannot extract integer from value '{}', ignoring it!", userValue));
+			}
+		}
+	}
 
 	std::string Synth::friendlyProgramName(MidiProgramNumber programNo) const
 	{
 		// The default implementation is just that you see something
 		if (programNo.isBankKnown()) {
-			return fmt::format("{:02d}-{:02d}", programNo.bank().toZeroBased(),  programNo.toZeroBased());
+			return fmt::format("{:02d}-{:02d}", programNo.bank().toZeroBased(),  programNo.toZeroBasedDiscardingBank());
 		}
 		else {
-			return fmt::format("{:02d}", programNo.toZeroBased());
+			return fmt::format("{:02d}", programNo.toZeroBasedWithBank());
 		}
 	}
 
@@ -44,7 +61,7 @@ namespace midikraft {
 		if (!programNo.isBankKnown()) {
 			// Default implementation is the old logic that the program numbers are just continuous
 			// from one bank to the next
-			int program = programNo.toZeroBased();
+			int program = programNo.toZeroBasedWithBank();
 			return friendlyProgramName(MidiProgramNumber::fromZeroBaseWithBank(bankNo, program));
 		}
 		else {
@@ -79,9 +96,9 @@ namespace midikraft {
 
 	TPatchVector Synth::loadSysex(std::vector<MidiMessage> const &sysexMessages)
 	{
-		TPatchVector result;
+		
+
 		// Now that we have a list of messages, let's see if there are (hopefully) any patches between them
-		int patchNo = 0;
 		auto editBufferSynth = midikraft::Capability::hasCapability<EditBufferCapability>(this);
 		auto programDumpSynth = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
 		auto bankDumpSynth = midikraft::Capability::hasCapability<BankDumpCapability>(this);
@@ -89,64 +106,111 @@ namespace midikraft {
 		auto streamDumpSynth = midikraft::Capability::hasCapability<StreamLoadCapability>(this);
 		if (streamDumpSynth) {
 			// The stream dump synth loads all at once
-			result = streamDumpSynth->loadPatchesFromStream(sysexMessages);
+			return streamDumpSynth->loadPatchesFromStream(sysexMessages);
 		}
 		else {
 			// The other Synth types load message by message
-			std::vector<MidiMessage> currentStreak;
-			for (auto message : sysexMessages) {
-				if (editBufferSynth && editBufferSynth->isMessagePartOfEditBuffer(message).isPartOfEditBufferDump) {
-					currentStreak.push_back(message);
-					if (editBufferSynth->isEditBufferDump(currentStreak)) {
-						auto patch = editBufferSynth->patchFromSysex(currentStreak);
-						currentStreak.clear();
-						if (patch) {
-							result.push_back(patch);
+			TPatchVector results;
+			std::map<std::string, std::shared_ptr<midikraft::DataFile>> programDumpsById;
+			if (programDumpSynth) {
+				std::deque<MidiMessage> currentProgramDumps;
+				int patchNo = 0;
+				for (auto message : sysexMessages) {
+					// Try to parse and load these messages as program dumps
+					if (programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
+						currentProgramDumps.push_back(message);
+						while (currentProgramDumps.size() > maxNumberMessagesPerPatch_) {
+							spdlog::debug("Dropping message during parsing as potential number of MIDI messages per patch is larger than {}", maxNumberMessagesPerPatch_);
+							currentProgramDumps.pop_front();
 						}
-						else {
-							spdlog::warn("Error decoding edit buffer dump for patch {}, skipping it", patchNo);
+						std::vector<MidiMessage> slidingWindow(currentProgramDumps.begin(), currentProgramDumps.end());
+						if (programDumpSynth->isSingleProgramDump(slidingWindow)) {
+							auto patch = programDumpSynth->patchFromProgramDumpSysex(slidingWindow);
+							if (patch) {
+								results.push_back(patch);
+								programDumpsById[calculateFingerprint(patch)] = patch;
+							}
+							else {
+								spdlog::warn("Error decoding program dump for patch #{}, skipping it. {}", patchNo, Sysex::dumpSysexToString(slidingWindow));
+							}
+							currentProgramDumps.clear();
+							patchNo++;
 						}
-						patchNo++;
 					}
 				}
-				else if (programDumpSynth && programDumpSynth->isMessagePartOfProgramDump(message).isPartOfProgramDump) {
-					currentStreak.push_back(message);
-					if (programDumpSynth->isSingleProgramDump(currentStreak)) {
-						auto patch = programDumpSynth->patchFromProgramDumpSysex(currentStreak);
-						currentStreak.clear();
-						if (patch) {
-							result.push_back(patch);
+			}
+
+			if (editBufferSynth) {
+				std::deque<MidiMessage> currentEditBuffers;
+				// Try to parse and load these messages as edit buffers
+				int patchNo = 0;
+				for (auto message : sysexMessages) {
+					if (editBufferSynth->isMessagePartOfEditBuffer(message).isPartOfEditBufferDump) {
+						currentEditBuffers.push_back(message);
+						if (currentEditBuffers.size() > maxNumberMessagesPerPatch_) {
+							spdlog::debug("Dropping message during parsing as potential number of MIDI messages per patch is larger than {}", maxNumberMessagesPerPatch_);
+							currentEditBuffers.pop_front();
 						}
-						else {
-							spdlog::warn("Error decoding program dump for patch {}, skipping it",  patchNo);
+						std::vector<MidiMessage> slidingWindow(currentEditBuffers.begin(), currentEditBuffers.end());
+						if (editBufferSynth->isEditBufferDump(slidingWindow)) {
+							auto patch = editBufferSynth->patchFromSysex(slidingWindow);
+							if (patch) {
+								auto id = calculateFingerprint(patch);
+								if (programDumpsById.find(id) == programDumpsById.end()) {
+									results.push_back(patch);
+								}
+								else {
+									// Ignore edit buffer, as we already loaded a program dump with the same ID. This happens for 
+									// synths where program dumps will make edit buffers to be detected, like the Reface DX adaptation.
+								}
+							}
+							else {
+								spdlog::warn("Error decoding edit buffer dump for patch #{}, skipping it. {}", patchNo, Sysex::dumpSysexToString(slidingWindow));
+							}
+							currentEditBuffers.clear();
+							patchNo++;
 						}
-						patchNo++;
 					}
 				}
-				else if (bankDumpSynth && bankDumpSynth->isBankDump(message)) {
-					auto morePatches = bankDumpSynth->patchesFromSysexBank(message);
-					spdlog::info("Loaded bank dump with {} patches", morePatches.size());
-					std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(result));
+			}
+
+			if (bankDumpSynth) {
+				std::deque<MidiMessage> currentBank;
+				// Try to parse and load these messages as a bank dump
+				for (auto message : sysexMessages) {
+					if (bankDumpSynth->isBankDump(message)) {
+						currentBank.push_back(message);
+						if (currentBank.size() > maxNumberMessagesPerPatch_) {
+							spdlog::debug("Dropping message during parsing as potential number of MIDI messages per patch is larger than {}", maxNumberMessagesPerPatch_);
+							currentBank.pop_front();
+						}
+						std::vector<MidiMessage> slidingWindow(currentBank.begin(), currentBank.end());
+						if (bankDumpSynth->isBankDumpFinished(slidingWindow)) {
+							auto morePatches = bankDumpSynth->patchesFromSysexBank(slidingWindow);
+							spdlog::info("Loaded bank dump with {} patches", morePatches.size());
+							std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(results));
+							currentBank.clear();
+						}
+					}
 				}
-				else if (dataFileLoadSynth) {
-					// Should test all data file types!
+			}
+
+			// Ty to parse and load the message as a data file
+			if (dataFileLoadSynth) {
+				// Should test all data file types!
+				for (auto message : sysexMessages) {
 					for (int dataType = 0; dataType < static_cast<int>(dataFileLoadSynth->dataTypeNames().size()); dataType++) {
 						if (dataFileLoadSynth->isDataFile(message, dataType)) {
 							// Hit, we can load this
 							auto items = dataFileLoadSynth->loadData({ message }, dataType);
-							std::copy(items.begin(), items.end(), std::back_inserter(result));
+							std::copy(items.begin(), items.end(), std::back_inserter(results));
 						}
 					}
 				}
-				else {
-					// The way I ended up here was to load the ZIP of the Pro3 factory programs, and that includes the weird macOS resource fork
-					// with a syx extension, wrongly getting interpreted as a real sysex file.
-					spdlog::warn("Ignoring sysex message found, not implemented: {}", message.getDescription());
-				}
 			}
-		}
 
-		return result;
+			return results;
+		}
 	}
 
 	void Synth::saveSysex(std::string const &filename, std::vector<juce::MidiMessage> messages)
@@ -190,7 +254,7 @@ namespace midikraft {
 						}
 					}
 					if (place.isValid()) {
-						spdlog::warn("{} has no edit buffer, using program {} instead", getName(), friendlyProgramName(place));
+						SimpleLogger::instance()->postMessageOncePerRun(fmt::format("{} has no edit buffer, using program {} instead", getName(), friendlyProgramName(place)));
 					}
 					else {
 						spdlog::error("{} has no edit buffer and not way to determine a standard program place, can't send program change", getName());
@@ -199,7 +263,8 @@ namespace midikraft {
 				messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);
 				auto location = Capability::hasCapability<MidiLocationCapability>(this);
 				if (location && location->channel().isValid() && place.isValid()) {
-					messages.push_back(MidiMessage::programChange(location->channel().toOneBasedInt(), place.toZeroBased())); // Some synths might need a bank change as well, e.g. the Matrix 1000. Which luckily has an edit buffer
+					// Some synths might need a bank change as well, e.g. the Matrix 1000. Which luckily has an edit buffer
+					messages.push_back(MidiMessage::programChange(location->channel().toOneBasedInt(), place.toZeroBasedDiscardingBank()));
 				}
 			}
 		}
@@ -230,6 +295,25 @@ namespace midikraft {
 		return "";
 	}
 
+	MidiProgramNumber Synth::numberForPatch(std::shared_ptr<DataFile> dataFile) 
+	{
+		// Old school real patch?
+		auto realPatch = std::dynamic_pointer_cast<Patch>(dataFile);
+		if (realPatch) {
+            // This should be the code path for the C++ synth implementations only.
+			return realPatch->patchNumber();
+		}
+		else {
+			// Let's check if we have program dump capability
+			const auto programDumpCapa = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
+			if (programDumpCapa) {
+				// We assume we can interpret the data file as a list of MidiMessages!
+				return programDumpCapa->getProgramNumber(dataFile->asMidiMessages());
+			}
+		}
+		return MidiProgramNumber::invalidProgram();
+	}
+
 	void Synth::sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
 		auto messages = dataFileToSysex(dataFile, target);
@@ -237,7 +321,8 @@ namespace midikraft {
 			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
 			if (midiLocation && !messages.empty()) {
 				if (midiLocation->channel().isValid()) {
-					spdlog::info("Sending patch {} to {}", nameForPatch(dataFile), getName());
+					auto outputName = midiLocation->midiOutput().name.toStdString();
+					spdlog::debug("Data file sent is '{}' for synth {} to device {}", nameForPatch(dataFile), getName(), outputName);
 					MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
 					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
 				}
@@ -251,6 +336,27 @@ namespace midikraft {
 	void Synth::sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const& midiOutput, std::vector<MidiMessage> const& buffer)
 	{
 		MidiController::instance()->getMidiOutput(midiOutput)->sendBlockOfMessagesFullSpeed(buffer);
+	}
+
+
+	int Synth::sizeOfBank(std::shared_ptr<Synth> synth, int zeroBasedBankNumber)
+	{
+		auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(synth);
+		if (descriptors) {
+			return descriptors->bankDescriptors()[zeroBasedBankNumber].size;
+		}
+		else {
+			auto banks = Capability::hasCapability<HasBanksCapability>(synth);
+			if (banks) {
+				return banks->numberOfPatches();
+			}
+		}
+		return -1;
+	}
+
+	MidiBankNumber Synth::bankNumberFromInt(std::shared_ptr<Synth> synth, int zeroBasedBankNumber)
+	{
+		return MidiBankNumber::fromZeroBase(zeroBasedBankNumber, Synth::sizeOfBank(synth, zeroBasedBankNumber));
 	}
 
 }

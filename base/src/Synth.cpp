@@ -29,20 +29,39 @@
 
 #include "Logger.h"
 
+#include <optional>
+
+
 namespace midikraft {
 
-	Synth::Synth() : maxNumberMessagesPerPatch_(14) {
-		auto userValue = juce::SystemStats::getEnvironmentVariable("ORM_MAX_MSG_PER_PATCH", "NOTSET");
+	std::optional<int> getEnvIfSet(std::string const& env_name) {
+		auto userValue = juce::SystemStats::getEnvironmentVariable(env_name, "NOTSET");
 		if (userValue != "NOTSET") {
 			int numMessages = userValue.getIntValue();
 			if (numMessages > 0) {
-				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding maximum number of messages per patch via environment variable ORM_MAX_MSG_PER_PATCH, value is now {}", numMessages));
-				maxNumberMessagesPerPatch_ = numMessages;
+				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("Overriding maximum number of messages via environment variable {}, value is now {}", env_name, numMessages));
+				return numMessages;
 			}
 			else {
-				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("ORM_MAX_MSG_PER_PATCH environment variable is set, but cannot extract integer from value '{}', ignoring it!", userValue));
+				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("{} environment variable is set, but cannot extract integer from value '{}', ignoring it!", env_name, userValue));
 			}
 		}
+		return {};
+	}
+
+	int getEnvWithDefault(std::string const& envName, int defaultValue) {
+		auto result = getEnvIfSet(envName);
+		if (result.has_value()) {
+			return result.value();
+		}
+		else {
+			return defaultValue;
+		}
+	}
+
+	Synth::Synth() {
+		maxNumberMessagesPerPatch_ = getEnvWithDefault("ORM_MAX_MSG_PER_PATCH", 14);
+		maxNumberMessagesPerBank_ = getEnvWithDefault("ORM_MAX_MSG_PER_BANK", 256);
 	}
 
 	std::string Synth::friendlyProgramName(MidiProgramNumber programNo) const
@@ -180,7 +199,7 @@ namespace midikraft {
 				for (auto message : sysexMessages) {
 					if (bankDumpSynth->isBankDump(message)) {
 						currentBank.push_back(message);
-						if (currentBank.size() > maxNumberMessagesPerPatch_) {
+						if (currentBank.size() > maxNumberMessagesPerBank_) {
 							spdlog::debug("Dropping message during parsing as potential number of MIDI messages per patch is larger than {}", maxNumberMessagesPerPatch_);
 							currentBank.pop_front();
 						}

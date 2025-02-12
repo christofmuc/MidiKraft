@@ -52,7 +52,7 @@ namespace midikraft {
 	int getEnvWithDefault(std::string const& envName, int defaultValue) {
 		auto result = getEnvIfSet(envName);
 		if (result.has_value()) {
-			return result.value();
+			return *result;
 		}
 		else {
 			return defaultValue;

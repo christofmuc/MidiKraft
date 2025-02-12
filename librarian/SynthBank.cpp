@@ -230,8 +230,9 @@ namespace midikraft {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo.toZeroBased() < static_cast<int>(banks.size())) {
 				int index = 0;
-				for (int b = 0; b < bankNo.toZeroBased(); b++)
-					index += banks[bankNo.toZeroBased()].size;
+				for (int b = 0; b < bankNo.toZeroBased(); b++) {
+					index += banks[b].size;
+				}
 				return index;
 			}
 			else {

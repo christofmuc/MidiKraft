@@ -77,7 +77,7 @@ namespace midikraft {
 		else if (midikraft::Capability::hasCapability<HandshakeLoadingCapability>(synth)) {
 			return BankDownloadMethod::HANDSHAKES;
 		}
-		else if (midikraft::Capability::hasCapability<BankDumpCapability>(synth)) {
+		else if (midikraft::Capability::hasCapability<BankDumpRequestCapability>(synth)) {
 			return BankDownloadMethod::BANKS;
 		}
 		else if (midikraft::Capability::hasCapability<ProgramDumpCabability>(synth)) {

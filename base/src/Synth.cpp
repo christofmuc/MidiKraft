@@ -115,14 +115,12 @@ namespace midikraft {
 
 	TPatchVector Synth::loadSysex(std::vector<MidiMessage> const &sysexMessages)
 	{
-		
-
 		// Now that we have a list of messages, let's see if there are (hopefully) any patches between them
-		auto editBufferSynth = midikraft::Capability::hasCapability<EditBufferCapability>(this);
-		auto programDumpSynth = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
-		auto bankDumpSynth = midikraft::Capability::hasCapability<BankDumpCapability>(this);
-		auto dataFileLoadSynth = midikraft::Capability::hasCapability<DataFileLoadCapability>(this);
-		auto streamDumpSynth = midikraft::Capability::hasCapability<StreamLoadCapability>(this);
+		auto editBufferSynth = getCapability<EditBufferCapability>();
+		auto programDumpSynth = getCapability<ProgramDumpCabability>();
+		auto bankDumpSynth = getCapability<BankDumpCapability>();
+		auto dataFileLoadSynth = getCapability<DataFileLoadCapability>();
+		auto streamDumpSynth = getCapability<StreamLoadCapability>();
 		if (streamDumpSynth) {
 			// The stream dump synth loads all at once
 			return streamDumpSynth->loadPatchesFromStream(sysexMessages);
@@ -248,26 +246,26 @@ namespace midikraft {
 		if (!target) {
 			// Default implementation is to just shoot it to the Midi output and hope for the best, no handshake is done
 			// There must be no target specified, for backwards compatibility the old behavior is implemented here to always target the edit buffer of the device
-			auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(this);
-			auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
+			auto editBufferCapability = getCapability<EditBufferCapability>();
+			auto programDumpCapability = getCapability<ProgramDumpCabability>();
 			if (editBufferCapability) {
 				messages = editBufferCapability->patchToSysex(dataFile);
 			}
 			else if (programDumpCapability) {
 				// There is no edit buffer, we need to ask the device for the default destroyed program number
 				MidiProgramNumber place = MidiProgramNumber::invalidProgram();
-				auto defaultPlace = midikraft::Capability::hasCapability<DefaultProgramPlaceInsteadOfEditBufferCapability>(this);
+				auto defaultPlace = getCapability<DefaultProgramPlaceInsteadOfEditBufferCapability>();
 				if (defaultPlace) {
 					place = defaultPlace->getDefaultProgramPlace();
 				}
 				else {
 					// Well, where should it go? I'd say last patch of first bank is a good compromise
-					auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(this);
+					auto descriptors = getCapability<HasBankDescriptorsCapability>();
 					if (descriptors) {
 						place = MidiProgramNumber::fromZeroBase(descriptors->bankDescriptors()[0].size - 1);
 					}
 					else {
-						auto banks = Capability::hasCapability<HasBanksCapability>(this);
+						auto banks = getCapability<HasBanksCapability>();
 						if (banks) {
 							place = MidiProgramNumber::fromZeroBase(banks->numberOfPatches() - 1);
 						}
@@ -280,7 +278,7 @@ namespace midikraft {
 					}
 				}
 				messages = programDumpCapability->patchToProgramDumpSysex(dataFile, place);
-				auto location = Capability::hasCapability<MidiLocationCapability>(this);
+				auto location = getCapability<MidiLocationCapability>();
 				if (location && location->channel().isValid() && place.isValid()) {
 					// Some synths might need a bank change as well, e.g. the Matrix 1000. Which luckily has an edit buffer
 					messages.push_back(MidiMessage::programChange(location->channel().toOneBasedInt(), place.toZeroBasedDiscardingBank()));
@@ -288,7 +286,7 @@ namespace midikraft {
 			}
 		}
 		if (messages.empty()) {
-			auto dfcl = midikraft::Capability::hasCapability<DataFileSendCapability>(this);
+			auto dfcl = getCapability<DataFileSendCapability>();
 			if (dfcl) {
 				messages = dfcl->dataFileToMessages(dataFile, target);
 			}
@@ -302,12 +300,12 @@ namespace midikraft {
 
 	std::string Synth::nameForPatch(std::shared_ptr<DataFile> dataFile) const {
 		// Check if it has a stored name
-		auto storedPatchName = Capability::hasCapability<StoredPatchNameCapability>(dataFile);
+		auto storedPatchName = dataFile->getCapability<StoredPatchNameCapability>();
 		if (storedPatchName) {
 			return storedPatchName->name();
 		}
 		// No stored patch name, but we might have a stored number
-		auto storedPatchNumber = Capability::hasCapability<StoredPatchNumberCapability>(dataFile);
+		auto storedPatchNumber = dataFile->getCapability<StoredPatchNumberCapability>();
 		if (storedPatchNumber && storedPatchNumber->hasStoredPatchNumber()) {
 			return friendlyProgramName(storedPatchNumber->getStoredPatchNumber());
 		}
@@ -324,7 +322,7 @@ namespace midikraft {
 		}
 		else {
 			// Let's check if we have program dump capability
-			const auto programDumpCapa = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);
+			const auto programDumpCapa = getCapability<ProgramDumpCabability>();
 			if (programDumpCapa) {
 				// We assume we can interpret the data file as a list of MidiMessages!
 				return programDumpCapa->getProgramNumber(dataFile->asMidiMessages());
@@ -337,7 +335,7 @@ namespace midikraft {
 	{
 		auto messages = dataFileToSysex(dataFile, target);
 		if (!messages.empty()) {
-			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
+			auto midiLocation = getCapability<MidiLocationCapability>();
 			if (midiLocation && !messages.empty()) {
 				if (midiLocation->channel().isValid()) {
 					auto outputName = midiLocation->midiOutput().name.toStdString();
@@ -360,12 +358,12 @@ namespace midikraft {
 
 	int Synth::sizeOfBank(std::shared_ptr<Synth> synth, int zeroBasedBankNumber)
 	{
-		auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(synth);
+		auto descriptors = synth->getCapability<HasBankDescriptorsCapability>();
 		if (descriptors) {
 			return descriptors->bankDescriptors()[zeroBasedBankNumber].size;
 		}
 		else {
-			auto banks = Capability::hasCapability<HasBanksCapability>(synth);
+			auto banks = synth->getCapability<HasBanksCapability>();
 			if (banks) {
 				return banks->numberOfPatches();
 			}
@@ -377,5 +375,7 @@ namespace midikraft {
 	{
 		return MidiBankNumber::fromZeroBase(zeroBasedBankNumber, Synth::sizeOfBank(synth, zeroBasedBankNumber));
 	}
+
+	CapabilityRegistry globalCapabilityRegistry;
 
 }

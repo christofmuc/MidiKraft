@@ -9,7 +9,6 @@
 #include "JuceHeader.h"
 
 #include "Synth.h"
-#include "Capability.h"
 #include "SoundExpanderCapability.h"
 
 namespace midikraft {
@@ -20,9 +19,9 @@ namespace midikraft {
 		SynthHolder(std::shared_ptr<SoundExpanderCapability> synth);
 		virtual ~SynthHolder() = default;
 
-		std::shared_ptr<Synth> synth() { return std::dynamic_pointer_cast<Synth>(device_); }
-		std::shared_ptr<SimpleDiscoverableDevice> device() { return std::dynamic_pointer_cast<SimpleDiscoverableDevice>(device_); }
-		std::shared_ptr<SoundExpanderCapability> soundExpander() { return Capability::hasCapability<SoundExpanderCapability>(device_); }
+		std::shared_ptr<Synth> synth() { auto device_synth = dynamic_pointer_cast<Synth>(device_); return device_synth ? device_synth : dynamic_pointer_cast<Synth>(expander_); }
+		std::shared_ptr<SimpleDiscoverableDevice> device() { return device_; }
+		std::shared_ptr<SoundExpanderCapability> soundExpander() { auto device_expander = dynamic_pointer_cast<SoundExpanderCapability>(device_); return device_expander ? device_expander : expander_;  }
 		Colour color() { return color_; }
 		void setColor(Colour const &newColor);
 
@@ -31,7 +30,8 @@ namespace midikraft {
 		static std::shared_ptr<Synth> findSynth(std::vector<SynthHolder> &synths, std::string const &synthName);
 
 	private:
-		std::shared_ptr<NamedDeviceCapability> device_;
+		std::shared_ptr<SimpleDiscoverableDevice> device_;
+		std::shared_ptr<SoundExpanderCapability> expander_;
 		Colour color_;
 	};
 

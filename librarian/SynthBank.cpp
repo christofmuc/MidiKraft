@@ -76,7 +76,7 @@ namespace midikraft {
 
 	bool SynthBank::isWritable() const {
 		// ROM banks can only be defined with the newer BankDescriptorsCapability
-		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth_);
+		auto descriptors = synth_->getCapability<midikraft::HasBankDescriptorsCapability>();
 		if (descriptors) {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo_.toZeroBased() < static_cast<int>(banks.size())) {
@@ -178,7 +178,7 @@ namespace midikraft {
 
 	std::string SynthBank::friendlyBankName(std::shared_ptr<Synth> synth, MidiBankNumber bankNo)
 	{
-		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth);
+		auto descriptors = synth->getCapability<midikraft::HasBankDescriptorsCapability>();
 		if (descriptors) {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo.toZeroBased() < static_cast<int>(banks.size())) {
@@ -188,7 +188,7 @@ namespace midikraft {
 				return fmt::format("out of range bank %d", bankNo.toZeroBased());
 			}
 		}
-		auto banks = midikraft::Capability::hasCapability<midikraft::HasBanksCapability>(synth);
+		auto banks = synth->getCapability<midikraft::HasBanksCapability>();
 		if (banks) {
 			return banks->friendlyBankName(bankNo);
 		}
@@ -202,7 +202,7 @@ namespace midikraft {
 
 	int SynthBank::numberOfPatchesInBank(std::shared_ptr<Synth> synth, int bankNo)
 	{
-		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth);
+		auto descriptors = synth->getCapability<midikraft::HasBankDescriptorsCapability>();
 		if (descriptors) {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo < static_cast<int>(banks.size())) {
@@ -214,7 +214,7 @@ namespace midikraft {
 				return 0;
 			}
 		}
-		auto banks = midikraft::Capability::hasCapability<midikraft::HasBanksCapability>(synth);
+		auto banks = synth->getCapability<midikraft::HasBanksCapability>();
 		if (banks) {
 			return banks->numberOfPatches();
 		}
@@ -225,7 +225,7 @@ namespace midikraft {
 
 	int SynthBank::startIndexInBank(std::shared_ptr<Synth> synth, MidiBankNumber bankNo)
 	{
-		auto descriptors = midikraft::Capability::hasCapability<midikraft::HasBankDescriptorsCapability>(synth);
+		auto descriptors = synth->getCapability<midikraft::HasBankDescriptorsCapability>();
 		if (descriptors) {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo.toZeroBased() < static_cast<int>(banks.size())) {
@@ -241,7 +241,7 @@ namespace midikraft {
 				return 0;
 			}
 		}
-		auto banks = midikraft::Capability::hasCapability<midikraft::HasBanksCapability>(synth);
+		auto banks = synth->getCapability<midikraft::HasBanksCapability>();
 		if (banks) {
 			return bankNo.toZeroBased() * banks->numberOfPatches();
 		}

@@ -8,6 +8,8 @@
 
 #include "DiscoverableDevice.h"
 
+#include "Capability.h"
+
 #include "MidiLocationCapability.h"
 
 namespace midikraft {
@@ -27,6 +29,12 @@ namespace midikraft {
 		virtual juce::MidiDeviceInfo midiInput() const override;
 		virtual juce::MidiDeviceInfo midiOutput() const override;
 		virtual MidiChannel channel() const override;
+
+		// Requests a capability from the global registry for the concrete synth class.
+		template <typename CapabilityType>
+		std::shared_ptr<CapabilityType> getCapability() {
+			return globalCapabilityRegistry.getCapability<CapabilityType>(this);
+		}
 
 	private:
 		MidiChannel channel_ = MidiChannel::invalidChannel();

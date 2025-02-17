@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019 Christof Ruch. All rights reserved.
+   Copyright (c) 2019-2025 Christof Ruch. All rights reserved.
 
    Dual licensed: Distributed under Affero GPL license by default, an MIT license is available for purchase
 */
@@ -10,6 +10,7 @@
 
 #include "MidiChannel.h"
 #include "TypedNamedValue.h"
+#include "Capability.h"
 
 #include <map>
 
@@ -34,6 +35,18 @@ namespace midikraft {
 		virtual std::string description() const = 0; // Long name / descriptive name
 
 		virtual std::string valueInPatchToText(DataFile const &patch) const = 0;
+
+		// Requests a capability from the global registry for the concrete synth class.
+		template <typename CapabilityType>
+		std::shared_ptr<CapabilityType> getCapability() {
+			return globalCapabilityRegistry.getCapability<CapabilityType>(this);
+		}
+
+		// Request a capability from the global registry for a const synth class.
+		template <typename CapabilityType>
+		std::shared_ptr<const CapabilityType> getCapability() const {
+			return globalCapabilityRegistry.getCapability<CapabilityType>(this);
+		}
 	};
 
 	class SynthIntValueParameterCapability {

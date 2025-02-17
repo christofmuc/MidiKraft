@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020 Christof Ruch. All rights reserved.
+   Copyright (c) 2020-2025 Christof Ruch. All rights reserved.
 
    Dual licensed: Distributed under Affero GPL license by default, an MIT license is available for purchase
 */
@@ -10,55 +10,50 @@
 
 namespace midikraft {
 
-	// Base class for classes having a varying set of Capabilities
-	template <class D>
-	class RuntimeCapability {
+	// Registry for capabilities - stores capabilities per instance (like Rev2)
+	class CapabilityRegistry {
 	public:
-		virtual bool hasCapability(std::shared_ptr<D> &outCapability) const = 0;
-		virtual bool hasCapability(D **outCapability) const = 0;
+		// Register a capability for a non-const instance
+		template <typename CapabilityType>
+		void registerCapability(void* synthInstance, CapabilityType *capabilityInstance) {
+			capabilities_[synthInstance][typeid(CapabilityType)] = capabilityInstance;
+		}
+
+		// Register a capability for a const instance
+		template <typename CapabilityType>
+		void registerCapability(const void* synthInstance) {
+			capabilities_[const_cast<void*>(synthInstance)][typeid(CapabilityType)] = std::make_shared<CapabilityType>();
+		}
+
+		// Get a capability for a non-const instance
+		template <typename CapabilityType>
+		CapabilityType * getCapability(void* synthInstance) {
+			auto& instanceCapabilities = capabilities_[synthInstance];
+			auto it = instanceCapabilities.find(typeid(CapabilityType));
+			if (it != instanceCapabilities.end()) {
+				return static_cast<CapabilityType *>(it->second);
+			}
+			return nullptr;
+		}
+
+		// Get a capability for a const instance
+		template <typename CapabilityType>
+		const CapabilityType* getCapability(const void* synthInstance) const {
+			auto& instanceCapabilities = capabilities_.at(const_cast<void*>(synthInstance));
+			auto it = instanceCapabilities.find(typeid(CapabilityType));
+			if (it != instanceCapabilities.end()) {
+				return static_cast<const CapabilityType *>(it->second);
+			}
+			return nullptr;
+		}
+
+	private:
+		// A map of instance type -> capability type -> capability instance
+		std::unordered_map<void*, std::unordered_map<std::type_index, void *>> capabilities_;
 	};
 
-	// Generic accessor for Capabilities - use this instead of std::dynamic_pointer_cast
-	class Capability {
-	public:
-		template <class D, class S>
-		static std::shared_ptr<D> hasCapability(std::shared_ptr<S> const &input);
+	extern CapabilityRegistry globalCapabilityRegistry;
 
-		template <class D, class S>
-		static D *hasCapability(S *input);
-	};
-
-	template <class D, class S>
-	D * midikraft::Capability::hasCapability(S *input)
-	{
-		auto runtimeCapability = dynamic_cast<RuntimeCapability<D> const *>(input);
-		if (runtimeCapability) {
-			D *capability;
-			if (runtimeCapability->hasCapability(&capability)) {
-				return capability;
-			}
-			else {
-				return nullptr;
-			}
-		}
-		else {
-			return dynamic_cast<D *>(input);
-		}
-	}
-
-	template <class D, class S>
-	std::shared_ptr<D> midikraft::Capability::hasCapability(std::shared_ptr<S> const &input)
-	{
-		std::shared_ptr<RuntimeCapability<D>> runtimeCapability = std::dynamic_pointer_cast<RuntimeCapability<D>>(input);
-		if (runtimeCapability) {
-			std::shared_ptr<D> out;
-			runtimeCapability->hasCapability(out);
-			return out;
-		}
-		else {
-			return std::dynamic_pointer_cast<D>(input);
-		}
-	}
 
 }
 

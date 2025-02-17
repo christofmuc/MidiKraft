@@ -13,6 +13,7 @@
 #include "MidiProgramNumber.h"
 #include "MidiBankNumber.h"
 #include "Logger.h"
+#include "Capability.h"
 
 #ifdef _MSC_VER
 // We have to disable warning deprecated, because we use /WX all warnings as errors, and cannot turn off the error level for just one 
@@ -67,6 +68,18 @@ namespace midikraft {
 		// Helper methods
 		static int sizeOfBank(std::shared_ptr<Synth>, int zeroBasedBankNumber);
 		static MidiBankNumber bankNumberFromInt(std::shared_ptr<Synth>, int zeroBasedBankNumber);
+
+		// Requests a capability from the global registry for the concrete synth class.
+		template <typename CapabilityType>
+		CapabilityType *getCapability() {
+			return globalCapabilityRegistry.getCapability<CapabilityType>(this);
+		}
+
+		// Requests a capability from the global registry for the concrete synth class.
+		template <typename CapabilityType>
+		const CapabilityType *getCapability() const {
+			return globalCapabilityRegistry.getCapability<const CapabilityType>(this);
+		}
 
 	private:
 		size_t maxNumberMessagesPerPatch_; // UGLY global configuration which can be overriden by environment variable ORM_MAX_MSG_PER_PATCH. Default was 10, which was large enough for refaceDX but too small for other synths.

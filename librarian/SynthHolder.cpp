@@ -26,7 +26,7 @@ namespace midikraft {
 		color_ = Colour::fromString(Settings::instance().get(colorSynthKey(synth), color.toString().toStdString()));
 	}
 
-	SynthHolder::SynthHolder(std::shared_ptr<SoundExpanderCapability> synth) : device_(synth)
+	SynthHolder::SynthHolder(std::shared_ptr<SoundExpanderCapability> synth) : expander_(synth)
 	{
 	}
 
@@ -42,6 +42,9 @@ namespace midikraft {
 	{
 		if (device_) {
 			return device_->getName();
+		}
+		else if (expander_) {
+			return expander_->getName();
 		}
 		return "invalid";
 	}

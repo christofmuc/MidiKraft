@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019 Christof Ruch. All rights reserved.
+   Copyright (c) 2019-2025 Christof Ruch. All rights reserved.
 
    Dual licensed: Distributed under Affero GPL license by default, an MIT license is available for purchase
 */
@@ -13,7 +13,7 @@ namespace midikraft {
 
 	class SynthParameterDefinition;
 
-	class DataFile {
+	class DataFile  {
 	public:
 		DataFile(int dataTypeID);
 		DataFile(int dataTypeID, Synth::PatchData const &patchdata);
@@ -30,6 +30,12 @@ namespace midikraft {
 		virtual void setAt(int sysExIndex, uint8 value);
 
 		std::vector<juce::MidiMessage> asMidiMessages() const;
+
+		// Requests a capability from the global registry for the concrete synth class.
+		template <typename CapabilityType>
+		CapabilityType* getCapability() {
+			return globalCapabilityRegistry.getCapability<CapabilityType>(this);
+		}
 
 	protected:
 		// Just any ID you want to give it

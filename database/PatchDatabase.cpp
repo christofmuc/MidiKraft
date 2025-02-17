@@ -840,7 +840,7 @@ namespace midikraft {
 				query.bind(":MD5", md5);
 				while (query.executeStep()) {
 					int bankNo = query.getColumn("midi_bank_number").getInt();
-					if (auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(synth)) {
+					if (auto descriptors = synth->getCapability<HasBankDescriptorsCapability>()) {
 						if (bankNo >= 0 && bankNo < descriptors->bankDescriptors().size()) {
 							result.push_back(MidiProgramNumber::fromZeroBaseWithBank(MidiBankNumber::fromZeroBase(bankNo, descriptors->bankDescriptors()[bankNo].size), query.getColumn("order_num").getInt()));
 						}
@@ -848,7 +848,7 @@ namespace midikraft {
 							spdlog::error("Data error - bank number stored is bigger than bank descriptors allow for!");
 						}
 					}
-					else if (auto banks = Capability::hasCapability<HasBanksCapability>(synth)) {
+					else if (auto banks = synth->getCapability<HasBanksCapability>()) {
 						// All banks have the same size
 						if (bankNo >= 0 && bankNo < banks->numberOfBanks()) {
 							result.push_back(MidiProgramNumber::fromZeroBaseWithBank(MidiBankNumber::fromZeroBase(bankNo, banks->numberOfPatches()), query.getColumn("order_num").getInt()));
@@ -1038,7 +1038,7 @@ namespace midikraft {
 		}
 
 		bool hasDefaultName(DataFile* patch, std::string const& patchName) {
-			auto defaultNameCapa = midikraft::Capability::hasCapability<DefaultNameCapability>(patch);
+			auto defaultNameCapa = patch->getCapability<DefaultNameCapability>();
 			if (defaultNameCapa) {
 				return defaultNameCapa->isDefaultName(patchName);
 			}

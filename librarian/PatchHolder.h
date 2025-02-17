@@ -151,6 +151,12 @@ namespace midikraft {
 		std::string comment() const;
 		void setComment(std::string const& newComment);
 
+		std::string author() const;
+		void setAuthor(std::string const& newComment);
+
+		std::string info() const;
+		void setInfo(std::string const& newComment);
+
 		bool autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector); // Returns true if categories have changed!
 		
 		std::string md5() const;
@@ -174,6 +180,8 @@ namespace midikraft {
 		MidiProgramNumber patchNumber_;
 		std::shared_ptr<SourceInfo> sourceInfo_;
 		std::string comment_;
+		std::string author_;
+		std::string info_;
 	};
 
 }

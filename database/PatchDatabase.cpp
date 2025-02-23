@@ -568,14 +568,26 @@ namespace midikraft {
 			return orderByClause;
 		}
 
-		std::string buildJoinClause(PatchFilter filter) {
+		std::string buildJoinClause(PatchFilter filter, bool outer_join = false) {
 			// If we are also filtering for a list, we need to join the patch_in_list table!
 			std::string joinClause = "";
-			if (!filter.listID.empty()) {
-				joinClause += " INNER JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
+			if (!filter.listID.empty() || outer_join) {
+				if (outer_join) {
+					joinClause += " LEFT JOIN ";
+				}
+				else {
+					joinClause += " INNER JOIN ";
+				}
+				joinClause += "patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
 			}
 			if (filter.onlyDuplicateNames) {
-				joinClause += " JOIN patches_count ON patches.synth = patches_count.synth AND patches.name = patches_count.dup_name";
+				if (outer_join) {
+					joinClause += " LEFT JOIN ";
+				}
+				else {
+					joinClause += " INNER JOIN ";
+				}
+				joinClause += " patches_count ON patches.synth = patches_count.synth AND patches.name = patches_count.dup_name";
 				/*if (filter.showHidden)
 					joinClause += " JOIN (select name as dup_name, synth, count(*) as name_count from patches group by dup_name, synth) as ordinal_table on patches.name = ordinal_table.dup_name and patches.synth = ordinal_table.synth";
 				else
@@ -1198,35 +1210,56 @@ namespace midikraft {
 			return sumOfAll;
 		}
 
-		int deletePatches(PatchFilter filter) {
+		std::pair<int, int> deletePatches(PatchFilter filter) {
 			try {
-				// Build a delete query. If we delete a whole list's content, we cannot use a join clause like in the select, 
-				// but need to transform into a where exists clause :-(
-				std::string deleteStatement;
-				if (filter.listID.empty()) {
-					deleteStatement = "DELETE FROM patches " + buildWhereClause(filter, false);
-				}
-				else {
-					// https://stackoverflow.com/questions/24511153/how-delete-table-inner-join-with-other-table-in-sqlite
-					// This wouldn't work for buildWhereClause during delete
-					deleteStatement = "DELETE FROM patches WHERE ROWID IN (SELECT patches.ROWID FROM patches "
-						+ buildJoinClause(filter) + buildWhereClause(filter, false) + ")";
-				}
-				SQLite::Statement query(db_, deleteStatement.c_str());
-				bindWhereClause(query, filter);
+				SQLite::Transaction transaction(db_);
+				// Remove patches from non-bank lists.
+				std::string remove_from_lists = 
+				"DELETE FROM patch_in_list "
+					"WHERE ROWID IN ( "
+						" SELECT patch_in_list.ROWID FROM patches "
+						"   JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth  "
+						"   JOIN lists on lists.id = patch_in_list.id "
+						+ buildWhereClause(filter, false) +
+					    "   AND lists.synth IS NULL"  // Regular lists have synth NULL, we remove patches we delete from regular lists because they do not destroy banks
+					" )";
+				SQLite::Statement remove_from_list_query(db_, remove_from_lists.c_str());
+				bindWhereClause(remove_from_list_query, filter);
+				int items_removed = remove_from_list_query.exec();
 
-				// Execute
-				int rowsDeleted = query.exec();
+				// Patches to hide: those still referenced by a synth bank
+				std::string hideStatement =
+					"UPDATE patches SET hidden = 1 WHERE ROWID IN ("
+					" SELECT patches.ROWID FROM patches "
+					" JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth "
+					" JOIN lists ON lists.id = patch_in_list.id "
+					"   " + buildWhereClause(filter, false) +
+					" AND lists.synth is not NULL "
+					")";
+				SQLite::Statement hideQuery(db_, hideStatement.c_str());
+				bindWhereClause(hideQuery, filter);
+				int rowsHidden = hideQuery.exec(); 
 
-				// Make sure there are no orphans left in any patch list
+				// Patches to delete: those not referenced by any synth bank
+				std::string deleteStatement =
+					"DELETE FROM patches WHERE ROWID IN ("
+					"   SELECT patches.ROWID FROM patches "
+					"   " + buildJoinClause(filter, true) + buildWhereClause(filter, false) + " "
+					"   AND patch_in_list.id IS NULL"
+					")";
+				SQLite::Statement deleteQuery(db_, deleteStatement.c_str());
+				bindWhereClause(deleteQuery, filter);
+				int rowsDeleted = deleteQuery.exec();
+
+				// Step 3: Make sure there are no orphans left in any patch list
 				removeAllOrphansFromPatchLists();
-
-				return rowsDeleted;
+				transaction.commit();
+				return { rowsDeleted, rowsHidden };
 			}
 			catch (SQLite::Exception& ex) {
 				spdlog::error("DATABASE ERROR in deletePatches via filter: SQL Exception {}", ex.what());
 			}
-			return 0;
+			return { 0, 0 };
 		}
 
 		std::pair<int, int> deletePatches(std::string const& synth, std::vector<std::string> const& md5s) {
@@ -1881,7 +1914,7 @@ namespace midikraft {
 		impl->removePatchFromList(list_id, synth_name, md5, order_num);
 	}
 
-	int PatchDatabase::deletePatches(PatchFilter filter)
+	std::pair<int, int> PatchDatabase::deletePatches(PatchFilter filter)
 	{
 		return impl->deletePatches(filter);
 	}

@@ -76,7 +76,7 @@ namespace midikraft {
 		bool putPatch(PatchHolder const &patch);
 		bool putPatches(std::vector<PatchHolder> const &patches);
 
-		int deletePatches(PatchFilter filter);
+		std::pair<int, int> deletePatches(PatchFilter filter);
 		std::pair<int, int> deletePatches(std::string const& synth, std::vector<std::string> const& md5s);
 		int reindexPatches(PatchFilter filter);
 

@@ -31,6 +31,8 @@ const char *kCategories = "Categories";
 const char *kNonCategories = "NonCategories";
 const char *kSourceInfo = "SourceInfo";
 const char *kComment= "Comment";
+const char *kAuthor = "Author";
+const char *kInfo = "Info";
 const char *kLibrary = "Library";
 const char *kHeader = "Header";
 const char *kFileFormat = "FileFormat";
@@ -259,6 +261,16 @@ namespace midikraft {
 							comment = (*item)[kComment];
 						}
 
+						std::string info;
+						if (item->contains(kInfo)) {
+							info = (*item)[kInfo];
+						}
+
+						std::string author;
+						if (item->contains(kAuthor)) {
+							author = (*item)[kAuthor];
+						}
+
 						// All mandatory fields found, we can parse the data!
 						MemoryBlock sysexData;
 						MemoryOutputStream writeToBlock(sysexData, false);
@@ -285,6 +297,8 @@ namespace midikraft {
 									holder.setSourceInfo(importInfo);
 								}
 								holder.setComment(comment);
+								holder.setAuthor(author);
+								holder.setInfo(info);
 								result.push_back(holder);
 							}
 						}
@@ -369,6 +383,14 @@ namespace midikraft {
 
 			if (!patch.comment().empty()) {
 				patchJson[kComment] = patch.comment();
+			}
+
+			if (!patch.author().empty()) {
+				patchJson[kAuthor] = patch.author();
+			}
+
+			if (!patch.info().empty()) {
+				patchJson[kInfo] = patch.info();
 			}
 
 			// Now the fun part, pack the sysex for transport

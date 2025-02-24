@@ -509,8 +509,37 @@ namespace midikraft {
 			return;
 		}
 
+		auto location = midikraft::Capability::hasCapability<midikraft::MidiLocationCapability>(synth);
+		if (!location || !location->channel().isValid() /* || !synth->wasDetected()*/) {
+			spdlog::warn("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName());
+			return;
+		}
+
+		auto bankSendCapability = midikraft::Capability::hasCapability<BankSendCapability>(synth);
+		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
 		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
-		if (programDumpCapability) {
+		if (bankSendCapability && (editBufferCapability || programDumpCapability)) {
+			// We use the BankSendCapability to create one or messages to transport all patches
+			std::vector<std::vector<MidiMessage>> patchMessages;
+			int i = 0; 
+			for (auto &patch: synthBank.patches()) {
+				if (programDumpCapability) {
+					patchMessages.push_back(programDumpCapability->patchToProgramDumpSysex(patch.patch(), MidiProgramNumber::fromZeroBase(i)));
+					i++;
+				}
+				else if (editBufferCapability) {
+					patchMessages.push_back(editBufferCapability->patchToSysex(patch.patch()));
+					i++;
+				}
+			}
+
+			auto messages = bankSendCapability->createBankMessages(patchMessages);
+			synth->sendBlockOfMessagesToSynth(location->midiOutput(), messages);
+			if (finishedHandler) {
+				finishedHandler(true);
+			}
+
+		} else if (programDumpCapability) {
 			// Count how many to send first
 			int count = 0;
 			int i = 0;
@@ -519,12 +548,6 @@ namespace midikraft {
 				if (fullBank || synthBank.isPositionDirty(i++)) {
 					count++;
 				}
-			}
-
-			auto location = midikraft::Capability::hasCapability<midikraft::MidiLocationCapability>(synth);
-			if (!location || !location->channel().isValid() /* || !synth->wasDetected()*/) {
-				spdlog::warn("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName());
-				return;
 			}
 
 			// Now to send and update the progressHandler

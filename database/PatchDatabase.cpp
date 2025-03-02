@@ -898,7 +898,7 @@ namespace midikraft {
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				spdlog::error("DATABASE ERROR in getSinglePatch: SQL Exception {}", ex.what());
+				spdlog::error("DATABASE ERROR in getBankPosition: SQL Exception {}", ex.what());
 			}
 			return result;
 		}
@@ -1792,6 +1792,19 @@ namespace midikraft {
 			return false;
 		}
 
+		std::vector<std::pair<std::string, std::string>> getListsForPatch(std::string const& synth, std::string const& md5) {
+			SQLite::Statement findListForPatch(db_, "SELECT lists.name, lists.id FROM lists INNER JOIN patch_in_list AS pil ON lists.id = pil.id WHERE pil.synth = :SYN AND pil.md5 = :MD5");
+			findListForPatch.bind(":SYN", synth);
+			findListForPatch.bind(":MD5", md5);
+			std::vector<std::pair<std::string, std::string>> results;
+			while (findListForPatch.executeStep()) {
+				std::string name = findListForPatch.getColumn("name");
+				std::string id = findListForPatch.getColumn("id");
+				results.push_back({ name, id });
+			}
+			return results;
+		}
+
 		void removeAllOrphansFromPatchLists() {
 			try {
 				SQLite::Statement cleanupPatchLists(db_,
@@ -1859,6 +1872,10 @@ namespace midikraft {
 			spdlog::error("Failed to open database: {}", ex.what());
 		}
 		return false;
+	}
+
+	std::vector<std::pair<std::string, std::string>> PatchDatabase::getListsForPatch(std::string const& synth, std::string const& md5) {
+		return impl->getListsForPatch(synth, md5);
 	}
 
 	int PatchDatabase::getPatchesCount(PatchFilter filter)

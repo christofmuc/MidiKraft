@@ -264,7 +264,14 @@ namespace midikraft {
 					// Well, where should it go? I'd say last patch of first bank is a good compromise
 					auto descriptors = Capability::hasCapability<HasBankDescriptorsCapability>(this);
 					if (descriptors) {
-						place = MidiProgramNumber::fromZeroBase(descriptors->bankDescriptors()[0].size - 1);
+						auto banks = descriptors->bankDescriptors();
+						if (banks.size() > 0) {
+							place = MidiProgramNumber::fromZeroBase(descriptors->bankDescriptors()[0].size - 1);
+						}
+						else {
+							spdlog::error("Synth did not define any bank descriptors, cannot determine which program number to patch into the program dump. Using 0. Error in adaptation?");
+							place = MidiProgramNumber::fromZeroBase(0);
+						}
 					}
 					else {
 						auto banks = Capability::hasCapability<HasBanksCapability>(this);

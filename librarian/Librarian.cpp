@@ -171,22 +171,40 @@ namespace midikraft {
 			// one message per patch (e.g. Access Virus or Matrix1000)
 			auto buffer = bankCapableSynth->requestBankDump(bankNo);
 			auto outname = midiOutput->deviceInfo();
+			auto timestampOfLastMessage = std::make_shared<juce::Time>(juce::Time::getCurrentTime());
 			RunWithRetry::start([this, synth, outname, buffer, bankNo]() {
 				expectedDownloadNumber_ = SynthBank::numberOfPatchesInBank(synth, bankNo);
 				synth->sendBlockOfMessagesToSynth(outname, buffer);
 				},
+				[this, timestampOfLastMessage]() {
+					// Only retry when there have been no messages received from the synth in the last 500 ms
+					if ((juce::Time::currentTimeMillis() - timestampOfLastMessage->toMilliseconds()) > 500) {
+						spdlog::info("Last message seen more than 500ms ago, initiating retry bank download");
+						return true;
+					}
+					return false;
+				},
 				[this]() {
-					return currentDownload_.empty();
+					return !currentDownload_.empty();
 				},
 					3,
 					500,
 					"initiating bank dump");
 
-			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput* source, const juce::MidiMessage& editBuffer) {
+			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo, timestampOfLastMessage](MidiInput* source, const juce::MidiMessage& editBuffer) {
 				ignoreUnused(source);
+				auto now = juce::Time::getCurrentTime();
+				std::swap(*timestampOfLastMessage, now);  // Update last received message time
 				this->handleNextBankDump(midiOutput, synth, progressHandler, editBuffer, bankNo);
 				});
+			auto partialHandle = MidiController::makeOneHandle();
+			MidiController::instance()->addPartialMessageHandler(partialHandle, [timestampOfLastMessage](MidiInput* source, const uint8* data, int numBytesSoFar, double timestamp) {
+				ignoreUnused(source, data, numBytesSoFar, timestamp);
+				auto now = juce::Time::getCurrentTime();
+				std::swap(*timestampOfLastMessage, now);
+				});
 			handles_.push(handle);
+			handles_.push(partialHandle);
 			currentDownload_.clear();
 			break;
 		}

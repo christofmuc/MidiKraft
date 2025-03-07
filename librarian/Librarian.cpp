@@ -176,7 +176,7 @@ namespace midikraft {
 				expectedDownloadNumber_ = SynthBank::numberOfPatchesInBank(synth, bankNo);
 				synth->sendBlockOfMessagesToSynth(outname, buffer);
 				},
-				[this, timestampOfLastMessage]() {
+				[timestampOfLastMessage]() {
 					// Only retry when there have been no messages received from the synth in the last 500 ms
 					if ((juce::Time::currentTimeMillis() - timestampOfLastMessage->toMilliseconds()) > 500) {
 						spdlog::info("Last message seen more than 500ms ago, initiating retry bank download");

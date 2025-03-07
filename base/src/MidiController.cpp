@@ -237,7 +237,7 @@ namespace midikraft {
 
 		// Call all currently registered handlers, but make sure to iterate over a copy of the list as it might get modified while the handlers run
 		// First the new style handlers;
-		std::vector < std::function<void(MidiInput *, MidiMessage const &)>> newhandlers;
+		std::vector<MidiCallback>newhandlers;
 		{
 			ScopedLock lock(messageHandlerList_);
 			for (auto const &handler : messageHandlers_) {
@@ -246,6 +246,21 @@ namespace midikraft {
 		}
 		for (auto const &handler : newhandlers) {
 			handler(source, message);
+		}
+	}
+
+	void MidiController::handlePartialSysexMessage(MidiInput* source, const uint8* messageData, int numBytesSoFar, double timestamp) {
+		// Call all currently registered handlers, but make sure to iterate over a copy of the list as it might get modified while the handlers run
+		// First the new style handlers;
+		std::vector<MidiDataCallback> newhandlers;
+		{
+			ScopedLock lock(partialMessageHandlerList_);
+			for (auto const& handler : partialHandlers_) {
+				newhandlers.push_back(handler.second);
+			}
+		}
+		for (auto const& handler : newhandlers) {
+			handler(source, messageData, numBytesSoFar, timestamp);
 		}
 	}
 
@@ -403,6 +418,21 @@ namespace midikraft {
 		ScopedLock lock(messageHandlerList_);
 		if (messageHandlers_.find(handle) != messageHandlers_.end()) {
 			messageHandlers_.erase(handle);
+			return true;
+		}
+		jassertfalse;
+		return false;
+	}
+
+	void MidiController::addPartialMessageHandler(HandlerHandle const& handle, MidiDataCallback handler) {
+		ScopedLock lock(partialMessageHandlerList_);
+		partialHandlers_.insert(std::make_pair(handle, handler));
+	}
+
+	bool MidiController::removePartialMessageHandler(HandlerHandle const& handle) {
+		ScopedLock lock(partialMessageHandlerList_);
+		if (partialHandlers_.find(handle) != partialHandlers_.end()) {
+			partialHandlers_.erase(handle);
 			return true;
 		}
 		jassertfalse;

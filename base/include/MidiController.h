@@ -36,6 +36,7 @@ namespace midikraft {
 	class MidiController;
 
 	typedef std::function<void(MidiInput *source, MidiMessage const &message)> MidiCallback;
+	typedef std::function<void(MidiInput *source, const uint8* data, int numBytesSoFar, double timestamp)> MidiDataCallback;
 
 	class SafeMidiOutput {
 	public:
@@ -78,6 +79,9 @@ namespace midikraft {
 		//TODO - I think these should have an optional expiration date/timeout with a timeout handler, like when the expected response doesn't happen
 		void addMessageHandler(HandlerHandle const &handle, MidiCallback handler);
 		bool removeMessageHandler(HandlerHandle const &handle);
+		
+		void addPartialMessageHandler(HandlerHandle const& handle, MidiDataCallback handler);
+		bool removePartialMessageHandler(HandlerHandle const& handle);
 
 		void setMidiLogFunction(std::function<void(const MidiMessage& message, const String& source, bool)>);
 		void logMidiMessage(const MidiMessage& message, const String& source, bool isOut);
@@ -100,6 +104,7 @@ namespace midikraft {
 	private:
 		// Implementation of Callback
 		virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
+		virtual void handlePartialSysexMessage(MidiInput* source, const uint8* messageData, int numBytesSoFar, double timestamp) override;
 		virtual void timerCallback() override;
 
 
@@ -108,6 +113,8 @@ namespace midikraft {
 		// The list of handlers needs to be locked for thread-safe access
 		CriticalSection messageHandlerList_;
 		std::map<HandlerHandle, MidiCallback> messageHandlers_;
+		CriticalSection partialMessageHandlerList_;
+		std::map<HandlerHandle, MidiDataCallback> partialHandlers_;
 
 		std::set<juce::MidiDeviceInfo> knownInputs_, historyOfAllInputs_;
 		std::set<juce::MidiDeviceInfo> knownOutputs_, historyOfAllOutpus_;

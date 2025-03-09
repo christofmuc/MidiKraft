@@ -59,7 +59,7 @@ namespace midikraft {
 			auto tags = storedTags->tags();
 			auto mappings = importMappings();
 			std::string synthname = patch.synth()->getName();
-			for (auto tag : tags) {
+			for (auto &tag : tags) {
 				// Let's see if we can map it
 				if (mappings.find(synthname) != mappings.end()) {
 					if (mappings[synthname].find(tag.name()) != mappings[synthname].end()) {

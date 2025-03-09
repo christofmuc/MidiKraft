@@ -395,7 +395,7 @@ namespace midikraft {
 			if (descriptors) {
 				auto banks = descriptors->bankDescriptors();
 				if (bankNo_.toZeroBased() < static_cast<int>(banks.size())) {
-					bank = " " + banks[bankNo_.toZeroBased()].name;
+					bank = " " + banks[(size_t) bankNo_.toZeroBased()].name;
 				}
 				else {
 					bank = fmt::format(" bank {}", bankNo_.toOneBased());

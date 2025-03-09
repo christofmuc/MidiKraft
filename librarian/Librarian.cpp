@@ -52,8 +52,8 @@ namespace midikraft {
 				}
 				else {
 					if (!progressHandler->shouldAbort()) {
-						progressHandler->setMessage(fmt::format("Importing {} from {}...", SynthBank::friendlyBankName(synth, bankNo[downloadBankNumber_]), synth->getName()));
-						startDownloadingAllPatches(midiOutput, synth, bankNo[downloadBankNumber_], progressHandler, nextBankHandler_);
+						progressHandler->setMessage(fmt::format("Importing {} from {}...", SynthBank::friendlyBankName(synth, bankNo[(size_t) downloadBankNumber_]), synth->getName()));
+						startDownloadingAllPatches(midiOutput, synth, bankNo[(size_t) downloadBankNumber_], progressHandler, nextBankHandler_);
 					}
 				}
 			};
@@ -176,7 +176,7 @@ namespace midikraft {
 				expectedDownloadNumber_ = SynthBank::numberOfPatchesInBank(synth, bankNo);
 				synth->sendBlockOfMessagesToSynth(outname, buffer);
 				},
-				[this, timestampOfLastMessage]() {
+				[timestampOfLastMessage]() {
 					// Only retry when there have been no messages received from the synth in the last 500 ms
 					if ((juce::Time::currentTimeMillis() - timestampOfLastMessage->toMilliseconds()) > 500) {
 						spdlog::info("Last message seen more than 500ms ago, initiating retry bank download");
@@ -240,6 +240,7 @@ namespace midikraft {
 			}
 			break;
 		}
+        case BankDownloadMethod::UNKNOWN:
 		default:
 			spdlog::error("Error: This synth has not implemented a single method to retrieve a bank. Please consult the documentation!");
 		}
@@ -577,8 +578,8 @@ namespace midikraft {
 
 	class ExportSysexFilesInBackground : public ThreadWithProgressWindow {
 	public:
-		ExportSysexFilesInBackground(String title, File dest, Librarian::ExportParameters params, std::vector<PatchHolder> const& patches) : ThreadWithProgressWindow(title, true, false),
-			destination(dest), params(params), patches(patches)
+		ExportSysexFilesInBackground(String title, File dest, Librarian::ExportParameters _params, std::vector<PatchHolder> const& _patches) : ThreadWithProgressWindow(title, true, false),
+			destination(dest), params(_params), patches(_patches)
 		{}
 
 		virtual void run() override

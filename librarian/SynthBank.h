@@ -13,7 +13,7 @@ namespace midikraft {
 	class SynthBank : public PatchList {
 	public:
 		SynthBank(std::string const& name, std::shared_ptr<Synth> synth, MidiBankNumber bank);
-        virtual ~SynthBank() = default;
+        virtual ~SynthBank() override = default;
 
 		// Override these to make sure they only contain patches for the synth, and have a proper program
 		// location

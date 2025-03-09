@@ -43,7 +43,7 @@ const char *kVersion = "Version";
 
 namespace midikraft {
 
-	bool findCategory(std::shared_ptr<AutomaticCategory> detector, const char *categoryName, midikraft::Category &outCategory) {
+	static bool findCategory(std::shared_ptr<AutomaticCategory> detector, const char *categoryName, midikraft::Category &outCategory) {
 		// Hard code migration from the Rev2SequencerTool categoryNames to KnobKraft Orm
 		//TODO this can use the mapping defined for the Virus now?
 		//TODO - this could become arbitrarily complex with free tags?

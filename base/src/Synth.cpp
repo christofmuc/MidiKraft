@@ -115,8 +115,6 @@ namespace midikraft {
 
 	TPatchVector Synth::loadSysex(std::vector<MidiMessage> const &sysexMessages)
 	{
-		
-
 		// Now that we have a list of messages, let's see if there are (hopefully) any patches between them
 		auto editBufferSynth = midikraft::Capability::hasCapability<EditBufferCapability>(this);
 		auto programDumpSynth = midikraft::Capability::hasCapability<ProgramDumpCabability>(this);

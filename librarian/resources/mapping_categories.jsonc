@@ -71,7 +71,51 @@
 			"SOUND FX": "SFX",
 			"BEAT&GROOVE": "Drum",
 			"DRUMS": "Drum",
-			"COMBINATION": "None"
+			"COMBINATION": "None",
+			"NO ASSIGN": "None"
+		}
+	},
+	"Roland XV-3080": {
+		"synthToDatabase": {
+			"AC. PIANO": "Keys",
+			"EL. PIANO": "Keys",
+			"KEYBOARDS": "Keys",
+			"BELL": "Bell",
+			"MALLET": "Bell",
+			"ORGAN": "Organ",
+			"ACCORDION": "Wind",
+			"HARMONICA": "Wind",
+			"AC.GUITAR": "Pluck",
+			"EL.GUITAR": "Pluck",
+			"DIST.GUITAR": "Lead",
+			"BASS": "Bass",
+			"SYNTH BASS": "Bass",
+			"STRINGS": "Pad",
+			"ORCHESTRA": "Pad",
+			"HIT&STAB": "Pluck",
+			"WIND": "Wind",
+			"FLUTE": "Wind",
+			"AC.BRASS": "Brass",
+			"SYNTH BRASS": "Brass",
+			"SAX": "Brass",
+			"HARD LEAD": "Lead",
+			"SOFT LEAD": "Lead",
+			"TECHNO SYNTH": "Lead",
+			"PULSATING": "Drone",
+			"SYNTH FX": "SFX",
+			"OTHER SYNTH": "None",
+			"BRIGHT PAD": "Pad",
+			"SOFT PAD": "Pad",
+			"VOX": "Voice",
+			"PLUCKED": "Pluck",
+			"ETHNIC": "None",
+			"FRETTED": "Pluck",
+			"PERCUSSION": "Drum",
+			"SOUND FX": "SFX",
+			"BEAT&GROOVE": "Drum",
+			"DRUMS": "Drum",
+			"COMBINATION": "None",
+			"NO ASSIGN": "None"
 		}
 	}
 }

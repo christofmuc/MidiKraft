@@ -528,8 +528,37 @@ namespace midikraft {
 			return;
 		}
 
+		auto location = midikraft::Capability::hasCapability<midikraft::MidiLocationCapability>(synth);
+		if (!location || !location->channel().isValid() /* || !synth->wasDetected()*/) {
+			spdlog::warn("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName());
+			return;
+		}
+
+		auto bankSendCapability = midikraft::Capability::hasCapability<BankSendCapability>(synth);
+		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
 		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
-		if (programDumpCapability) {
+		if (bankSendCapability && (editBufferCapability || programDumpCapability)) {
+			// We use the BankSendCapability to create one or messages to transport all patches
+			std::vector<std::vector<MidiMessage>> patchMessages;
+			int i = 0; 
+			for (auto &patch: synthBank.patches()) {
+				if (programDumpCapability) {
+					patchMessages.push_back(programDumpCapability->patchToProgramDumpSysex(patch.patch(), MidiProgramNumber::fromZeroBase(i)));
+					i++;
+				}
+				else if (editBufferCapability) {
+					patchMessages.push_back(editBufferCapability->patchToSysex(patch.patch()));
+					i++;
+				}
+			}
+
+			auto messages = bankSendCapability->createBankMessages(patchMessages);
+			synth->sendBlockOfMessagesToSynth(location->midiOutput(), messages);
+			if (finishedHandler) {
+				finishedHandler(true);
+			}
+
+		} else if (programDumpCapability) {
 			// Count how many to send first
 			int count = 0;
 			int i = 0;
@@ -538,12 +567,6 @@ namespace midikraft {
 				if (fullBank || synthBank.isPositionDirty(i++)) {
 					count++;
 				}
-			}
-
-			auto location = midikraft::Capability::hasCapability<midikraft::MidiLocationCapability>(synth);
-			if (!location || !location->channel().isValid() /* || !synth->wasDetected()*/) {
-				spdlog::warn("Synth {} is currently not detected, please turn on and re-run connectivity check", synth->getName());
-				return;
 			}
 
 			// Now to send and update the progressHandler
@@ -595,56 +618,76 @@ namespace midikraft {
 
 			// Create a temporary directory to build the result
 			TemporaryDirectory tempDir("KnobKraftOrm", "sysex_export_tmp");
-
-			// Now, iterate over the list of patches and pack them one by one into the zip file!		
 			ZipFile::Builder builder;
 			std::vector<MidiMessage> allMessages;
-			int count = 0;
-			for (const auto& patch : patches) {
-				if (patch.patch()) {
-					std::vector<MidiMessage> sysexMessages;
-					switch (params.formatOption) {
-					case Librarian::PROGRAM_DUMPS:
-					{
-						// Let's see if we have program dump capability for the synth!
-						auto pdc = Capability::hasCapability<ProgramDumpCabability>(patch.synth());
-						if (pdc) {
-							sysexMessages = pdc->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
-							break;
-						}
-					}
-					// fall through do default then
-					default:
-					case Librarian::EDIT_BUFFER_DUMPS:
-						// Every synth is forced to have an implementation for this
-						sysexMessages = patch.synth()->dataFileToSysex(patch.patch(), nullptr);
-						break;
-					}
 
-					String fileName = patch.name();
-					switch (params.fileOption) {
-					case Librarian::MANY_FILES:
-					{
-						std::string result = Sysex::saveSysexIntoNewFile(destination.getFullPathName().toStdString(), File::createLegalFileName(fileName.trim()).toStdString(), sysexMessages);
-						break;
+			if (params.formatOption == Librarian::BANK_DUMP && patches.size() > 0) 
+			{
+				auto bsc = Capability::hasCapability<BankSendCapability>(patches[0].synth());
+				auto pdc = Capability::hasCapability<ProgramDumpCabability>(patches[0].synth());
+				auto ebc = Capability::hasCapability<EditBufferCapability>(patches[0].synth());
+				std::vector<std::vector<MidiMessage>> patchMessages;
+				int i = 0;
+				for (const auto& patch : patches) {
+					if (pdc) {
+						patchMessages.push_back(pdc->patchToProgramDumpSysex(patch.patch(), MidiProgramNumber::fromZeroBase(i)));
+						i++;
 					}
-					case Librarian::ZIPPED_FILES:
-					{
-						std::string result = Sysex::saveSysexIntoNewFile(tempDir.name(), File::createLegalFileName(fileName.trim()).toStdString(), sysexMessages);
-						builder.addFile(File(result), 6);
-						break;
-					}
-					case Librarian::MID_FILE:
-					case Librarian::ONE_FILE:
-					{
-						std::copy(sysexMessages.begin(), sysexMessages.end(), std::back_inserter(allMessages));
-						break;
-					}
+					else if (ebc) {
+						patchMessages.push_back(ebc->patchToSysex(patch.patch()));
 					}
 				}
-				setProgress(count++ / (double)patches.size());
-				if (threadShouldExit()) {
-					break;
+				allMessages = bsc->createBankMessages(patchMessages);
+			}
+			else {
+				// Now, iterate over the list of patches and pack them one by one into the zip file!		
+				int count = 0;
+				for (const auto& patch : patches) {
+					if (patch.patch()) {
+						std::vector<MidiMessage> sysexMessages;
+						switch (params.formatOption) {
+						case Librarian::PROGRAM_DUMPS:
+						{
+							// Let's see if we have program dump capability for the synth!
+							auto pdc = Capability::hasCapability<ProgramDumpCabability>(patch.synth());
+							if (pdc) {
+								sysexMessages = pdc->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
+								break;
+							}
+						}
+						// fall through do default then
+						default:
+						case Librarian::EDIT_BUFFER_DUMPS:
+							// Every synth is forced to have an implementation for this
+							sysexMessages = patch.synth()->dataFileToSysex(patch.patch(), nullptr);
+							break;
+						}
+
+						String fileName = patch.name();
+						switch (params.fileOption) {
+						case Librarian::MANY_FILES:
+						{
+							std::string result = Sysex::saveSysexIntoNewFile(destination.getFullPathName().toStdString(), File::createLegalFileName(fileName.trim()).toStdString(), sysexMessages);
+							break;
+						}
+						case Librarian::ZIPPED_FILES:
+						{
+							std::string result = Sysex::saveSysexIntoNewFile(tempDir.name(), File::createLegalFileName(fileName.trim()).toStdString(), sysexMessages);
+							builder.addFile(File(result), 6);
+							break;
+						}
+						case Librarian::MID_FILE:
+						case Librarian::ONE_FILE:
+						{
+							std::copy(sysexMessages.begin(), sysexMessages.end(), std::back_inserter(allMessages));
+							break;
+						}
+						}
+					}
+					setProgress(count++ / (double)patches.size());
+					if (threadShouldExit()) {
+						break;
+					}
 				}
 			}
 			switch (params.fileOption)

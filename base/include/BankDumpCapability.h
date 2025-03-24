@@ -27,5 +27,11 @@ namespace midikraft {
 		virtual std::vector<MidiMessage> requestBankDump(MidiBankNumber bankNo) const = 0;
 	};
 
+	// Implement this when the synth needs a specific message as banks and not just a list of program messages (e.g. DX7)
+	class BankSendCapability {
+	public:
+		virtual std::vector<MidiMessage> createBankMessages(std::vector<std::vector<MidiMessage>> patches) = 0;
+	};
+
 
 }

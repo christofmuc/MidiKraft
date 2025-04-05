@@ -184,9 +184,6 @@ namespace midikraft {
 					}
 					return false;
 				},
-				[this]() {
-					return !currentDownload_.empty();
-				},
 					3,
 					500,
 					"initiating bank dump");

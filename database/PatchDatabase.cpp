@@ -693,6 +693,7 @@ namespace midikraft {
 						exists.def()->color = Colour::fromString(colorName);
 						exists.def()->name = name;
 						exists.def()->isActive = isActive;
+						exists.def()->sort_order = sort_order;
 						allCategories.push_back(exists);
 						if (isActive) {
 							activeDefinitions.emplace_back(exists.def());

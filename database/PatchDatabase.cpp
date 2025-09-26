@@ -37,7 +37,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 14;
+	const int SCHEMA_VERSION = 15;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -53,6 +53,7 @@ namespace midikraft {
 	/* 12 - adding an index to speed up the import list building */
 	/* 13 - adding comment to the patch table */
 	/* 14 - adding author and source fields to the patch table */
+	/* 15 - adding sort order field to categories */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -281,24 +282,31 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 14");
 				transaction.commit();
 			}
+			if (currentVersion < 15) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				db_.exec("ALTER TABLE categories ADD COLUMN sort_order INTEGER");
+				db_.exec("UPDATE schema_version SET number = 15");
+				transaction.commit();
+			}
 		}
 
 		void insertDefaultCategories() {
-			db_.exec(String("INSERT INTO categories VALUES (0, 'Lead', '" + Colour::fromString("ff8dd3c7").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (1, 'Pad', '" + Colour::fromString("ffffffb3").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (2, 'Brass', '" + Colour::fromString("ff4a75b2").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (3, 'Organ', '" + Colour::fromString("fffb8072").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (4, 'Keys', '" + Colour::fromString("ff80b1d3").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (5, 'Bass', '" + Colour::fromString("fffdb462").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (6, 'Arp', '" + Colour::fromString("ffb3de69").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (7, 'Pluck', '" + Colour::fromString("fffccde5").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (8, 'Drone', '" + Colour::fromString("ffd9d9d9").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (9, 'Drum', '" + Colour::fromString("ffbc80bd").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (10, 'Bell', '" + Colour::fromString("ffccebc5").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (11, 'SFX', '" + Colour::fromString("ffffed6f").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (12, 'Ambient', '" + Colour::fromString("ff869cab").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (13, 'Wind', '" + Colour::fromString("ff317469").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (14, 'Voice', '" + Colour::fromString("ffa75781").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (0, 'Lead', '" + Colour::fromString("ff8dd3c7").darker().toString() + "', 1, 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (1, 'Pad', '" + Colour::fromString("ffffffb3").darker().toString() + "', 1, 2)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (2, 'Brass', '" + Colour::fromString("ff4a75b2").darker().toString() + "', 1, 3)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (3, 'Organ', '" + Colour::fromString("fffb8072").darker().toString() + "', 1, 4)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (4, 'Keys', '" + Colour::fromString("ff80b1d3").darker().toString() + "', 1, 5)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (5, 'Bass', '" + Colour::fromString("fffdb462").darker().toString() + "', 1, 6)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (6, 'Arp', '" + Colour::fromString("ffb3de69").darker().toString() + "', 1, 7)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (7, 'Pluck', '" + Colour::fromString("fffccde5").darker().toString() + "', 1, 8)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (8, 'Drone', '" + Colour::fromString("ffd9d9d9").darker().toString() + "', 1, 9)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (9, 'Drum', '" + Colour::fromString("ffbc80bd").darker().toString() + "', 1, 10)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (10, 'Bell', '" + Colour::fromString("ffccebc5").darker().toString() + "', 1, 11)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (11, 'SFX', '" + Colour::fromString("ffffed6f").darker().toString() + "', 1, 12)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (12, 'Ambient', '" + Colour::fromString("ff869cab").darker().toString() + "', 1, 13)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (13, 'Wind', '" + Colour::fromString("ff317469").darker().toString() + "', 1, 14)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (14, 'Voice', '" + Colour::fromString("ffa75781").darker().toString() + "', 1, 15)").toStdString().c_str());
 		}
 
 		void createPatchTable() {
@@ -321,7 +329,7 @@ namespace midikraft {
 				db_.exec("CREATE TABLE IF NOT EXISTS imports (synth TEXT, name TEXT, id TEXT, date TEXT)");
 			}
 			if (!db_.tableExists("categories")) {
-				db_.exec("CREATE TABLE IF NOT EXISTS categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER)");
+				db_.exec("CREATE TABLE IF NOT EXISTS categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER, sort_order INTEGER)");
 				insertDefaultCategories();
 
 			}
@@ -667,7 +675,7 @@ namespace midikraft {
 
 		std::vector<Category> getCategories() {
 			ScopedLock lock(categoryLock_);
-			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY bitIndex");
+			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY sort_order, bitIndex");
 			std::vector<std::shared_ptr<CategoryDefinition>> activeDefinitions;
 			std::vector<Category> allCategories;
 			while (query.executeStep()) {
@@ -675,6 +683,7 @@ namespace midikraft {
 				auto name = query.getColumn("name").getText();
 				auto colorName = query.getColumn("color").getText();
 				bool isActive = query.getColumn("active").getInt() != 0;
+				int sort_order = query.getColumn("sort_order").isNull() ? 0 : query.getColumn("sort_order").getInt();
 
 				// Check if this already exists!
 				bool found = false;
@@ -684,6 +693,7 @@ namespace midikraft {
 						exists.def()->color = Colour::fromString(colorName);
 						exists.def()->name = name;
 						exists.def()->isActive = isActive;
+						exists.def()->sort_order = sort_order;
 						allCategories.push_back(exists);
 						if (isActive) {
 							activeDefinitions.emplace_back(exists.def());
@@ -692,7 +702,7 @@ namespace midikraft {
 					}
 				}
 				if (!found) {
-					auto def = std::make_shared<CategoryDefinition>(CategoryDefinition({ bitIndex, isActive, name, Colour::fromString(colorName) }));
+					auto def = std::make_shared<CategoryDefinition>(CategoryDefinition({ bitIndex, isActive, name, Colour::fromString(colorName), sort_order }));
 					allCategories.push_back(Category(def));
 					if (isActive) {
 						activeDefinitions.emplace_back(def);
@@ -730,20 +740,22 @@ namespace midikraft {
 					query.bind(":BIT", c.id);
 					if (query.executeStep()) {
 						// Bit index already exists, this is an update
-						SQLite::Statement sql(db_, "UPDATE categories SET name = :NAM, color = :COL, active = :ACT WHERE bitindex = :BIT");
+						SQLite::Statement sql(db_, "UPDATE categories SET name = :NAM, color = :COL, active = :ACT, sort_order = :ORD WHERE bitindex = :BIT");
 						sql.bind(":BIT", c.id);
 						sql.bind(":NAM", c.name);
 						sql.bind(":COL", c.color.toString().toStdString());
 						sql.bind(":ACT", c.isActive);
+						sql.bind(":ORD", c.sort_order);
 						sql.exec();
 					}
 					else {
 						// Doesn't exist, insert!
-						SQLite::Statement sql(db_, "INSERT INTO categories (bitIndex, name, color, active) VALUES(:BIT, :NAM, :COL, :ACT)");
+						SQLite::Statement sql(db_, "INSERT INTO categories (bitIndex, name, color, active, sort_order) VALUES(:BIT, :NAM, :COL, :ACT, :ORD)");
 						sql.bind(":BIT", c.id);
 						sql.bind(":NAM", c.name);
 						sql.bind(":COL", c.color.toString().toStdString());
 						sql.bind(":ACT", c.isActive);
+						sql.bind(":ORD", c.sort_order);
 						sql.exec();
 					}
 				}

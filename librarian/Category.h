@@ -17,6 +17,7 @@ namespace midikraft {
 		bool isActive;
 		std::string name;
 		Colour color;
+		int sort_order;
 	};
 
 	class Category {

@@ -20,11 +20,13 @@ namespace midikraft {
 		VALUE = 0,
 		CHOICE = 1,
 		LIST = 2,
+		CHOICE_LIST = 3
 	};
 
 	struct ParamDef {
 		int param_id;
 		std::string name;
+		std::string description;
 		ParamType param_type;
 		juce::var values;
 		std::optional<int> cc_number; // If a CC number is assigned to this parameter
@@ -42,6 +44,7 @@ namespace midikraft {
 		virtual std::vector<ParamDef> getParameterDefinitions() const = 0;
 
 		virtual std::vector<ParamVal> getParameterValues(std::shared_ptr<DataFile> const patch, bool onlyActive) const = 0;
+		virtual bool setParameterValues(std::vector<ParamVal> const &new_values) = 0;
 
 		// For clustering/auto-categorization and similarity search.
 		// This is allowed to drop out parameters not considered relevant, and should convert list parameters to 

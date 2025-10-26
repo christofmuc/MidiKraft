@@ -41,18 +41,21 @@ namespace midikraft {
 	// New class, all in one, for Python interface
 	class SynthParametersCapability {
 	public:
+		// The following two functions are required to be implemented by any Synth supporting the new SynthParametersCapability
+		// They will be used by the Librarian to display a clear text description of the patch's parameters instead of just the hex dump
 		virtual std::vector<ParamDef> getParameterDefinitions() const = 0;
-
 		virtual std::vector<ParamVal> getParameterValues(std::shared_ptr<DataFile> const patch, bool onlyActive) const = 0;
-		virtual bool setParameterValues(std::shared_ptr<DataFile> patch, std::vector<ParamVal> const &new_values) = 0;
+		
+		// Optionally, allow the software to set individual parameters in the patch using the param_id and a new value
+		virtual bool setParameterValues(std::shared_ptr<DataFile> patch, std::vector<ParamVal> const &new_values) const = 0;
 
-		virtual std::vector<MidiMessage> createSetValueMessages(std::shared_ptr<DataFile> const patch) const = 0;
+		// Use this to create individual parameter change messages to send to the synth, e.g. for an editor
+		virtual std::vector<MidiMessage> createSetValueMessages(std::shared_ptr<DataFile> const patch, std::vector<int> param_ids) const = 0;
 
 		// For clustering/auto-categorization and similarity search.
 		// This is allowed to drop out parameters not considered relevant, and should convert list parameters to 
 		// vector parameters. Must return always vectors of the same length.
 		virtual std::vector<float> createFeatureVector(std::shared_ptr<DataFile> const patch) const = 0;
-
 	};
 
 }

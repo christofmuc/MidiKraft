@@ -44,7 +44,9 @@ namespace midikraft {
 		virtual std::vector<ParamDef> getParameterDefinitions() const = 0;
 
 		virtual std::vector<ParamVal> getParameterValues(std::shared_ptr<DataFile> const patch, bool onlyActive) const = 0;
-		virtual bool setParameterValues(std::vector<ParamVal> const &new_values) = 0;
+		virtual bool setParameterValues(std::shared_ptr<DataFile> patch, std::vector<ParamVal> const &new_values) = 0;
+
+		virtual std::vector<MidiMessage> createSetValueMessages(std::shared_ptr<DataFile> const patch) const = 0;
 
 		// For clustering/auto-categorization and similarity search.
 		// This is allowed to drop out parameters not considered relevant, and should convert list parameters to 

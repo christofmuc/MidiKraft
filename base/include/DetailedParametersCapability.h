@@ -7,6 +7,8 @@
 #pragma once
 
 #include "SynthParameterDefinition.h"
+#include "MidiChannel.h"
+
 
 namespace midikraft {
 
@@ -47,10 +49,12 @@ namespace midikraft {
 		virtual std::vector<ParamVal> getParameterValues(std::shared_ptr<DataFile> const patch, bool onlyActive) const = 0;
 		
 		// Optionally, allow the software to set individual parameters in the patch using the param_id and a new value
+		// Implementations may mutate the provided DataFile in-place or replace its contents entirely.
+		// Returning true indicates that the patch now reflects the provided values.
 		virtual bool setParameterValues(std::shared_ptr<DataFile> patch, std::vector<ParamVal> const &new_values) const = 0;
 
 		// Use this to create individual parameter change messages to send to the synth, e.g. for an editor
-		virtual std::vector<MidiMessage> createSetValueMessages(std::shared_ptr<DataFile> const patch, std::vector<int> param_ids) const = 0;
+		virtual std::vector<MidiMessage> createSetValueMessages(MidiChannel const channel, std::shared_ptr<DataFile> const patch, std::vector<int> param_ids) const = 0;
 
 		// For clustering/auto-categorization and similarity search.
 		// This is allowed to drop out parameters not considered relevant, and should convert list parameters to 

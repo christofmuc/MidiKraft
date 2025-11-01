@@ -134,6 +134,9 @@ namespace midikraft {
 		void setFavorite(Favorite fav);
 		void setSourceInfo(std::shared_ptr<SourceInfo> newSourceInfo);
 
+		bool isRegular() const;
+		void setRegular(bool isRegular);
+
 		bool isHidden() const;
 		void setHidden(bool isHidden);
 
@@ -173,6 +176,7 @@ namespace midikraft {
 		std::string name_;
 		std::string sourceId_;
 		Favorite isFavorite_;
+		bool isRegular_;
 		bool isHidden_;
 		std::set<Category> categories_;
 		std::set<Category> userDecisions_;

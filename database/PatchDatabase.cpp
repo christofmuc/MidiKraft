@@ -487,7 +487,7 @@ namespace midikraft {
 				where += " AND sourceID = :SID";
 			}
 			if (!filter.name.empty()) {
-				where += " AND (name LIKE :NAM or comment LIKE :NAM or author LIKE :NAM or info LIKE :NAM)";
+				where += " AND (patches.name LIKE :NAM or patches.comment LIKE :NAM or patches.author LIKE :NAM or patches.info LIKE :NAM)";
 				if (needsCollate) {
 					where += " COLLATE NOCASE";
 				}

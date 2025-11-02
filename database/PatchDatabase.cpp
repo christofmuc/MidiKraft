@@ -509,57 +509,32 @@ namespace midikraft {
 				where += " AND type == :TYP";
 			}
 
-			auto hiddenFalse = std::string("(hidden is null or hidden != 1)");
-			auto hiddenTrue = std::string("(hidden == 1)");
-			auto favoriteTrue = std::string("(favorite == 1)");
-			auto favoriteNotTrue = std::string("(favorite != 1)");
-			auto regularTrue = std::string("(regular == 1)");
-			auto regularNotTrue = std::string("(regular is null or regular != 1)");
+			std::string hiddenFalse = "(hidden is null or hidden != 1)";
+			std::string hiddenTrue = "(hidden == 1)";
+			std::string favoriteTrue = "(favorite == 1)";
+			std::string favoriteFalse = "(favorite != 1)";
+			std::string regularTrue = "(regular == 1)";
+			std::string regularFalse = "(regular is null or regular != 1)";
+			std::string undecidedTrue = "(" + hiddenFalse + " AND " + favoriteFalse + " AND " + regularFalse + ")";
 
-			auto addRegularIfRequested = [&regularTrue](std::string const& clause, bool includeRegular) {
-				if (includeRegular) {
-					return std::string("(") + clause + " OR " + regularTrue + ")";
-				}
-				return clause;
-			};
-
-			if (filter.onlyFaves) {
-				if (filter.showHidden) {
-					if (!filter.showUndecided) {
-						auto clause = std::string("(") + hiddenTrue + " OR " + favoriteTrue + ")";
-						where += " AND " + addRegularIfRequested(clause, filter.showRegular);
-					}
-					// else: retrieve all, optional regular flag covered by not restricting
-				}
-				else {
-					if (filter.showUndecided) {
-						where += " AND " + addRegularIfRequested(hiddenFalse, filter.showRegular);
-					}
-					else {
-						auto clause = std::string("(") + favoriteTrue + " AND " + hiddenFalse + ")";
-						where += " AND " + addRegularIfRequested(clause, filter.showRegular);
-					}
-				}
-			}
+			std::string filterClause;
+			// The positive filters are ORed
+			filterClause += (filter.onlyFaves ? (filterClause.empty() ? "" : " OR ") + favoriteTrue : "");
+			filterClause += (filter.showHidden ? (filterClause.empty() ? "" : " OR ") + hiddenTrue: "");
+			filterClause += (filter.showRegular? (filterClause.empty() ? "" : " OR ") + regularTrue: "");
+			filterClause += (filter.showUndecided? (filterClause.empty() ? "" : " OR ") + undecidedTrue: "");
+			// The negative filters are ANDed
+			std::string andClause;
+			andClause += (!filter.onlyFaves ? (andClause.empty() ? "" : " AND ") + favoriteFalse : "");
+			andClause += (!filter.showHidden ? (andClause.empty() ? "" : " AND ") + hiddenFalse : "");
+			andClause += (!filter.showRegular ? (andClause.empty() ? "" : " AND ") + regularFalse : "");
+			if (filter.onlyFaves || filter.showHidden || filter.showRegular || filter.showUndecided) {
+				// At least one filter is active, insert our calculated clauses
+				where += (filterClause.empty() ? "" : " AND ") + filterClause + (andClause.empty() ? "" : " AND ") + andClause;
+			} 
 			else {
-				if (filter.showHidden) {
-					if (filter.showUndecided) {
-						auto clause = std::string("(") + favoriteNotTrue + " AND " + regularNotTrue + ")";
-						where += " AND " + addRegularIfRequested(clause, filter.showRegular);
-					}
-					else {
-						where += " AND " + addRegularIfRequested(hiddenTrue, filter.showRegular);
-					}
-				}
-				else {
-					if (filter.showUndecided) {
-						auto clause = std::string("(") + favoriteNotTrue + " AND " + hiddenFalse + " AND " + regularNotTrue + ")";
-						where += " AND " + addRegularIfRequested(clause, filter.showRegular);
-					}
-					else {
-						where += " AND " + addRegularIfRequested(hiddenFalse, filter.showRegular);
-					}
-				}
+				// Show all non hidden
+				where += " AND " + hiddenFalse;
 			}
 
 			if (filter.onlyUntagged) {

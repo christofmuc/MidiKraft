@@ -35,6 +35,7 @@ namespace midikraft {
 		: patch_(patch)
             , synth_(activeSynth)
             , isFavorite_(Favorite())
+            , isRegular_(false)
             , isHidden_(false)
             , bankNumber_(MidiBankNumber::invalid())
             , patchNumber_(MidiProgramNumber::invalidProgram())
@@ -48,7 +49,7 @@ namespace midikraft {
 		}
 	}
 
-	PatchHolder::PatchHolder() : isFavorite_(Favorite()), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())
+	PatchHolder::PatchHolder() : isFavorite_(Favorite()), isRegular_(false), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())
 	{
 	}
 
@@ -133,6 +134,16 @@ namespace midikraft {
 	void PatchHolder::setFavorite(Favorite fav)
 	{
 		isFavorite_ = fav;
+	}
+
+	bool PatchHolder::isRegular() const
+	{
+		return isRegular_;
+	}
+
+	void PatchHolder::setRegular(bool isRegular)
+	{
+		isRegular_ = isRegular;
 	}
 
 	void PatchHolder::setSourceInfo(std::shared_ptr<SourceInfo> newSourceInfo)

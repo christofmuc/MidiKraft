@@ -37,7 +37,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 15;
+	const int SCHEMA_VERSION = 16;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -54,6 +54,7 @@ namespace midikraft {
 	/* 13 - adding comment to the patch table */
 	/* 14 - adding author and source fields to the patch table */
 	/* 15 - adding sort order field to categories */
+	/* 16 - adding regular flag to patches */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -289,6 +290,14 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 15");
 				transaction.commit();
 			}
+			if (currentVersion < 16) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				db_.exec("ALTER TABLE patches ADD COLUMN regular INTEGER");
+				db_.exec("UPDATE patches SET regular = 0 WHERE regular IS NULL");
+				db_.exec("UPDATE schema_version SET number = 16");
+				transaction.commit();
+			}
 		}
 
 		void insertDefaultCategories() {
@@ -310,7 +319,7 @@ namespace midikraft {
 		}
 
 		void createPatchTable() {
-			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT NOT NULL, md5 TEXT NOT NULL, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
+			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT NOT NULL, md5 TEXT NOT NULL, name TEXT, type INTEGER, data BLOB, favorite INTEGER, regular INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
 				" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER, comment TEXT, author TEXT, info TEXT, PRIMARY KEY (synth, md5))");
 		}
 
@@ -397,8 +406,8 @@ namespace midikraft {
 
 		bool putPatch(PatchHolder const& patch, std::string const& sourceID) {
 			try {
-				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, hidden, sourceID, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision, comment, author, info)"
-					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :HID, :SID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD, :COM, :AUT, :INF)");
+				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, regular, hidden, sourceID, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision, comment, author, info)"
+					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :REG, :HID, :SID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD, :COM, :AUT, :INF)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", patch.synth()->getName().c_str());
@@ -407,7 +416,8 @@ namespace midikraft {
 				sql.bind(":TYP", patch.getType());
 				sql.bind(":DAT", patch.patch()->data().data(), (int)patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
-				sql.bind(":HID", patch.isHidden());
+				sql.bind(":REG", patch.isRegular() ? 1 : 0);
+				sql.bind(":HID", patch.isHidden() ? 1 : 0);
 				sql.bind(":SID", sourceID);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
@@ -499,56 +509,32 @@ namespace midikraft {
 				where += " AND type == :TYP";
 			}
 
-			// Show Hidden and Show Faves are special in that they can be combined
-			// and need explicit code for the 4 cases
-			if (filter.onlyFaves) {
-				if (filter.showHidden) {
-					if (filter.showUndecided) {
-						// No op, just retrieve all
-					}
-					else
-					{
-						// Don't show all
-						where += " AND (hidden == 1 OR favorite == 1)";
-					}
-				}
-				else
-				{
-					if (filter.showUndecided) {
-						// Everything that is not hidden
-						where += " AND (hidden is null or hidden != 1)";
-					}
-					else
-					{
-						// Only favorites that are not hidden
-						where += " AND (favorite == 1) AND (hidden is null or hidden != 1)";
-					}
-				}
-			}
+			std::string hiddenFalse = "(hidden is null or hidden != 1)";
+			std::string hiddenTrue = "(hidden == 1)";
+			std::string favoriteTrue = "(favorite == 1)";
+			std::string favoriteFalse = "(favorite != 1)";
+			std::string regularTrue = "(regular == 1)";
+			std::string regularFalse = "(regular is null or regular != 1)";
+			std::string undecidedTrue = "(" + hiddenFalse + " AND " + favoriteFalse + " AND " + regularFalse + ")";
+
+			std::string filterClause;
+			// The positive filters are ORed
+			filterClause += (filter.onlyFaves ? (filterClause.empty() ? "" : " OR ") + favoriteTrue : "");
+			filterClause += (filter.showHidden ? (filterClause.empty() ? "" : " OR ") + hiddenTrue: "");
+			filterClause += (filter.showRegular? (filterClause.empty() ? "" : " OR ") + regularTrue: "");
+			filterClause += (filter.showUndecided? (filterClause.empty() ? "" : " OR ") + undecidedTrue: "");
+			// The negative filters are ANDed
+			std::string andClause;
+			andClause += (!filter.onlyFaves ? (andClause.empty() ? "" : " AND ") + favoriteFalse : "");
+			andClause += (!filter.showHidden ? (andClause.empty() ? "" : " AND ") + hiddenFalse : "");
+			andClause += (!filter.showRegular ? (andClause.empty() ? "" : " AND ") + regularFalse : "");
+			if (filter.onlyFaves || filter.showHidden || filter.showRegular || filter.showUndecided) {
+				// At least one filter is active, insert our calculated clauses
+				where += (filterClause.empty() ? "" : " AND ") + filterClause + (andClause.empty() ? "" : " AND ") + andClause;
+			} 
 			else {
-				if (filter.showHidden) {
-					if (filter.showUndecided) {
-						// All that's not favorite
-						where += " AND (favorite != 1)";
-					}
-					else
-					{
-						// Only hidden
-						where += " AND (hidden == 1)";
-					}
-				}
-				else
-				{
-					if (filter.showUndecided) {
-						// Everything that is not hidden and not fave
-						where += " AND (favorite != 1) AND (hidden is null or hidden != 1)";
-					}
-					else
-					{
-						// All that is not hidden
-						where += " AND (hidden is null or hidden != 1)";
-					}
-				}
+				// Show all non hidden
+				where += " AND " + hiddenFalse;
 			}
 
 			if (filter.onlyUntagged) {
@@ -825,6 +811,10 @@ namespace midikraft {
 					if (typeColumn.isInteger()) {
 						holder.setType(typeColumn.getInt());
 					}*/
+					auto regularColumn = query.getColumn("regular");
+					if (!regularColumn.isNull()) {
+						holder.setRegular(regularColumn.getInt() == 1);
+					}
 					auto hiddenColumn = query.getColumn("hidden");
 					if (hiddenColumn.isInteger()) {
 						holder.setHidden(hiddenColumn.getInt() == 1);
@@ -1040,9 +1030,10 @@ namespace midikraft {
 				std::string updateClause;
 				if (updateChoices & UPDATE_CATEGORIES) updateClause = prependWithComma(updateClause, "categories = :CAT, categoryUserDecision = :CUD");
 				if (updateChoices & UPDATE_NAME) updateClause = prependWithComma(updateClause, "name = :NAM");
-				if (updateChoices & UPDATE_HIDDEN) updateClause = prependWithComma(updateClause, "hidden = :HID");
 				if (updateChoices & UPDATE_DATA) updateClause = prependWithComma(updateClause, "data = :DAT");
+				if (updateChoices & UPDATE_HIDDEN) updateClause = prependWithComma(updateClause, "hidden = :HID");
 				if (updateChoices & UPDATE_FAVORITE) updateClause = prependWithComma(updateClause, "favorite = :FAV");
+				if (updateChoices & UPDATE_REGULAR) updateClause = prependWithComma(updateClause, "regular = :REG");
 				if (updateChoices & UPDATE_COMMENT) updateClause = prependWithComma(updateClause, "comment = :COM");
 				if (updateChoices & UPDATE_AUTHOR) updateClause = prependWithComma(updateClause, "author = :AUT");
 				if (updateChoices & UPDATE_INFO) updateClause = prependWithComma(updateClause, "info = :INF");
@@ -1061,10 +1052,13 @@ namespace midikraft {
 						sql.bind(":DAT", newPatch.patch()->data().data(), (int)newPatch.patch()->data().size());
 					}
 					if (updateChoices & UPDATE_HIDDEN) {
-						sql.bind(":HID", newPatch.isHidden());
+						sql.bind(":HID", newPatch.isHidden() ? 1 : 0);
 					}
 					if (updateChoices & UPDATE_FAVORITE) {
 						sql.bind(":FAV", calculateMergedFavorite(newPatch, existingPatch));
+					}
+					if (updateChoices & UPDATE_REGULAR) {
+						sql.bind(":REG", newPatch.isRegular() ? 1 : 0);
 					}
 					if (updateChoices & UPDATE_COMMENT) {
 						std::string newComment = newPatch.comment();

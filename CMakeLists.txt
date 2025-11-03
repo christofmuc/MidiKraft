@@ -78,7 +78,7 @@ endif()
 if(NOT TARGET spdlog::spdlog)
     FetchContent_Declare(
         spdlog
-        URL https://github.com/gabime/spdlog/archive/refs/tags/v1.13.0.tar.gz
+        URL https://github.com/gabime/spdlog/archive/refs/tags/v1.16.0.tar.gz
     )
     FetchContent_MakeAvailable(spdlog)
 endif()
@@ -89,7 +89,7 @@ endif()
 if(NOT TARGET nlohmann_json::nlohmann_json)
     FetchContent_Declare(
         nlohmann_json
-        URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+        URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
     )
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
@@ -101,7 +101,7 @@ if(NOT TARGET juce::juce_core)
         set(JUCE_ENABLE_MODULE_SOURCE_GROUPS OFF CACHE BOOL "" FORCE)
         FetchContent_Declare(
             juce
-            URL https://github.com/juce-framework/JUCE/archive/refs/tags/8.0.6.zip
+            URL https://github.com/juce-framework/JUCE/archive/refs/tags/8.0.10.zip
         )
         FetchContent_MakeAvailable(juce)
     else()

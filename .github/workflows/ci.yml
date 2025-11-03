@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install latest CMake
-        uses: lukka/get-cmake@v3
+        uses: lukka/get-cmake@latest
 
       - name: Set default JUCE extra libs
         run: echo "JUCE_EXTRA_LIBS=" >> $GITHUB_ENV

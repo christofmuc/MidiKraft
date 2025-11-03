@@ -27,7 +27,7 @@ jobs:
       - name: Install CMake
         uses: lukka/get-cmake@latest
         with:
-          cmake-version: '3.28.3'
+          cmakeVersion: "~3.31.0"
 
       - name: Set default JUCE extra libs
         run: echo "JUCE_EXTRA_LIBS=" >> $GITHUB_ENV

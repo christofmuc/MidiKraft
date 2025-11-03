@@ -7,36 +7,57 @@
 #include "JsonSerialization.h"
 
 #include "JsonSchema.h"
-#include "RapidjsonHelper.h"
 #include "Synth.h"
 
 #include <boost/format.hpp>
 #include <boost/beast/core/detail/base64.hpp>
+#include <nlohmann/json.hpp>
 
 namespace midikraft {
+	namespace {
+		using nlohmann::json;
 
-	bool getStringIfSet(rapidjson::Value &dbresult, const char *key, std::string &outString) {
-		if (dbresult.HasMember(key) && dbresult[key].IsString()) {
-			outString = dbresult[key].GetString();
-			return true;
+		bool getStringIfSet(json const& dbresult, char const* key, std::string& outString)
+		{
+			auto it = dbresult.find(key);
+			if (it != dbresult.end() && it->is_string()) {
+				outString = it->get<std::string>();
+				return true;
+			}
+			return false;
 		}
-		return false;
-	}
 
-	bool getBufferIfSet(rapidjson::Value &dbresult, const char *key, std::vector<uint8> &outBuffer) {
-		if (dbresult.HasMember(key)) {
-			outBuffer = JsonSerialization::stringToData(dbresult[key].GetString());
-			return true;
+		bool getBufferIfSet(json const& dbresult, char const* key, std::vector<uint8>& outBuffer)
+		{
+			auto it = dbresult.find(key);
+			if (it != dbresult.end() && it->is_string()) {
+				outBuffer = JsonSerialization::stringToData(it->get<std::string>());
+				return true;
+			}
+			return false;
 		}
-		return false;
-	}
 
-	bool getNumberIfSet(rapidjson::Value &dbresult, const char *key, int &out) {
-		if (dbresult.HasMember(key) && dbresult.IsInt()) {
-			out = dbresult[key].GetInt();
-			return true;
+		bool getNumberIfSet(json const& dbresult, char const* key, int& out)
+		{
+			auto it = dbresult.find(key);
+			if (it == dbresult.end()) {
+				return false;
+			}
+			if (it->is_number_integer()) {
+				out = it->get<int>();
+				return true;
+			}
+			if (it->is_string()) {
+				try {
+					out = std::stoi(it->get<std::string>());
+					return true;
+				}
+				catch (...) {
+					return false;
+				}
+			}
+			return false;
 		}
-		return false;
 	}
 
 	std::string JsonSerialization::dataToString(std::vector<uint8> const &data) {
@@ -67,21 +88,19 @@ namespace midikraft {
 			return "";
 		}
 
-		rapidjson::Document doc;
-		doc.SetObject();
-		addToJson(JsonSchema::kSynth, synth->getName(), doc, doc);
-		addToJson(JsonSchema::kName, patchholder->patch()->patchName(), doc, doc);
-		addToJson(JsonSchema::kSysex, dataToString(patchholder->patch()->data()), doc, doc);
-		auto realPatch = std::dynamic_pointer_cast<Patch>(patchholder->patch());
-		if (realPatch) {
+		nlohmann::json doc = nlohmann::json::object();
+		doc[JsonSchema::kSynth] = synth->getName();
+		doc[JsonSchema::kName] = patchholder->patch()->patchName();
+		doc[JsonSchema::kSysex] = dataToString(patchholder->patch()->data());
+		if (auto realPatch = std::dynamic_pointer_cast<Patch>(patchholder->patch())) {
 			std::string numberAsString = (boost::format("%d") % realPatch->patchNumber()->midiProgramNumber().toZeroBased()).str();
-			addToJson(JsonSchema::kPlace, numberAsString, doc, doc);
+			doc[JsonSchema::kPlace] = numberAsString;
 		}
-		addToJson(JsonSchema::kMD5, patchholder->md5(), doc, doc);
-		return renderToJson(doc);
+		doc[JsonSchema::kMD5] = patchholder->md5();
+		return doc.dump();
 	}
 
-	bool JsonSerialization::jsonToPatch(Synth *activeSynth, rapidjson::Value &patchDoc, PatchHolder &outPatchHolder, std::shared_ptr<AutomaticCategorizer> categorizer) {
+	bool JsonSerialization::jsonToPatch(Synth *activeSynth, nlohmann::json const &patchDoc, PatchHolder &outPatchHolder, std::shared_ptr<AutomaticCategorizer> categorizer) {
 		// Build the patch via the synth from the sysex data...
 		std::string name;
 		Synth::PatchData data;

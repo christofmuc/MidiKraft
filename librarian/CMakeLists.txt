@@ -62,8 +62,6 @@ target_include_directories(
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_BINARY_DIR}
-    PRIVATE
-        ${MANUALLY_RAPID_JSON}
 )
 
 target_link_libraries(

@@ -9,6 +9,9 @@
 #include "PatchHolder.h"
 #include "AutomaticCategory.h"
 
+#include <memory>
+#include <nlohmann/json_fwd.hpp>
+
 namespace midikraft {
 
 	class Synth;
@@ -17,6 +20,8 @@ namespace midikraft {
 	public:
 		static std::string dataToString(std::vector<uint8> const &data);
 		static std::vector<uint8> stringToData(std::string const string);
+		static std::string patchToJson(Synth *synth, PatchHolder *patchholder);
+		static bool jsonToPatch(Synth *activeSynth, nlohmann::json const &patchDoc, PatchHolder &outPatchHolder, std::shared_ptr<AutomaticCategorizer> categorizer);
 	};
 
 }

@@ -25,7 +25,6 @@ target_include_directories(
         ${CMAKE_CURRENT_LIST_DIR}
     PRIVATE
         ${JUCE_INCLUDES}
-        ${MANUALLY_RAPID_JSON}
         ${SQLITE_CPP_INCLUDE}
 )
 

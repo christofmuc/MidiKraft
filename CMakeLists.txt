@@ -212,6 +212,11 @@ endif()
 
 if(TARGET juce-utils)
     target_compile_definitions(juce-utils PUBLIC _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
+
+    if(MSVC)
+        # juce-utils currently relies on deprecated JUCE APIs on Windows; silence the warning until upstream updates
+        target_compile_options(juce-utils PRIVATE /wd4996)
+    endif()
 endif()
 
 add_subdirectory(base)

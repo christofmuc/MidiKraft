@@ -24,10 +24,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install latest CMake
-        uses: lukka/get-cmake@latest
+      - name: Install CMake
+        uses: actions/setup-cmake@v3
         with:
-          cmakeVersion: "~3.31.0"
+          cmake-version: '3.28.3'
 
       - name: Set default JUCE extra libs
         run: echo "JUCE_EXTRA_LIBS=" >> $GITHUB_ENV
@@ -37,7 +37,26 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev pkg-config libtbb-dev libasound2-dev libboost-dev libgtk-3-dev libwebkit2gtk-4.1-dev libglew-dev libjack-dev libicu-dev ninja-build
+          sudo apt-get install -y \
+            build-essential \
+            ninja-build \
+            pkg-config \
+            libcurl4-openssl-dev \
+            libasound2-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libglew-dev \
+            libjack-dev \
+            libicu-dev \
+            libfreetype6-dev \
+            libfontconfig1-dev \
+            libx11-dev \
+            libxext-dev \
+            libxcursor-dev \
+            libxinerama-dev \
+            libxi-dev \
+            libxrandr-dev \
+            libxtst-dev
           echo "JUCE_EXTRA_LIBS=-DMIDIKRAFT_JUCE_EXTRA_LINK_LIBRARIES=pthread;dl;X11;Xext;Xrandr;Xi;Xcursor;Xinerama;Xtst;GL;freetype;fontconfig;asound" >> $GITHUB_ENV
         shell: bash
 

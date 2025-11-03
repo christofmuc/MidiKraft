@@ -5,7 +5,7 @@ if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
 
-project(MidiKraft VERSION 0.1 LANGUAGES CXX)
+project(MidiKraft VERSION 0.1 LANGUAGES C CXX)
 
 option(MIDIKRAFT_BUILD_LIBRARIAN "Build the optional librarian module" OFF)
 include(CMakeDependentOption)

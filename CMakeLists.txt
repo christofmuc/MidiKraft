@@ -18,6 +18,9 @@ cmake_dependent_option(
 )
 option(MIDIKRAFT_BUILD_TESTS "Enable building the doctest-based unit tests" OFF)
 option(MIDIKRAFT_WARNINGS_AS_ERRORS "Treat all compiler warnings as errors" OFF)
+option(MIDIKRAFT_FETCH_JUCE "Automatically fetch JUCE if not provided by the parent project" ON)
+option(MIDIKRAFT_FETCH_JUCE_UTILS "Automatically fetch juce-utils if not provided by the parent project" ON)
+set(MIDIKRAFT_JUCE_EXTRA_LINK_LIBRARIES "" CACHE STRING "Additional platform libraries required for juce-static (e.g. pulseaudio, X11)")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -26,17 +29,37 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
 
+set(MIDIKRAFT_JUCE_MODULES
+    juce_audio_basics
+    juce_audio_devices
+    juce_audio_formats
+    juce_audio_processors
+    juce_audio_utils
+    juce_core
+    juce_javascript
+    juce_cryptography
+    juce_data_structures
+    juce_dsp
+    juce_events
+    juce_graphics
+    juce_gui_basics
+    juce_gui_extra
+    juce_opengl
+    juce_video
+)
+
 function(midikraft_enable_warnings target)
-    if(MSVC)
-        target_compile_options(${target} PRIVATE /W4)
-        if(MIDIKRAFT_WARNINGS_AS_ERRORS)
-            target_compile_options(${target} PRIVATE /WX)
-        endif()
-    else()
-        set(local_warnings -Wall -Wextra -Wpedantic -Wno-deprecated-declarations)
-        if(MIDIKRAFT_WARNINGS_AS_ERRORS)
-            list(APPEND local_warnings -Werror)
-        endif()
+if(MSVC)
+    target_compile_options(${target} PRIVATE /W4)
+    if(MIDIKRAFT_WARNINGS_AS_ERRORS)
+        target_compile_options(${target} PRIVATE /WX)
+    endif()
+    target_compile_definitions(${target} PRIVATE _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
+else()
+    set(local_warnings -Wall -Wextra -Wpedantic -Wno-deprecated-declarations)
+    if(MIDIKRAFT_WARNINGS_AS_ERRORS)
+        list(APPEND local_warnings -Werror)
+    endif()
         target_compile_options(${target} PRIVATE ${local_warnings})
     endif()
 endfunction()
@@ -71,6 +94,126 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
+if(NOT TARGET juce::juce_core)
+    if(MIDIKRAFT_FETCH_JUCE)
+        set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+        set(JUCE_BUILD_EXTRAS OFF CACHE BOOL "" FORCE)
+        set(JUCE_ENABLE_MODULE_SOURCE_GROUPS OFF CACHE BOOL "" FORCE)
+        FetchContent_Declare(
+            juce
+            URL https://github.com/juce-framework/JUCE/archive/refs/tags/8.0.6.zip
+        )
+        FetchContent_MakeAvailable(juce)
+    else()
+        message(FATAL_ERROR "JUCE modules not found. Provide targets juce::juce_core, etc., or enable MIDIKRAFT_FETCH_JUCE.")
+    endif()
+endif()
+
+set(_midikraft_juce_module_targets "")
+foreach(module IN LISTS MIDIKRAFT_JUCE_MODULES)
+    if(TARGET juce::${module})
+        list(APPEND _midikraft_juce_module_targets juce::${module})
+    elseif(DEFINED juce_SOURCE_DIR)
+        juce_add_module(${juce_SOURCE_DIR}/modules/${module})
+        if(TARGET juce::${module})
+            list(APPEND _midikraft_juce_module_targets juce::${module})
+        endif()
+    endif()
+endforeach()
+
+if(NOT DEFINED JUCE_INCLUDES AND TARGET juce::juce_core)
+    get_target_property(_juce_core_includes juce::juce_core INTERFACE_INCLUDE_DIRECTORIES)
+    if(_juce_core_includes)
+        list(GET _juce_core_includes 0 _juce_first_include)
+        set(JUCE_INCLUDES ${_juce_first_include} CACHE PATH "JUCE module include directory")
+    endif()
+endif()
+
+if(NOT DEFINED JUCE_INCLUDES AND DEFINED juce_SOURCE_DIR)
+    set(JUCE_INCLUDES ${juce_SOURCE_DIR}/modules CACHE PATH "JUCE module include directory")
+endif()
+
+if(NOT TARGET juce-static AND _midikraft_juce_module_targets)
+    add_library(juce-static STATIC)
+    target_link_libraries(
+        juce-static
+        PRIVATE
+            ${_midikraft_juce_module_targets}
+            ${MIDIKRAFT_JUCE_EXTRA_LINK_LIBRARIES}
+        PUBLIC
+            juce::juce_recommended_config_flags
+            juce::juce_recommended_lto_flags
+    )
+    target_compile_definitions(
+        juce-static
+        PUBLIC
+            JUCE_STANDALONE_APPLICATION=1
+            JUCE_MODAL_LOOPS_PERMITTED=1
+            JUCE_USE_NATIVE_FILECHOOSERS=1
+            JUCE_PLUGINHOST_VST=0
+            JUCE_PLUGINHOST_AU=0
+            DONT_SET_USING_JUCE_NAMESPACE=1
+            JUCE_REPORT_APP_USAGE=0
+            JUCE_CHECK_MEMORY_LEAKS=0
+            JUCE_QUICKTIME=0
+            JUCE_USE_DIRECTWRITE=1
+            JUCE_CATCH_UNHANDLED_EXCEPTIONS=0
+            JUCE_COREGRAPHICS_DRAW_ASYNC=1
+            JUCE_WIN_PER_MONITOR_DPI_AWARE=1
+            JUCE_USE_FLAC=1
+            JUCE_WEB_BROWSER=0
+            JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
+            JUCE_MODULE_AVAILABLE_juce_audio_basics=1
+            JUCE_MODULE_AVAILABLE_juce_audio_devices=1
+            JUCE_MODULE_AVAILABLE_juce_audio_formats=1
+            JUCE_MODULE_AVAILABLE_juce_audio_processors=1
+            JUCE_MODULE_AVAILABLE_juce_audio_utils=1
+            JUCE_MODULE_AVAILABLE_juce_core=1
+            JUCE_MODULE_AVAILABLE_juce_javascript=1
+            JUCE_MODULE_AVAILABLE_juce_cryptography=1
+            JUCE_MODULE_AVAILABLE_juce_data_structures=1
+            JUCE_MODULE_AVAILABLE_juce_dsp=1
+            JUCE_MODULE_AVAILABLE_juce_events=1
+            JUCE_MODULE_AVAILABLE_juce_graphics=1
+            JUCE_MODULE_AVAILABLE_juce_gui_basics=1
+            JUCE_MODULE_AVAILABLE_juce_gui_extra=1
+            JUCE_MODULE_AVAILABLE_juce_opengl=1
+            JUCE_MODULE_AVAILABLE_juce_video=1
+    )
+    if(DEFINED JUCE_INCLUDES)
+        target_include_directories(
+            juce-static
+            PUBLIC
+                ${JUCE_INCLUDES}
+        )
+    endif()
+    set_target_properties(
+        juce-static
+        PROPERTIES
+            POSITION_INDEPENDENT_CODE TRUE
+            VISIBILITY_INLINES_HIDDEN TRUE
+            C_VISIBILITY_PRESET hidden
+            CXX_VISIBILITY_PRESET hidden
+    )
+endif()
+
+if(NOT TARGET juce-utils)
+    if(MIDIKRAFT_FETCH_JUCE_UTILS)
+        FetchContent_Declare(
+            juce_utils
+            GIT_REPOSITORY https://github.com/christofmuc/juce-utils.git
+            GIT_TAG master
+        )
+        FetchContent_MakeAvailable(juce_utils)
+    else()
+        message(FATAL_ERROR "juce-utils target not found. Provide it or enable MIDIKRAFT_FETCH_JUCE_UTILS.")
+    endif()
+endif()
+
+if(TARGET juce-utils)
+    target_compile_definitions(juce-utils PUBLIC _SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
+endif()
+
 add_subdirectory(base)
 
 if(MIDIKRAFT_BUILD_LIBRARIAN)
@@ -91,4 +234,3 @@ if(MIDIKRAFT_BUILD_TESTS)
     list(APPEND CMAKE_MODULE_PATH "${doctest_SOURCE_DIR}/scripts/cmake")
     add_subdirectory(tests)
 endif()
-

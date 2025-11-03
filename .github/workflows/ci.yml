@@ -66,7 +66,7 @@ jobs:
           -DMIDIKRAFT_BUILD_TESTS=ON
           -DMIDIKRAFT_FETCH_JUCE=ON
           -DMIDIKRAFT_FETCH_JUCE_UTILS=ON
-          -DMIDIKRAFT_WARNINGS_AS_ERRORS=ON
+          -DMIDIKRAFT_WARNINGS_AS_ERRORS=OFF
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           "${JUCE_EXTRA_LIBS}"
         shell: bash

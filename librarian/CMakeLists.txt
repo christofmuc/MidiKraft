@@ -4,57 +4,77 @@
 #  Dual licensed: Distributed under Affero GPL license by default, an MIT license is available for purchase
 #
 
-cmake_minimum_required(VERSION 3.14)
-
-project(MidiKraft-librarian)
-
-set(RESOURCE_FILES 
-	"resources/automatic_categories.jsonc" "resources/mapping_categories.jsonc"
+set(LIBRARIAN_RESOURCE_FILES
+    resources/automatic_categories.jsonc
+    resources/mapping_categories.jsonc
 )
 
-add_custom_command(OUTPUT ${CMAKE_CURRENT_LIST_DIR}/BinaryResources.h
-	COMMAND ${CMAKE_COMMAND} -P createResources.cmake	
-	DEPENDS ${RESOURCE_FILES}
-	COMMENT "Compiling binary resources"
-	WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+set(LIBRARIAN_GENERATED_HEADER "${CMAKE_CURRENT_BINARY_DIR}/BinaryResources.h")
+
+add_custom_command(
+    OUTPUT ${LIBRARIAN_GENERATED_HEADER}
+    COMMAND
+        ${CMAKE_COMMAND}
+        -Dresource_dir=${CMAKE_CURRENT_SOURCE_DIR}/resources
+        -Doutput=${LIBRARIAN_GENERATED_HEADER}
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/createResources.cmake
+    DEPENDS
+        ${LIBRARIAN_RESOURCE_FILES}
+        ${CMAKE_CURRENT_SOURCE_DIR}/createResources.cmake
+    COMMENT "Compiling binary resources"
+    VERBATIM
 )
 
-# Define the sources for the static library
-set(Sources
-	AutomaticCategory.cpp AutomaticCategory.h
-	BinaryResources.h
-	Category.cpp Category.h
-	JsonSchema.cpp JsonSchema.h
-	JsonSerialization.cpp JsonSerialization.h
-	Librarian.cpp Librarian.h
-	PatchHolder.cpp PatchHolder.h
-	PatchInterchangeFormat.cpp PatchInterchangeFormat.h
-	PatchList.cpp PatchList.h
-	SynthBank.cpp SynthBank.h
-	SynthHolder.cpp SynthHolder.h
-	${RESOURCE_FILES}
+add_library(midikraft-librarian STATIC)
+
+target_sources(
+    midikraft-librarian
+    PRIVATE
+        AutomaticCategory.cpp
+        AutomaticCategory.h
+        Category.cpp
+        Category.h
+        JsonSchema.cpp
+        JsonSchema.h
+        JsonSerialization.cpp
+        JsonSerialization.h
+        Librarian.cpp
+        Librarian.h
+        PatchHolder.cpp
+        PatchHolder.h
+        PatchInterchangeFormat.cpp
+        PatchInterchangeFormat.h
+        PatchList.cpp
+        PatchList.h
+        SynthBank.cpp
+        SynthBank.h
+        SynthHolder.cpp
+        SynthHolder.h
+        ${LIBRARIAN_RESOURCE_FILES}
+        ${LIBRARIAN_GENERATED_HEADER}
 )
 
-set_source_files_properties(
-	BinaryResources.h
-	PROPERTIES GENERATED TRUE
+set_source_files_properties(${LIBRARIAN_GENERATED_HEADER} PROPERTIES GENERATED TRUE HEADER_FILE_ONLY TRUE)
+set_source_files_properties(${LIBRARIAN_RESOURCE_FILES} PROPERTIES HEADER_FILE_ONLY TRUE)
+
+target_include_directories(
+    midikraft-librarian
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_BINARY_DIR}
+    PRIVATE
+        ${MANUALLY_RAPID_JSON}
 )
 
-# Setup library
-add_library(midikraft-librarian ${Sources})
-target_include_directories(midikraft-librarian PUBLIC ${CMAKE_CURRENT_LIST_DIR} PRIVATE ${MANUALLY_RAPID_JSON})
-target_link_libraries(midikraft-librarian juce-utils midikraft-base nlohmann_json::nlohmann_json fmt::fmt spdlog::spdlog)
+target_link_libraries(
+    midikraft-librarian
+    PUBLIC
+        juce-utils
+        midikraft-base
+        nlohmann_json::nlohmann_json
+    PRIVATE
+        fmt::fmt
+        spdlog::spdlog
+)
 
-# Pedantic about warnings
-if (MSVC)
-    # warning level 4 and all warnings as errors
-    target_compile_options(midikraft-librarian PRIVATE /W4 /WX)
-else()
-	if(UNIX AND NOT APPLE)
-		# lots of warnings and all warnings as errors
-		target_compile_options(midikraft-librarian PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unknown-pragmas -Wno-implicit-fallthrough)
-	else()
-		# lots of warnings and all warnings as errors
-		target_compile_options(midikraft-librarian PRIVATE -Wall -Wextra -pedantic -Werror -Wno-unknown-pragmas)
-	endif()
-endif()
+midikraft_enable_warnings(midikraft-librarian)

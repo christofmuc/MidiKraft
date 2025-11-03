@@ -37,8 +37,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            libcurl4-openssl-dev pkg-config libtbb-dev libasound2-dev libboost-dev libgtk-3-dev libwebkit2gtk-4.1-dev libglew-dev libjack-dev libicu-dev ninja-build 
+          sudo apt-get install -y libcurl4-openssl-dev pkg-config libtbb-dev libasound2-dev libboost-dev libgtk-3-dev libwebkit2gtk-4.1-dev libglew-dev libjack-dev libicu-dev ninja-build
           echo "JUCE_EXTRA_LIBS=-DMIDIKRAFT_JUCE_EXTRA_LINK_LIBRARIES=pthread;dl;X11;Xext;Xrandr;Xi;Xcursor;Xinerama;Xtst;GL;freetype;fontconfig;asound" >> $GITHUB_ENV
         shell: bash
 

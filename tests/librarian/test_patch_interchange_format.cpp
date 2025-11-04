@@ -36,7 +36,10 @@ TEST_CASE("PatchInterchangeFormat::save writes rich patch metadata to JSON")
 	auto synth = midikraft::test::makeTestSynth("TestSynth");
 	auto data = midikraft::test::defaultSysexData();
 	auto patchData = std::make_shared<midikraft::DataFile>(midikraft::test::TestSynth::kDataType, data);
-	auto sourceInfo = std::make_shared<midikraft::FromFileSource>("input.syx", "/tmp/input.syx", MidiProgramNumber::fromZeroBase(4));
+	auto syxPath = createTempPath(".syx");
+	auto syxFileName = syxPath.filename().string();
+	auto syxFullPath = syxPath.string();
+	auto sourceInfo = std::make_shared<midikraft::FromFileSource>(syxFileName, syxFullPath, MidiProgramNumber::fromZeroBase(4));
 
 	auto categories = midikraft::test::makeCategoryMap();
 
@@ -93,8 +96,8 @@ TEST_CASE("PatchInterchangeFormat::save writes rich patch metadata to JSON")
 
 	REQUIRE(entry["SourceInfo"].is_object());
 	CHECK(entry["SourceInfo"]["filesource"] == true);
-	CHECK(entry["SourceInfo"]["filename"] == "input.syx");
-	CHECK(entry["SourceInfo"]["fullpath"] == "/tmp/input.syx");
+	CHECK(entry["SourceInfo"]["filename"] == syxFileName);
+	CHECK(entry["SourceInfo"]["fullpath"] == syxFullPath);
 }
 
 TEST_CASE("PatchInterchangeFormat::load rebuilds patches, metadata, and categories")
@@ -103,7 +106,10 @@ TEST_CASE("PatchInterchangeFormat::load rebuilds patches, metadata, and categori
 	auto categories = midikraft::test::makeCategoryMap();
 	auto detector = std::make_shared<midikraft::AutomaticCategory>(midikraft::test::categoryVector(categories));
 	auto sysexData = midikraft::test::defaultSysexData();
-	auto sourceInfo = std::make_shared<midikraft::FromFileSource>("library.syx", "/tmp/library.syx", MidiProgramNumber::fromZeroBase(12));
+	auto librarySyxPath = createTempPath(".syx");
+	auto librarySyxFileName = librarySyxPath.filename().string();
+	auto librarySyxFullPath = librarySyxPath.string();
+	auto sourceInfo = std::make_shared<midikraft::FromFileSource>(librarySyxFileName, librarySyxFullPath, MidiProgramNumber::fromZeroBase(12));
 
 	nlohmann::json header = {
 		{ "FileFormat", "PatchInterchangeFormat" },
@@ -184,8 +190,8 @@ TEST_CASE("PatchInterchangeFormat::load rebuilds patches, metadata, and categori
 
 	auto info = std::dynamic_pointer_cast<midikraft::FromFileSource>(first.sourceInfo());
 	REQUIRE(info);
-	CHECK(info->filename() == "library.syx");
-	CHECK(info->fullpath() == "/tmp/library.syx");
+	CHECK(info->filename() == librarySyxFileName);
+	CHECK(info->fullpath() == librarySyxFullPath);
 	CHECK(info->programNumber().toZeroBasedDiscardingBank() == 12);
 
 	auto firstData = first.patch()->data();

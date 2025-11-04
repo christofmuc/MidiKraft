@@ -8,9 +8,8 @@
 #include "Category.h"
 #include "PatchHolder.h"
 #include "JsonSerialization.h"
-#include "HasBanksCapability.h"
-#include "SynthBank.h"
 #include "MidiProgramNumber.h"
+#include "TestSynthFixtures.h"
 
 #include <nlohmann/json.hpp>
 
@@ -24,120 +23,22 @@
 
 namespace {
 
-using midikraft::Category;
-using midikraft::CategoryDefinition;
-
-class TestSynth : public midikraft::Synth, public midikraft::HasBanksCapability {
-public:
-	static constexpr int kDataType = 99;
-
-	explicit TestSynth(std::string name, int bankCount = 4, int bankSize = 32)
-		: name_(std::move(name)), bankCount_(bankCount), bankSize_(bankSize) {}
-
-	std::string getName() const override {
-		return name_;
-	}
-
-	std::shared_ptr<midikraft::DataFile> patchFromPatchData(const Synth::PatchData &data, MidiProgramNumber) const override {
-		return std::make_shared<midikraft::DataFile>(kDataType, data);
-	}
-
-	bool isOwnSysex(juce::MidiMessage const &message) const override {
-		return message.isSysEx();
-	}
-
-	midikraft::TPatchVector loadSysex(std::vector<juce::MidiMessage> const &sysexMessages) override {
-		midikraft::TPatchVector patches;
-		for (auto const &msg : sysexMessages) {
-			auto const *raw = msg.getRawData();
-			auto size = msg.getRawDataSize();
-			Synth::PatchData data(raw, raw + size);
-			patches.push_back(std::make_shared<midikraft::DataFile>(kDataType, data));
-		}
-		return patches;
-	}
-
-	std::vector<juce::MidiMessage> dataFileToSysex(std::shared_ptr<midikraft::DataFile> dataFile, std::shared_ptr<midikraft::SendTarget>) override {
-		auto payload = dataFile->data();
-		if (!payload.empty() && payload.front() == 0xf0) {
-			payload.erase(payload.begin());
-		}
-		if (!payload.empty() && payload.back() == 0xf7) {
-			payload.pop_back();
-		}
-		return { juce::MidiMessage::createSysExMessage(payload.data(), static_cast<int>(payload.size())) };
-	}
-
-	// HasBanksCapability
-	int numberOfBanks() const override { return bankCount_; }
-	int numberOfPatches() const override { return bankSize_; }
-	std::string friendlyBankName(MidiBankNumber bankNo) const override {
-		if (bankNo.isValid()) {
-			return "Bank " + std::to_string(bankNo.toOneBased());
-		}
-		return "Bank ?";
-	}
-	std::vector<juce::MidiMessage> bankSelectMessages(MidiBankNumber) const override {
-		return {};
-	}
-
-private:
-	std::string name_;
-	int bankCount_;
-	int bankSize_;
-};
-
 std::filesystem::path createTempPath(std::string const &suffix) {
 	auto base = std::filesystem::temp_directory_path();
 	auto filename = "midikraft_pif_" + juce::Uuid().toString().toStdString() + suffix;
 	return base / filename;
 }
 
-std::vector<uint8> testSysexData() {
-	return { 0xf0, 0x7d, 0x01, 0x02, 0x03, 0xf7 };
-}
-
-using CategoryMap = std::map<std::string, Category>;
-
-CategoryMap makeCategoryMap() {
-	const std::vector<std::string> names = {
-		"Lead", "Pad", "Brass", "Organ", "Keys", "Bass", "Arp", "Pluck",
-		"Drone", "Drum", "Bell", "SFX", "Ambient", "Wind", "Voice"
-	};
-	CategoryMap result;
-	int id = 1;
-	for (auto const &name : names) {
-		auto def = std::make_shared<CategoryDefinition>();
-		def->id = id;
-		def->isActive = true;
-		def->name = name;
-		def->color = juce::Colour::fromRGB(static_cast<uint8>((id * 41) % 255), static_cast<uint8>((id * 59) % 255), static_cast<uint8>((id * 83) % 255));
-		def->sort_order = id;
-		result.emplace(name, Category(def));
-		++id;
-	}
-	return result;
-}
-
-std::vector<Category> categoryVector(CategoryMap const &map) {
-	std::vector<Category> categories;
-	categories.reserve(map.size());
-	for (auto const &entry : map) {
-		categories.push_back(entry.second);
-	}
-	return categories;
-}
-
 } // namespace
 
 TEST_CASE("PatchInterchangeFormat::save writes rich patch metadata to JSON")
 {
-	auto synth = std::make_shared<TestSynth>("TestSynth");
-	auto data = testSysexData();
-	auto patchData = std::make_shared<midikraft::DataFile>(TestSynth::kDataType, data);
+	auto synth = midikraft::test::makeTestSynth("TestSynth");
+	auto data = midikraft::test::defaultSysexData();
+	auto patchData = std::make_shared<midikraft::DataFile>(midikraft::test::TestSynth::kDataType, data);
 	auto sourceInfo = std::make_shared<midikraft::FromFileSource>("input.syx", "/tmp/input.syx", MidiProgramNumber::fromZeroBase(4));
 
-	auto categories = makeCategoryMap();
+	auto categories = midikraft::test::makeCategoryMap();
 
 	midikraft::PatchHolder holder(synth, sourceInfo, patchData);
 	holder.setName("Bright Pad");
@@ -198,10 +99,10 @@ TEST_CASE("PatchInterchangeFormat::save writes rich patch metadata to JSON")
 
 TEST_CASE("PatchInterchangeFormat::load rebuilds patches, metadata, and categories")
 {
-	auto synth = std::make_shared<TestSynth>("TestSynth");
-	auto categories = makeCategoryMap();
-	auto detector = std::make_shared<midikraft::AutomaticCategory>(categoryVector(categories));
-	auto sysexData = testSysexData();
+	auto synth = midikraft::test::makeTestSynth("TestSynth");
+	auto categories = midikraft::test::makeCategoryMap();
+	auto detector = std::make_shared<midikraft::AutomaticCategory>(midikraft::test::categoryVector(categories));
+	auto sysexData = midikraft::test::defaultSysexData();
 	auto sourceInfo = std::make_shared<midikraft::FromFileSource>("library.syx", "/tmp/library.syx", MidiProgramNumber::fromZeroBase(12));
 
 	nlohmann::json header = {
@@ -302,9 +203,9 @@ TEST_CASE("PatchInterchangeFormat::load rebuilds patches, metadata, and categori
 
 TEST_CASE("PatchInterchangeFormat::load rejects invalid headers and data")
 {
-	auto synth = std::make_shared<TestSynth>("TestSynth");
-	auto detector = std::make_shared<midikraft::AutomaticCategory>(categoryVector(makeCategoryMap()));
-	auto sysexData = testSysexData();
+	auto synth = midikraft::test::makeTestSynth("TestSynth");
+	auto detector = std::make_shared<midikraft::AutomaticCategory>(midikraft::test::categoryVector(midikraft::test::makeCategoryMap()));
+	auto sysexData = midikraft::test::defaultSysexData();
 
 	// Invalid header
 	{

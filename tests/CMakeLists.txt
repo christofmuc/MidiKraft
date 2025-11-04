@@ -14,6 +14,8 @@ add_test(NAME midikraft-base-tests COMMAND midikraft-base-tests)
 add_executable(
     midikraft-librarian-tests
     librarian/test_patch_interchange_format.cpp
+    librarian/test_patch_list.cpp
+    librarian/test_synth_bank.cpp
 )
 
 target_link_libraries(

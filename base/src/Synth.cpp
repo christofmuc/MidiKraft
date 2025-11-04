@@ -43,7 +43,7 @@ namespace midikraft {
 				return numMessages;
 			}
 			else {
-				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("{} environment variable is set, but cannot extract integer from value '{}', ignoring it!", env_name, userValue));
+				SimpleLogger::instance()->postMessageOncePerRun(fmt::format("{} environment variable is set, but cannot extract integer from value '{}', ignoring it!", env_name, userValue.toStdString()));
 			}
 		}
 		return {};

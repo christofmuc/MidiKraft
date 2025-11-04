@@ -4,8 +4,6 @@
 #  Dual licensed: Distributed under Affero GPL license by default, an MIT license is available for purchase
 #
 
-set(SQLITE_CPP_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/../../third_party/SQLiteCpp/include")
-
 add_library(midikraft-database STATIC)
 
 target_sources(
@@ -25,7 +23,6 @@ target_include_directories(
         ${CMAKE_CURRENT_LIST_DIR}
     PRIVATE
         ${JUCE_INCLUDES}
-        ${SQLITE_CPP_INCLUDE}
 )
 
 target_link_libraries(
@@ -35,6 +32,7 @@ target_link_libraries(
         midikraft-librarian
     PRIVATE
         spdlog::spdlog
+        SQLiteCpp
 )
 
 midikraft_enable_warnings(midikraft-database)

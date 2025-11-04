@@ -95,6 +95,21 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
+if(NOT TARGET SQLiteCpp)
+    find_package(SQLiteCpp CONFIG QUIET)
+endif()
+if(NOT TARGET SQLiteCpp)
+    FetchContent_Declare(
+        SQLiteCpp
+        GIT_REPOSITORY https://github.com/SRombauts/SQLiteCpp.git
+        GIT_TAG 3.3.2
+    )
+    set(SQLITECPP_RUN_CPPLINT OFF CACHE BOOL "" FORCE)
+    set(SQLITECPP_RUN_CPPCHECK OFF CACHE BOOL "" FORCE)
+    set(SQLITECPP_USE_DEBUG_ASSERT OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(SQLiteCpp)
+endif()
+
 if(NOT TARGET juce::juce_core)
     if(MIDIKRAFT_FETCH_JUCE)
         set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)

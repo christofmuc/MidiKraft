@@ -72,6 +72,7 @@ if(NOT TARGET fmt::fmt)
     FetchContent_MakeAvailable(fmt)
 endif()
 
+set(SPDLOG_FMT_EXTERNAL ON)
 if(NOT TARGET spdlog::spdlog)
     find_package(spdlog CONFIG QUIET)
 endif()

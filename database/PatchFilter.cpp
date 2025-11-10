@@ -34,6 +34,7 @@ namespace midikraft {
 		typeID = 0;
 		onlyUntagged = false;
 		showHidden = false;
+		showRegular = false;
 		showUndecided = false;
 		onlyDuplicateNames = false;
 		andCategories = false;
@@ -43,6 +44,7 @@ namespace midikraft {
 	{
 		onlyFaves = true;
 		showHidden = true;
+		showRegular = true;
 		showUndecided = true;
 	}
 
@@ -70,6 +72,7 @@ namespace midikraft {
 			|| a.onlySpecifcType != b.onlySpecifcType
 			|| a.typeID != b.typeID
 			|| a.showHidden != b.showHidden
+			|| a.showRegular != b.showRegular
 			|| a.showUndecided != b.showUndecided
 			|| a.andCategories != b.andCategories
 			|| a.onlyUntagged != b.onlyUntagged;

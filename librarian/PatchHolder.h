@@ -134,6 +134,9 @@ namespace midikraft {
 		void setFavorite(Favorite fav);
 		void setSourceInfo(std::shared_ptr<SourceInfo> newSourceInfo);
 
+		bool isRegular() const;
+		void setRegular(bool isRegular);
+
 		bool isHidden() const;
 		void setHidden(bool isHidden);
 
@@ -151,6 +154,12 @@ namespace midikraft {
 		std::string comment() const;
 		void setComment(std::string const& newComment);
 
+		std::string author() const;
+		void setAuthor(std::string const& newComment);
+
+		std::string info() const;
+		void setInfo(std::string const& newComment);
+
 		bool autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector); // Returns true if categories have changed!
 		
 		std::string md5() const;
@@ -167,6 +176,7 @@ namespace midikraft {
 		std::string name_;
 		std::string sourceId_;
 		Favorite isFavorite_;
+		bool isRegular_;
 		bool isHidden_;
 		std::set<Category> categories_;
 		std::set<Category> userDecisions_;
@@ -174,6 +184,8 @@ namespace midikraft {
 		MidiProgramNumber patchNumber_;
 		std::shared_ptr<SourceInfo> sourceInfo_;
 		std::string comment_;
+		std::string author_;
+		std::string info_;
 	};
 
 }

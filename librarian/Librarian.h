@@ -49,7 +49,8 @@ namespace midikraft {
 
 		enum ExportFormatOption {
 			PROGRAM_DUMPS = 0,
-			EDIT_BUFFER_DUMPS = 1
+			EDIT_BUFFER_DUMPS = 1,
+			BANK_DUMP = 2
 		};
 		enum ExportFileOption {
 			MANY_FILES = 0,

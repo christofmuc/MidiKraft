@@ -54,7 +54,10 @@ namespace midikraft {
 			UPDATE_DATA = 8,
 			UPDATE_FAVORITE = 16,
 			UPDATE_COMMENT = 32,
-			UPDATE_ALL = UPDATE_NAME | UPDATE_CATEGORIES | UPDATE_HIDDEN | UPDATE_DATA | UPDATE_FAVORITE | UPDATE_COMMENT
+			UPDATE_AUTHOR = 64,
+			UPDATE_INFO = 128,
+			UPDATE_REGULAR = 256,
+			UPDATE_ALL = UPDATE_NAME | UPDATE_CATEGORIES | UPDATE_HIDDEN | UPDATE_DATA | UPDATE_FAVORITE | UPDATE_COMMENT | UPDATE_AUTHOR | UPDATE_INFO | UPDATE_REGULAR
 		};
 
 		explicit PatchDatabase(bool overwrite); // Default location
@@ -67,6 +70,7 @@ namespace midikraft {
 		int getPatchesCount(PatchFilter filter);
 		bool getSinglePatch(std::shared_ptr<Synth> synth, std::string const& md5, std::vector<PatchHolder>& result);
 		std::vector<MidiProgramNumber> getBankPositions(std::shared_ptr<Synth> synth, std::string const& md5);
+		std::vector<std::pair<std::string, std::string>> getListsForPatch(std::string const& synth, std::string const& md5);
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
 
 		void getPatchesAsync(PatchFilter filter, std::function<void(PatchFilter const filteredBy, std::vector<PatchHolder> const &)> finished, int skip, int limit);
@@ -76,7 +80,7 @@ namespace midikraft {
 		bool putPatch(PatchHolder const &patch);
 		bool putPatches(std::vector<PatchHolder> const &patches);
 
-		int deletePatches(PatchFilter filter);
+		std::pair<int, int> deletePatches(PatchFilter filter);
 		std::pair<int, int> deletePatches(std::string const& synth, std::vector<std::string> const& md5s);
 		int reindexPatches(PatchFilter filter);
 

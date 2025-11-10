@@ -35,6 +35,7 @@ namespace midikraft {
 		: patch_(patch)
             , synth_(activeSynth)
             , isFavorite_(Favorite())
+            , isRegular_(false)
             , isHidden_(false)
             , bankNumber_(MidiBankNumber::invalid())
             , patchNumber_(MidiProgramNumber::invalidProgram())
@@ -48,7 +49,7 @@ namespace midikraft {
 		}
 	}
 
-	PatchHolder::PatchHolder() : isFavorite_(Favorite()), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())
+	PatchHolder::PatchHolder() : isFavorite_(Favorite()), isRegular_(false), isHidden_(false), bankNumber_(MidiBankNumber::invalid()), patchNumber_(MidiProgramNumber::invalidProgram())
 	{
 	}
 
@@ -135,6 +136,16 @@ namespace midikraft {
 		isFavorite_ = fav;
 	}
 
+	bool PatchHolder::isRegular() const
+	{
+		return isRegular_;
+	}
+
+	void PatchHolder::setRegular(bool isRegular)
+	{
+		isRegular_ = isRegular;
+	}
+
 	void PatchHolder::setSourceInfo(std::shared_ptr<SourceInfo> newSourceInfo)
 	{
 		sourceInfo_ = newSourceInfo;
@@ -200,6 +211,26 @@ namespace midikraft {
 	void PatchHolder::setComment(std::string const& newComment)
 	{
 		comment_ = newComment;
+	}
+
+	std::string PatchHolder::author() const
+	{
+		return author_;
+	}
+
+	void PatchHolder::setAuthor(std::string const& newAuthor)
+	{
+		author_ = newAuthor;
+	}
+
+	std::string PatchHolder::info() const
+	{
+		return info_;
+	}
+
+	void PatchHolder::setInfo(std::string const& info)
+	{
+		info_ = info;
 	}
 
 	bool PatchHolder::autoCategorizeAgain(std::shared_ptr<AutomaticCategory> detector)
@@ -375,7 +406,7 @@ namespace midikraft {
 			if (descriptors) {
 				auto banks = descriptors->bankDescriptors();
 				if (bankNo_.toZeroBased() < static_cast<int>(banks.size())) {
-					bank = " " + banks[bankNo_.toZeroBased()].name;
+					bank = " " + banks[(size_t) bankNo_.toZeroBased()].name;
 				}
 				else {
 					bank = fmt::format(" bank {}", bankNo_.toOneBased());

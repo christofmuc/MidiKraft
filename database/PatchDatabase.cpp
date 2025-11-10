@@ -38,7 +38,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 14;
+	const int SCHEMA_VERSION = 17;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -53,7 +53,10 @@ namespace midikraft {
 	/* 11 - adding an index to speed up the duplicate name search, as suggested by chatGPT */
 	/* 12 - adding an index to speed up the import list building */
 	/* 13 - adding comment to the patch table */
-	/* 14 - move the imports information into the list table, and create the corresponding patch_in_list entries. Add list type for quick filtering. */
+	/* 14 - adding author and source fields to the patch table */
+	/* 15 - adding sort order field to categories */
+	/* 16 - adding regular flag to patches */
+	/* 17 - move the imports information into the list table, and create the corresponding patch_in_list entries. Add list type for quick filtering. */
 
 	// This is stored in the list_type column
 	enum PatchListType {
@@ -283,6 +286,31 @@ namespace midikraft {
 			if (currentVersion < 14) {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
+				if (!hasRecreatedPatchTable) {
+					db_.exec("ALTER TABLE patches ADD COLUMN author TEXT");
+					db_.exec("ALTER TABLE patches ADD COLUMN info TEXT");
+				}
+				db_.exec("UPDATE schema_version SET number = 14");
+				transaction.commit();
+			}
+			if (currentVersion < 15) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				db_.exec("ALTER TABLE categories ADD COLUMN sort_order INTEGER");
+				db_.exec("UPDATE schema_version SET number = 15");
+				transaction.commit();
+			}
+			if (currentVersion < 16) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				db_.exec("ALTER TABLE patches ADD COLUMN regular INTEGER");
+				db_.exec("UPDATE patches SET regular = 0 WHERE regular IS NULL");
+				db_.exec("UPDATE schema_version SET number = 16");
+				transaction.commit();
+			}
+			if (currentVersion < 17) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
 				// Add list type column
 				db_.exec("ALTER TABLE lists ADD COLUMN list_type INTEGER");
 				// Set list type
@@ -307,26 +335,26 @@ namespace midikraft {
 		}
 
 		void insertDefaultCategories() {
-			db_.exec(String("INSERT INTO categories VALUES (0, 'Lead', '" + Colour::fromString("ff8dd3c7").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (1, 'Pad', '" + Colour::fromString("ffffffb3").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (2, 'Brass', '" + Colour::fromString("ff4a75b2").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (3, 'Organ', '" + Colour::fromString("fffb8072").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (4, 'Keys', '" + Colour::fromString("ff80b1d3").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (5, 'Bass', '" + Colour::fromString("fffdb462").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (6, 'Arp', '" + Colour::fromString("ffb3de69").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (7, 'Pluck', '" + Colour::fromString("fffccde5").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (8, 'Drone', '" + Colour::fromString("ffd9d9d9").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (9, 'Drum', '" + Colour::fromString("ffbc80bd").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (10, 'Bell', '" + Colour::fromString("ffccebc5").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (11, 'SFX', '" + Colour::fromString("ffffed6f").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (12, 'Ambient', '" + Colour::fromString("ff869cab").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (13, 'Wind', '" + Colour::fromString("ff317469").darker().toString() + "', 1)").toStdString().c_str());
-			db_.exec(String("INSERT INTO categories VALUES (14, 'Voice', '" + Colour::fromString("ffa75781").darker().toString() + "', 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (0, 'Lead', '" + Colour::fromString("ff8dd3c7").darker().toString() + "', 1, 1)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (1, 'Pad', '" + Colour::fromString("ffffffb3").darker().toString() + "', 1, 2)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (2, 'Brass', '" + Colour::fromString("ff4a75b2").darker().toString() + "', 1, 3)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (3, 'Organ', '" + Colour::fromString("fffb8072").darker().toString() + "', 1, 4)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (4, 'Keys', '" + Colour::fromString("ff80b1d3").darker().toString() + "', 1, 5)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (5, 'Bass', '" + Colour::fromString("fffdb462").darker().toString() + "', 1, 6)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (6, 'Arp', '" + Colour::fromString("ffb3de69").darker().toString() + "', 1, 7)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (7, 'Pluck', '" + Colour::fromString("fffccde5").darker().toString() + "', 1, 8)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (8, 'Drone', '" + Colour::fromString("ffd9d9d9").darker().toString() + "', 1, 9)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (9, 'Drum', '" + Colour::fromString("ffbc80bd").darker().toString() + "', 1, 10)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (10, 'Bell', '" + Colour::fromString("ffccebc5").darker().toString() + "', 1, 11)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (11, 'SFX', '" + Colour::fromString("ffffed6f").darker().toString() + "', 1, 12)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (12, 'Ambient', '" + Colour::fromString("ff869cab").darker().toString() + "', 1, 13)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (13, 'Wind', '" + Colour::fromString("ff317469").darker().toString() + "', 1, 14)").toStdString().c_str());
+			db_.exec(String("INSERT INTO categories VALUES (14, 'Voice', '" + Colour::fromString("ffa75781").darker().toString() + "', 1, 15)").toStdString().c_str());
 		}
 
 		void createPatchTable() {
-			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT NOT NULL, md5 TEXT NOT NULL, name TEXT, type INTEGER, data BLOB, favorite INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
-				" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER, comment TEXT, PRIMARY KEY (synth, md5))");
+			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT NOT NULL, md5 TEXT NOT NULL, name TEXT, type INTEGER, data BLOB, favorite INTEGER, regular INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
+				" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER, comment TEXT, author TEXT, info TEXT, PRIMARY KEY (synth, md5))");
 		}
 
 		void createPatchInListTable() {
@@ -341,7 +369,7 @@ namespace midikraft {
 				createPatchTable();
 			}
 			if (!db_.tableExists("categories")) {
-				db_.exec("CREATE TABLE IF NOT EXISTS categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER)");
+				db_.exec("CREATE TABLE IF NOT EXISTS categories (bitIndex INTEGER UNIQUE, name TEXT, color TEXT, active INTEGER, sort_order INTEGER)");
 				insertDefaultCategories();
 
 			}
@@ -409,8 +437,8 @@ namespace midikraft {
 
 		bool putPatch(PatchHolder const& patch) {
 			try {
-				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, hidden, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision, comment)"
-					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :HID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD, :COM)");
+				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, regular, hidden, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision, comment, author, info)"
+					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :REG, :HID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD, :COM, :AUT, :INF)");
 
 				// Insert values into prepared statement
 				sql.bind(":SYN", patch.synth()->getName().c_str());
@@ -419,7 +447,8 @@ namespace midikraft {
 				sql.bind(":TYP", patch.getType());
 				sql.bind(":DAT", patch.patch()->data().data(), (int)patch.patch()->data().size());
 				sql.bind(":FAV", (int)patch.howFavorite().is());
-				sql.bind(":HID", patch.isHidden());
+				sql.bind(":REG", patch.isRegular() ? 1 : 0);
+				sql.bind(":HID", patch.isHidden() ? 1 : 0);
 				sql.bind(":SNM", patch.sourceInfo()->toDisplayString(patch.synth(), false));
 				sql.bind(":SRC", patch.sourceInfo()->toString());
 				if (patch.bankNumber().isValid()) {
@@ -433,6 +462,8 @@ namespace midikraft {
 				sql.bind(":CAT", (int64_t)bitfield.categorySetAsBitfield(patch.categories()));
 				sql.bind(":CUD", (int64_t)bitfield.categorySetAsBitfield(patch.userDecisionSet()));
 				sql.bind(":COM", patch.comment());
+				sql.bind(":AUT", patch.author());
+				sql.bind(":INF", patch.info());
 
 				sql.exec();
 			}
@@ -495,7 +526,7 @@ namespace midikraft {
 				where += " AND sourceID = :SID";
 			}*/
 			if (!filter.name.empty()) {
-				where += " AND (name LIKE :NAM or comment LIKE :NAM)";
+				where += " AND (patches.name LIKE :NAM or patches.comment LIKE :NAM or patches.author LIKE :NAM or patches.info LIKE :NAM)";
 				if (needsCollate) {
 					where += " COLLATE NOCASE";
 				}
@@ -507,56 +538,32 @@ namespace midikraft {
 				where += " AND type == :TYP";
 			}
 
-			// Show Hidden and Show Faves are special in that they can be combined
-			// and need explicit code for the 4 cases
-			if (filter.onlyFaves) {
-				if (filter.showHidden) {
-					if (filter.showUndecided) {
-						// No op, just retrieve all
-					}
-					else
-					{
-						// Don't show all
-						where += " AND (hidden == 1 OR favorite == 1)";
-					}
-				}
-				else
-				{
-					if (filter.showUndecided) {
-						// Everything that is not hidden
-						where += " AND (hidden is null or hidden != 1)";
-					}
-					else
-					{
-						// Only favorites that are not hidden
-						where += " AND (favorite == 1) AND (hidden is null or hidden != 1)";
-					}
-				}
-			}
+			std::string hiddenFalse = "(hidden is null or hidden != 1)";
+			std::string hiddenTrue = "(hidden == 1)";
+			std::string favoriteTrue = "(favorite == 1)";
+			std::string favoriteFalse = "(favorite != 1)";
+			std::string regularTrue = "(regular == 1)";
+			std::string regularFalse = "(regular is null or regular != 1)";
+			std::string undecidedTrue = "(" + hiddenFalse + " AND " + favoriteFalse + " AND " + regularFalse + ")";
+
+			std::string filterClause;
+			// The positive filters are ORed
+			filterClause += (filter.onlyFaves ? (filterClause.empty() ? "" : " OR ") + favoriteTrue : "");
+			filterClause += (filter.showHidden ? (filterClause.empty() ? "" : " OR ") + hiddenTrue: "");
+			filterClause += (filter.showRegular? (filterClause.empty() ? "" : " OR ") + regularTrue: "");
+			filterClause += (filter.showUndecided? (filterClause.empty() ? "" : " OR ") + undecidedTrue: "");
+			// The negative filters are ANDed
+			std::string andClause;
+			andClause += (!filter.onlyFaves ? (andClause.empty() ? "" : " AND ") + favoriteFalse : "");
+			andClause += (!filter.showHidden ? (andClause.empty() ? "" : " AND ") + hiddenFalse : "");
+			andClause += (!filter.showRegular ? (andClause.empty() ? "" : " AND ") + regularFalse : "");
+			if (filter.onlyFaves || filter.showHidden || filter.showRegular || filter.showUndecided) {
+				// At least one filter is active, insert our calculated clauses
+				where += (filterClause.empty() ? "" : " AND ") + filterClause + (andClause.empty() ? "" : " AND ") + andClause;
+			} 
 			else {
-				if (filter.showHidden) {
-					if (filter.showUndecided) {
-						// All that's not favorite
-						where += " AND (favorite != 1)";
-					}
-					else
-					{
-						// Only hidden
-						where += " AND (hidden == 1)";
-					}
-				}
-				else
-				{
-					if (filter.showUndecided) {
-						// Everything that is not hidden and not fave
-						where += " AND (favorite != 1) AND (hidden is null or hidden != 1)";
-					}
-					else
-					{
-						// All that is not hidden
-						where += " AND (hidden is null or hidden != 1)";
-					}
-				}
+				// Show all non hidden
+				where += " AND " + hiddenFalse;
 			}
 
 			if (filter.onlyUntagged) {
@@ -597,14 +604,26 @@ namespace midikraft {
 			return orderByClause;
 		}
 
-		std::string buildJoinClause(PatchFilter filter) {
+		std::string buildJoinClause(PatchFilter filter, bool outer_join = false) {
 			// If we are also filtering for a list, we need to join the patch_in_list table!
 			std::string joinClause = "";
-			if (!filter.listID.empty()) {
-				joinClause += " INNER JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
+			if (!filter.listID.empty() || outer_join) {
+				if (outer_join) {
+					joinClause += " LEFT JOIN ";
+				}
+				else {
+					joinClause += " INNER JOIN ";
+				}
+				joinClause += "patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
 			}
 			if (filter.onlyDuplicateNames) {
-				joinClause += " JOIN patches_count ON patches.synth = patches_count.synth AND patches.name = patches_count.dup_name";
+				if (outer_join) {
+					joinClause += " LEFT JOIN ";
+				}
+				else {
+					joinClause += " INNER JOIN ";
+				}
+				joinClause += " patches_count ON patches.synth = patches_count.synth AND patches.name = patches_count.dup_name";
 				/*if (filter.showHidden)
 					joinClause += " JOIN (select name as dup_name, synth, count(*) as name_count from patches group by dup_name, synth) as ordinal_table on patches.name = ordinal_table.dup_name and patches.synth = ordinal_table.synth";
 				else
@@ -671,7 +690,7 @@ namespace midikraft {
 
 		std::vector<Category> getCategories() {
 			ScopedLock lock(categoryLock_);
-			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY bitIndex");
+			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY sort_order, bitIndex");
 			std::vector<std::shared_ptr<CategoryDefinition>> activeDefinitions;
 			std::vector<Category> allCategories;
 			while (query.executeStep()) {
@@ -679,6 +698,7 @@ namespace midikraft {
 				auto name = query.getColumn("name").getText();
 				auto colorName = query.getColumn("color").getText();
 				bool isActive = query.getColumn("active").getInt() != 0;
+				int sort_order = query.getColumn("sort_order").isNull() ? 0 : query.getColumn("sort_order").getInt();
 
 				// Check if this already exists!
 				bool found = false;
@@ -688,6 +708,7 @@ namespace midikraft {
 						exists.def()->color = Colour::fromString(colorName);
 						exists.def()->name = name;
 						exists.def()->isActive = isActive;
+						exists.def()->sort_order = sort_order;
 						allCategories.push_back(exists);
 						if (isActive) {
 							activeDefinitions.emplace_back(exists.def());
@@ -696,7 +717,7 @@ namespace midikraft {
 					}
 				}
 				if (!found) {
-					auto def = std::make_shared<CategoryDefinition>(CategoryDefinition({ bitIndex, isActive, name, Colour::fromString(colorName) }));
+					auto def = std::make_shared<CategoryDefinition>(CategoryDefinition({ bitIndex, isActive, name, Colour::fromString(colorName), sort_order }));
 					allCategories.push_back(Category(def));
 					if (isActive) {
 						activeDefinitions.emplace_back(def);
@@ -734,20 +755,22 @@ namespace midikraft {
 					query.bind(":BIT", c.id);
 					if (query.executeStep()) {
 						// Bit index already exists, this is an update
-						SQLite::Statement sql(db_, "UPDATE categories SET name = :NAM, color = :COL, active = :ACT WHERE bitindex = :BIT");
+						SQLite::Statement sql(db_, "UPDATE categories SET name = :NAM, color = :COL, active = :ACT, sort_order = :ORD WHERE bitindex = :BIT");
 						sql.bind(":BIT", c.id);
 						sql.bind(":NAM", c.name);
 						sql.bind(":COL", c.color.toString().toStdString());
 						sql.bind(":ACT", c.isActive);
+						sql.bind(":ORD", c.sort_order);
 						sql.exec();
 					}
 					else {
 						// Doesn't exist, insert!
-						SQLite::Statement sql(db_, "INSERT INTO categories (bitIndex, name, color, active) VALUES(:BIT, :NAM, :COL, :ACT)");
+						SQLite::Statement sql(db_, "INSERT INTO categories (bitIndex, name, color, active, sort_order) VALUES(:BIT, :NAM, :COL, :ACT, :ORD)");
 						sql.bind(":BIT", c.id);
 						sql.bind(":NAM", c.name);
 						sql.bind(":COL", c.color.toString().toStdString());
 						sql.bind(":ACT", c.isActive);
+						sql.bind(":ORD", c.sort_order);
 						sql.exec();
 					}
 				}
@@ -817,6 +840,10 @@ namespace midikraft {
 					if (typeColumn.isInteger()) {
 						holder.setType(typeColumn.getInt());
 					}*/
+					auto regularColumn = query.getColumn("regular");
+					if (!regularColumn.isNull()) {
+						holder.setRegular(regularColumn.getInt() == 1);
+					}
 					auto hiddenColumn = query.getColumn("hidden");
 					if (hiddenColumn.isInteger()) {
 						holder.setHidden(hiddenColumn.getInt() == 1);
@@ -830,6 +857,16 @@ namespace midikraft {
 					auto commentColumn = query.getColumn("comment");
 					if (commentColumn.isText()) {
 						holder.setComment(std::string(commentColumn.getText()));
+					}
+
+					auto authorColumn = query.getColumn("author");
+					if (authorColumn.isText()) {
+						holder.setAuthor(std::string(authorColumn.getText()));
+					}
+
+					auto infoColumn = query.getColumn("info");
+					if (infoColumn.isText()) {
+						holder.setInfo(std::string(infoColumn.getText()));
 					}
 
 					result.push_back(holder);
@@ -892,7 +929,7 @@ namespace midikraft {
 				}
 			}
 			catch (SQLite::Exception& ex) {
-				spdlog::error("DATABASE ERROR in getSinglePatch: SQL Exception {}", ex.what());
+				spdlog::error("DATABASE ERROR in getBankPosition: SQL Exception {}", ex.what());
 			}
 			return result;
 		}
@@ -1022,10 +1059,13 @@ namespace midikraft {
 				std::string updateClause;
 				if (updateChoices & UPDATE_CATEGORIES) updateClause = prependWithComma(updateClause, "categories = :CAT, categoryUserDecision = :CUD");
 				if (updateChoices & UPDATE_NAME) updateClause = prependWithComma(updateClause, "name = :NAM");
-				if (updateChoices & UPDATE_HIDDEN) updateClause = prependWithComma(updateClause, "hidden = :HID");
 				if (updateChoices & UPDATE_DATA) updateClause = prependWithComma(updateClause, "data = :DAT");
+				if (updateChoices & UPDATE_HIDDEN) updateClause = prependWithComma(updateClause, "hidden = :HID");
 				if (updateChoices & UPDATE_FAVORITE) updateClause = prependWithComma(updateClause, "favorite = :FAV");
+				if (updateChoices & UPDATE_REGULAR) updateClause = prependWithComma(updateClause, "regular = :REG");
 				if (updateChoices & UPDATE_COMMENT) updateClause = prependWithComma(updateClause, "comment = :COM");
+				if (updateChoices & UPDATE_AUTHOR) updateClause = prependWithComma(updateClause, "author = :AUT");
+				if (updateChoices & UPDATE_INFO) updateClause = prependWithComma(updateClause, "info = :INF");
 
 				try {
 					SQLite::Statement sql(db_, "UPDATE patches SET " + updateClause + " WHERE md5 = :MD5 and synth = :SYN");
@@ -1041,10 +1081,13 @@ namespace midikraft {
 						sql.bind(":DAT", newPatch.patch()->data().data(), (int)newPatch.patch()->data().size());
 					}
 					if (updateChoices & UPDATE_HIDDEN) {
-						sql.bind(":HID", newPatch.isHidden());
+						sql.bind(":HID", newPatch.isHidden() ? 1 : 0);
 					}
 					if (updateChoices & UPDATE_FAVORITE) {
 						sql.bind(":FAV", calculateMergedFavorite(newPatch, existingPatch));
+					}
+					if (updateChoices & UPDATE_REGULAR) {
+						sql.bind(":REG", newPatch.isRegular() ? 1 : 0);
 					}
 					if (updateChoices & UPDATE_COMMENT) {
 						std::string newComment = newPatch.comment();
@@ -1052,6 +1095,20 @@ namespace midikraft {
 							newComment = existingPatch.comment();
 						}
 						sql.bind(":COM", newComment);
+					}
+					if (updateChoices & UPDATE_AUTHOR) {
+						std::string newAuthor = newPatch.author();
+						if (newAuthor.empty()) {
+							newAuthor = existingPatch.author();
+						}
+						sql.bind(":AUT", newAuthor);
+					}
+					if (updateChoices & UPDATE_INFO) {
+						std::string newInfo = newPatch.info();
+						if (newInfo.empty()) {
+							newInfo = existingPatch.info();
+						}
+						sql.bind(":INF", newInfo);
 					}
 					sql.bind(":MD5", newPatch.md5());
 					sql.bind(":SYN", existingPatch.synth()->getName());
@@ -1223,35 +1280,56 @@ namespace midikraft {
 			return sumOfAll;
 		}
 
-		int deletePatches(PatchFilter filter) {
+		std::pair<int, int> deletePatches(PatchFilter filter) {
 			try {
-				// Build a delete query. If we delete a whole list's content, we cannot use a join clause like in the select, 
-				// but need to transform into a where exists clause :-(
-				std::string deleteStatement;
-				if (filter.listID.empty()) {
-					deleteStatement = "DELETE FROM patches " + buildWhereClause(filter, false);
-				}
-				else {
-					// https://stackoverflow.com/questions/24511153/how-delete-table-inner-join-with-other-table-in-sqlite
-					// This wouldn't work for buildWhereClause during delete
-					deleteStatement = "DELETE FROM patches WHERE ROWID IN (SELECT patches.ROWID FROM patches "
-						+ buildJoinClause(filter) + buildWhereClause(filter, false) + ")";
-				}
-				SQLite::Statement query(db_, deleteStatement.c_str());
-				bindWhereClause(query, filter);
+				SQLite::Transaction transaction(db_);
+				// Remove patches from non-bank lists.
+				std::string remove_from_lists = 
+				"DELETE FROM patch_in_list "
+					"WHERE ROWID IN ( "
+						" SELECT patch_in_list.ROWID FROM patches "
+						"   JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth  "
+						"   JOIN lists on lists.id = patch_in_list.id "
+						+ buildWhereClause(filter, false) +
+					    "   AND lists.synth IS NULL"  // Regular lists have synth NULL, we remove patches we delete from regular lists because they do not destroy banks
+					" )";
+				SQLite::Statement remove_from_list_query(db_, remove_from_lists.c_str());
+				bindWhereClause(remove_from_list_query, filter);
+				int items_removed = remove_from_list_query.exec();
 
-				// Execute
-				int rowsDeleted = query.exec();
+				// Patches to hide: those still referenced by a synth bank
+				std::string hideStatement =
+					"UPDATE patches SET hidden = 1 WHERE ROWID IN ("
+					" SELECT patches.ROWID FROM patches "
+					" JOIN patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth "
+					" JOIN lists ON lists.id = patch_in_list.id "
+					"   " + buildWhereClause(filter, false) +
+					" AND lists.synth is not NULL "
+					")";
+				SQLite::Statement hideQuery(db_, hideStatement.c_str());
+				bindWhereClause(hideQuery, filter);
+				int rowsHidden = hideQuery.exec(); 
 
-				// Make sure there are no orphans left in any patch list
+				// Patches to delete: those not referenced by any synth bank
+				std::string deleteStatement =
+					"DELETE FROM patches WHERE ROWID IN ("
+					"   SELECT patches.ROWID FROM patches "
+					"   " + buildJoinClause(filter, true) + buildWhereClause(filter, false) + " "
+					"   AND patch_in_list.id IS NULL"
+					")";
+				SQLite::Statement deleteQuery(db_, deleteStatement.c_str());
+				bindWhereClause(deleteQuery, filter);
+				int rowsDeleted = deleteQuery.exec();
+
+				// Step 3: Make sure there are no orphans left in any patch list
 				removeAllOrphansFromPatchLists();
-
-				return rowsDeleted;
+				transaction.commit();
+				return { rowsDeleted, rowsHidden };
 			}
 			catch (SQLite::Exception& ex) {
 				spdlog::error("DATABASE ERROR in deletePatches via filter: SQL Exception {}", ex.what());
 			}
-			return 0;
+			return { 0, 0 };
 		}
 
 		std::pair<int, int> deletePatches(std::string const& synth, std::vector<std::string> const& md5s) {
@@ -1790,6 +1868,19 @@ namespace midikraft {
 			return false;
 		}
 
+		std::vector<std::pair<std::string, std::string>> getListsForPatch(std::string const& synth, std::string const& md5) {
+			SQLite::Statement findListForPatch(db_, "SELECT lists.name, lists.id FROM lists INNER JOIN patch_in_list AS pil ON lists.id = pil.id WHERE pil.synth = :SYN AND pil.md5 = :MD5");
+			findListForPatch.bind(":SYN", synth);
+			findListForPatch.bind(":MD5", md5);
+			std::vector<std::pair<std::string, std::string>> results;
+			while (findListForPatch.executeStep()) {
+				std::string name = findListForPatch.getColumn("name");
+				std::string id = findListForPatch.getColumn("id");
+				results.push_back({ name, id });
+			}
+			return results;
+		}
+
 		void removeAllOrphansFromPatchLists() {
 			try {
 				SQLite::Statement cleanupPatchLists(db_,
@@ -1857,6 +1948,10 @@ namespace midikraft {
 			spdlog::error("Failed to open database: {}", ex.what());
 		}
 		return false;
+	}
+
+	std::vector<std::pair<std::string, std::string>> PatchDatabase::getListsForPatch(std::string const& synth, std::string const& md5) {
+		return impl->getListsForPatch(synth, md5);
 	}
 
 	int PatchDatabase::getPatchesCount(PatchFilter filter)
@@ -1951,7 +2046,7 @@ namespace midikraft {
 		impl->removePatchFromList(list_id, synth_name, md5, order_num);
 	}
 
-	int PatchDatabase::deletePatches(PatchFilter filter)
+	std::pair<int, int> PatchDatabase::deletePatches(PatchFilter filter)
 	{
 		return impl->deletePatches(filter);
 	}

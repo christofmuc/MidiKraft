@@ -15,35 +15,11 @@
 
 namespace midikraft {
 
-	bool getStringIfSet(nlohmann::json &dbresult, const char *key, std::string &outString) {
-		if (dbresult.contains(key) && dbresult[key].is_string()) {
-			outString = dbresult[key].get<std::string>();
-			return true;
-		}
-		return false;
-	}
-
-	bool getBufferIfSet(nlohmann::json &dbresult, const char *key, std::vector<uint8> &outBuffer) {
-		if (dbresult.contains(key)) {
-			outBuffer = JsonSerialization::stringToData(dbresult[key].get<std::string>());
-			return true;
-		}
-		return false;
-	}
-
-	bool getNumberIfSet(nlohmann::json &dbresult, const char *key, int &out) {
-		if (dbresult.contains(key) && dbresult.is_number_integer()) {
-			out = dbresult[key].get<int>();
-			return true;
-		}
-		return false;
-	}
-
-	std::string JsonSerialization::dataToString(std::vector<uint8> const &data) {
+    std::string JsonSerialization::dataToString(std::vector<uint8> const &data) {
 		return Base64::toBase64(data.data(), data.size()).toStdString();
 	}
 
-	std::vector<uint8> JsonSerialization::stringToData(std::string const string)
+    std::vector<uint8> JsonSerialization::stringToData(std::string const string)
 	{
 		std::vector<uint8> outBuffer(2048, 0);
 		MemoryOutputStream output(outBuffer.data(), outBuffer.size());

@@ -40,6 +40,7 @@ namespace midikraft {
 		bool onlySpecifcType;
 		int typeID;
 		bool showHidden;
+		bool showRegular;
 		bool showUndecided;
 		bool onlyUntagged;
 		std::set<Category> categories; 

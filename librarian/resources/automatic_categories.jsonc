@@ -5,8 +5,8 @@
 // The syntax is JSON, extended by C-style comments
 // The content are regular expressions
 // 
-// Word of warning: This is work in progress, and as of now you *CANNOT* add new categories, just add
-// new expressions to extend the current ones
+// Please use the UI to add new catagories to this list, and then fill in the patterns
+// in this file. Adding a new line here will be ignored by the software.
 //
 {
     "Lead": ["^ld", "ld$", "lead", "uni", "solo"],

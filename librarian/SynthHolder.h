@@ -18,7 +18,6 @@ namespace midikraft {
 	public:
 		SynthHolder(std::shared_ptr<SimpleDiscoverableDevice> synth, Colour const &color);
 		SynthHolder(std::shared_ptr<SoundExpanderCapability> synth);
-		virtual ~SynthHolder() = default;
 
 		std::shared_ptr<Synth> synth() { return std::dynamic_pointer_cast<Synth>(device_); }
 		std::shared_ptr<SimpleDiscoverableDevice> device() { return std::dynamic_pointer_cast<SimpleDiscoverableDevice>(device_); }

@@ -70,6 +70,7 @@ namespace midikraft {
 
 	private:
 		size_t maxNumberMessagesPerPatch_; // UGLY global configuration which can be overriden by environment variable ORM_MAX_MSG_PER_PATCH. Default was 10, which was large enough for refaceDX but too small for other synths.
+		size_t maxNumberMessagesPerBank_; // UGLY global configuration which can be overriden by environment variable ORM_MAX_MSG_PER_BANK. Setting this to 256 for now (Yamaha FS1R)
 	};
 
 	enum class BankDownloadMethod {

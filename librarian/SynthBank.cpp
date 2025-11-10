@@ -80,7 +80,7 @@ namespace midikraft {
 		if (descriptors) {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo_.toZeroBased() < static_cast<int>(banks.size())) {
-				return !banks[bankNo_.toZeroBased()].isROM;
+				return !banks[(size_t) bankNo_.toZeroBased()].isROM;
 			}
 		}
 		// We actually don't know...
@@ -123,10 +123,10 @@ namespace midikraft {
 		auto currentList = patches();
 		int position = programPlace.toZeroBasedDiscardingBank();
 		if (position < static_cast<int>(currentList.size())) {
-            if (currentList[position].md5() != patch.md5() || currentList[position].name() != patch.name()) {
+            if (currentList[(size_t) position].md5() != patch.md5() || currentList[(size_t) position].name() != patch.name()) {
 				dirtyPositions_.insert(position);
             }
-			currentList[position] = patch;
+			currentList[(size_t) position] = patch;
 			setPatches(currentList);
 		}
 		else {
@@ -142,13 +142,13 @@ namespace midikraft {
 			auto listToCopy = list.patches();
 			int read_pos = 0;
 			int write_pos = position;
-			while (write_pos < static_cast<int>(std::min(currentList.size(), position + list.patches().size())) && read_pos < static_cast<int>(listToCopy.size())) {
-				if (listToCopy[read_pos].synth()->getName() == synth_->getName()) {
-					currentList[write_pos] = listToCopy[read_pos++];
+			while (write_pos < static_cast<int>(std::min(currentList.size(), (size_t)position + list.patches().size())) && read_pos < static_cast<int>(listToCopy.size())) {
+				if (listToCopy[(size_t) read_pos].synth()->getName() == synth_->getName()) {
+					currentList[(size_t) write_pos] = listToCopy[(size_t) read_pos++];
 					dirtyPositions_.insert(write_pos++);
 				}
 				else {
-					spdlog::info("Skipping patch {} because it is for synth {} and cannot be put into the bank", listToCopy[read_pos].name(), listToCopy[read_pos].synth()->getName());
+					spdlog::info("Skipping patch {} because it is for synth {} and cannot be put into the bank", listToCopy[(size_t) read_pos].name(), listToCopy[(size_t) read_pos].synth()->getName());
 					read_pos++;
 				}
 			}
@@ -182,7 +182,7 @@ namespace midikraft {
 		if (descriptors) {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo.toZeroBased() < static_cast<int>(banks.size())) {
-				return banks[bankNo.toZeroBased()].name;
+				return banks[(size_t) bankNo.toZeroBased()].name;
 			}
 			else {
 				return fmt::format("out of range bank %d", bankNo.toZeroBased());
@@ -206,7 +206,7 @@ namespace midikraft {
 		if (descriptors) {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo < static_cast<int>(banks.size())) {
-				return banks[bankNo].size;
+				return banks[(size_t) bankNo].size;
 			}
 			else {
 				jassertfalse;
@@ -230,8 +230,9 @@ namespace midikraft {
 			auto banks = descriptors->bankDescriptors();
 			if (bankNo.toZeroBased() < static_cast<int>(banks.size())) {
 				int index = 0;
-				for (int b = 0; b < bankNo.toZeroBased(); b++)
-					index += banks[bankNo.toZeroBased()].size;
+				for (int b = 0; b < bankNo.toZeroBased(); b++) {
+					index += banks[(size_t) b].size;
+				}
 				return index;
 			}
 			else {

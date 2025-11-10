@@ -295,7 +295,7 @@ namespace midikraft {
 				// Now create the list entries for the import lists
 				db_.exec("INSERT INTO patch_in_list (id, synth, md5, order_num) "
 					"SELECT sourceID AS id, synth, md5, "
-					"ROW_NUMBER() OVER(PARTITION BY sourceID ORDER BY midiBankNo, midiProgramNo) AS order_num  "
+					"(ROW_NUMBER() OVER(PARTITION BY sourceID ORDER BY midiBankNo, midiProgramNo) - 1) AS order_num  "
 					"FROM patches "
 					"WHERE sourceID IS NOT NULL; ");
 				// TODO - Fix editbuffer IDs, they must be unique and contain the synth name
@@ -1078,6 +1078,30 @@ namespace midikraft {
 			// Sort all patches into the existing or new lists. The lists will be saved after the patches themselves are saved.
 			std::map<std::string, std::shared_ptr<ImportList>> newImportLists;
 			std::map<std::string, std::shared_ptr<ImportList>> editBufferLists;
+
+			auto ensureImportList = [this](std::map<std::string, std::shared_ptr<ImportList>>& cache,
+				std::string const& cacheKey,
+				std::string const& listId,
+				std::shared_ptr<Synth> synth,
+				std::string const& listName) -> std::shared_ptr<ImportList>
+				{
+					auto& entry = cache[cacheKey];
+					if (!entry) {
+						std::map<std::string, std::weak_ptr<Synth>> synthMap;
+						synthMap[synth->getName()] = synth;
+						if (auto existing = getPatchList(listId, synthMap)) {
+							entry = std::dynamic_pointer_cast<ImportList>(existing);
+							if (!entry) {
+								spdlog::warn("List {} exists but is not an import list, recreating it as import list.", listId);
+							}
+						}
+						if (!entry) {
+							entry = std::make_shared<ImportList>(synth, listId, listName);
+						}
+					}
+					return entry;
+				};
+
 			for (const auto& newPatch : patches) {
 				if (!newPatch.sourceInfo()) {
 					// Patch with no source info, probably very old or from 3rd party system
@@ -1086,36 +1110,24 @@ namespace midikraft {
 				else if (SourceInfo::isEditBufferImport(newPatch.sourceInfo())) {
 					// In case this is an EditBuffer import (no bank known), always use the same "fake UUID" "EditBufferImport"
 					std::string synthName = newPatch.smartSynth()->getName();
-					if (editBufferLists.find(synthName) == editBufferLists.end())
-					{
-						// Check if it is already in the database
-						std::string editBufferID = fmt::format("EditBufferImport-{}", synthName);
-						std::map<std::string, std::weak_ptr<Synth>> allSynths;
-						allSynths[synthName] = newPatch.smartSynth();
-						auto editBufferList = getPatchList(editBufferID, allSynths);
-						if (!editBufferList) {
-							editBufferList = std::make_shared<ImportList>(newPatch.smartSynth(), editBufferID, "Edit buffer imports");
-						}
-					}
-					editBufferLists[synthName]->addPatch(newPatch);
+					std::string editBufferID = fmt::format("EditBufferImport-{}", synthName);
+					auto list = ensureImportList(editBufferLists, editBufferID, editBufferID, newPatch.smartSynth(), "Edit buffer imports");
+					list->addPatch(newPatch);
 				}
 				else {
-					std::string importDisplayString = newPatch.sourceInfo()->toDisplayString(newPatch.synth(), true);;
+					std::string importDisplayString = newPatch.sourceInfo()->toDisplayString(newPatch.synth(), true);
 					std::string importUID = newPatch.sourceInfo()->md5(newPatch.synth());
-					if (newImportLists.find(importUID) == newImportLists.end()) {
-						// This is a new import list we haven't had before, create a new list!
-						newImportLists[importUID] = std::make_shared<ImportList>(newPatch.smartSynth(), importUID, importDisplayString);
-					}
-					newImportLists[importUID]->addPatch(newPatch);
+					auto list = ensureImportList(newImportLists, importUID, importUID, newPatch.smartSynth(), importDisplayString);
+					list->addPatch(newPatch);
 				}
 			}
 
 			// Now store them in the database
-			for (auto list : newImportLists) {
+			for (auto const& list : newImportLists) {
 				spdlog::info("Storing import list {}", list.second->name());
 				this->putPatchList(list.second, false);
 			}
-			for (auto list : editBufferLists) {
+			for (auto const& list : editBufferLists) {
 				spdlog::info("Storing list of edit buffer imports for synth {}", list.second->synth()->getName());
 				this->putPatchList(list.second, false);
 			}
@@ -1524,30 +1536,40 @@ namespace midikraft {
 					spdlog::error("Failed to load list with ID {}, because type is NULL. Incomplete migration?", listID);
 					return nullptr;
 				}
-				switch (queryList.getColumn("list_type").getInt()) {
+				auto listTypeValue = queryList.getColumn("list_type").getInt();
+				switch (listTypeValue) {
 				case PatchListType::NORMAL_LIST:
 					list = std::make_shared<midikraft::PatchList>(listID, queryList.getColumn("name").getText());
 					break;
 				case PatchListType::IMPORT_LIST:
+					if (!listSynth) {
+						spdlog::error("Import list {} requires a synth column but none was found.", listID);
+						return nullptr;
+					}
 					list = std::make_shared<midikraft::ImportList>(listSynth, listID, queryList.getColumn("name").getText());
 					break;
 				case PatchListType::SYNTH_BANK: {
+					if (!listSynth) {
+						spdlog::error("Synth bank list {} references a synth that is not loaded.", listID);
+						return nullptr;
+					}
 					int bankInt = queryList.getColumn("midi_bank_number").getInt();
-					list = std::make_shared<UserBank>(listID, queryList.getColumn("name").getText(), listSynth
-						, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(listSynth, bankInt))
-						);
+					auto bank = MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(listSynth, bankInt));
+					list = std::make_shared<ActiveSynthBank>(listSynth, bank, juce::Time(queryList.getColumn("last_synced").getInt64()));
 					break;
 				}
 				case PatchListType::USER_BANK: {
+					if (!listSynth) {
+						spdlog::error("User bank list {} references a synth that is not loaded.", listID);
+						return nullptr;
+					}
 					int bankInt = queryList.getColumn("midi_bank_number").getInt();
-					list = std::make_shared<ActiveSynthBank>(listSynth
-						, MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(listSynth, bankInt))
-						, juce::Time(queryList.getColumn("last_synced").getInt64())
-						);
+					auto bank = MidiBankNumber::fromZeroBase(bankInt, SynthBank::numberOfPatchesInBank(listSynth, bankInt));
+					list = std::make_shared<UserBank>(listID, queryList.getColumn("name").getText(), listSynth, bank);
 					break;
 				}
 				default:
-					spdlog::error("Got unknown list_type index {}, can't load list!", queryList.getColumn("list_type").getInt());
+					spdlog::error("Got unknown list_type index {}, can't load list!", listTypeValue);
 					return nullptr;
 				}
 			}

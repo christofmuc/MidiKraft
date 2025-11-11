@@ -522,9 +522,6 @@ namespace midikraft {
 				}
 				where += " ) ";
 			}
-			/*if (!filter.importID.empty()) {
-				where += " AND sourceID = :SID";
-			}*/
 			if (!filter.name.empty()) {
 				where += " AND (patches.name LIKE :NAM or patches.comment LIKE :NAM or patches.author LIKE :NAM or patches.info LIKE :NAM)";
 				if (needsCollate) {
@@ -655,9 +652,6 @@ namespace midikraft {
 			for (auto const& synth : filter.synths) {
 				query.bind(synthVariable(s++), synth.second.lock()->getName());
 			}
-			/*if (!filter.importID.empty()) {
-				query.bind(":SID", filter.importID);
-			}*/
 			if (!filter.listID.empty()) {
 				query.bind(":LID", filter.listID);
 			}

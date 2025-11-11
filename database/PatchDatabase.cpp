@@ -329,7 +329,7 @@ namespace midikraft {
 				// TODO - Fix editbuffer IDs, they must be unique and contain the synth name
 				// TODO - speed. which indexes do I need?
 				// Update schema and commit
-				db_.exec("UPDATE schema_version SET number = 14");
+				db_.exec("UPDATE schema_version SET number = 17");
 				transaction.commit();
 			}
 		}

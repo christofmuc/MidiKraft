@@ -327,7 +327,9 @@ namespace midikraft {
 					"FROM patches "
 					"WHERE sourceID IS NOT NULL; ");
 				// TODO - Fix editbuffer IDs, they must be unique and contain the synth name
-				// TODO - speed. which indexes do I need?
+				db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_id_order_md5_synth ON patch_in_list(id, order_num, md5, synth)");
+				db_.exec("CREATE INDEX IF NOT EXISTS idx_patches_visible  ON patches(synth, md5) WHERE hidden = 0");
+
 				// Update schema and commit
 				db_.exec("UPDATE schema_version SET number = 17");
 				transaction.commit();
@@ -535,8 +537,8 @@ namespace midikraft {
 				where += " AND type == :TYP";
 			}
 
-			std::string hiddenFalse = "(hidden is null or hidden != 1)";
-			std::string hiddenTrue = "(hidden == 1)";
+			std::string hiddenFalse = "(hidden = 0)";
+			std::string hiddenTrue = "(hidden != 0)";
 			std::string favoriteTrue = "(favorite == 1)";
 			std::string favoriteFalse = "(favorite != 1)";
 			std::string regularTrue = "(regular == 1)";

@@ -4,11 +4,11 @@ MidiKraft is C++ for writing software like editors and librarians to interface s
 
 MidiKraft are a set of base libraries to provide more helper classes to the awesome [JUCE](https://github.com/WeAreROLI/JUCE) framework useful when working with real life hardware MIDI synthesizers, and also to provide implementations for the individual synthesizers to be used in other programs.
 
- This is the current list of MidiKraft libraries available on github:
+ This is the current list of MidiKraft libraries available:
 
-  * [MidiKraft-base](https://github.com/christofmuc/MidiKraft-base): Base library used by all others providing some common definitions
-  * [MidiKraft-librarian](https://github.com/christofmuc/MidiKraft-librarian): Implementation of various different handshake and communication methods to retrieve and send data between the host computer and a MIDI device
-  * [MidiKraft-database](https://github.com/christofmuc/MidiKraft-database): Code to store MIDI data in a SQlite or AWS DynamoDB database
+  * [MidiKraft-base](https://github.com/christofmuc/MidiKraft/tree/main/base): Base library used by all others providing some common definitions
+  * [MidiKraft-librarian](https://github.com/christofmuc/MidiKraft/tree/main/librarian): Implementation of various different handshake and communication methods to retrieve and send data between the host computer and a MIDI device
+  * [MidiKraft-database](https://github.com/christofmuc/MidiKraft/tree/main/database): Code to store MIDI data in a SQlite or AWS DynamoDB database
 
 ## MidiKraft Synthesizer implementations
 

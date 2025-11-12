@@ -476,7 +476,8 @@ namespace midikraft {
 		}
 
 		std::vector<ImportInfo> getImportsList(Synth* activeSynth) {
-			SQLite::Statement query(db_, "SELECT lists.name, lists.id, count(patch_in_list.md5) AS patchCount FROM lists JOIN patch_in_list on lists.id == patch_in_list.id where lists.synth = :SYN AND patch_in_list.synth = :SYN AND lists.list_type = 3 GROUP BY lists.id ORDER BY lists.last_synced");
+			auto queryStr = fmt::format("SELECT lists.name, lists.id, count(patch_in_list.md5) AS patchCount FROM lists JOIN patch_in_list on lists.id == patch_in_list.id where lists.synth = :SYN AND patch_in_list.synth = :SYN AND lists.list_type = {} GROUP BY lists.id ORDER BY lists.last_synced", (int)PatchListType::IMPORT_LIST);
+			SQLite::Statement query(db_, queryStr);
 			query.bind(":SYN", activeSynth->getName());
 			std::vector<ImportInfo> result;
 			while (query.executeStep()) {

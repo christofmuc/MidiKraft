@@ -1756,17 +1756,21 @@ namespace midikraft {
 				search.bind(":ID", patchList->id());
 				auto isSynthBank = std::dynamic_pointer_cast<SynthBank>(patchList);
 				if (search.executeStep()) {
-					// List already exists, just update the name (or touch the last sync timestamp in case of synth banks)
+					// List already exists, update the name, type, and timestamp as needed
 					if (!isSynthBank) {
-						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM WHERE id = :ID");
+						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM, list_type = :LTY WHERE id = :ID");
 						update.bind(":ID", patchList->id());
 						update.bind(":NAM", patchList->name());
+						int list_type = std::dynamic_pointer_cast<ImportList>(patchList) ? PatchListType::IMPORT_LIST : PatchListType::NORMAL_LIST;
+						update.bind(":LTY", list_type);
 						update.exec();
 					}
 					else {
-						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM, last_synced = :LSY WHERE id = :ID");
+						SQLite::Statement update(db_, "UPDATE lists SET name = :NAM, last_synced = :LSY, list_type = :LTY WHERE id = :ID");
 						update.bind(":ID", patchList->id());
 						update.bind(":NAM", patchList->name());
+						int list_type = std::dynamic_pointer_cast<UserBank>(patchList) ? PatchListType::USER_BANK : PatchListType::SYNTH_BANK;
+						update.bind(":LTY", list_type);
 						if (auto activeBank = std::dynamic_pointer_cast<midikraft::ActiveSynthBank>(patchList)) {
 							update.bind(":LSY", (int64_t)activeBank->lastSynced().toMilliseconds());
 						}

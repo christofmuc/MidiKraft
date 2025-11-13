@@ -334,6 +334,8 @@ namespace midikraft {
 					"(ROW_NUMBER() OVER(PARTITION BY sourceID ORDER BY midiBankNo, midiProgramNo) - 1) AS order_num  "
 					"FROM patches "
 					"WHERE sourceID IS NOT NULL; ");
+				// Ensure legacy NULL hidden flags become visible (0) before new filters rely on explicit values.
+				db_.exec("UPDATE patches SET hidden = 0 WHERE hidden IS NULL");
 				// Normalize import list ids so they carry the synth name and remain unique per synth.
 				db_.exec("DROP TABLE IF EXISTS tmp_import_ids");
 				db_.exec("CREATE TEMP TABLE tmp_import_ids(old_id TEXT, synth TEXT, new_id TEXT, PRIMARY KEY(old_id, synth))");

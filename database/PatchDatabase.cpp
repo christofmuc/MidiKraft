@@ -5,6 +5,7 @@
 */
 
 #include "PatchDatabase.h"
+#include "PatchListType.h"
 
 #include "Capability.h"
 #include "Patch.h"
@@ -57,14 +58,6 @@ namespace midikraft {
 	/* 15 - adding sort order field to categories */
 	/* 16 - adding regular flag to patches */
 	/* 17 - move the imports information into the list table, and create the corresponding patch_in_list entries. Add list type for quick filtering. */
-
-	// This is stored in the list_type column
-	enum PatchListType {
-		NORMAL_LIST = 0,
-		SYNTH_BANK = 1,
-		USER_BANK = 2,
-		IMPORT_LIST = 3
-	};
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:

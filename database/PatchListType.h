@@ -9,7 +9,6 @@
 namespace midikraft {
 
 	// Authoritative list type values for the lists table (see docs/imports_target_schema.md)
-	// TODO: Schema reserves 3 for ACTIVE_SYNTH_BANK/4 for imports; align when migration lands.
 	enum PatchListType {
 		NORMAL_LIST = 0,
 		SYNTH_BANK = 1,

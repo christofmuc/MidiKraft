@@ -312,23 +312,50 @@ namespace midikraft {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
 				// Add list type column
-				db_.exec("ALTER TABLE lists ADD COLUMN list_type INTEGER");
+				try {
+					db_.exec("ALTER TABLE lists ADD COLUMN list_type INTEGER");
+				}
+				catch (SQLite::Exception const& e) {
+					spdlog::warn("Failure to add list_type columen during migration to schema 17, must have been a development database?: {}", e.what());
+				}
 				// Set list type
 				db_.exec("UPDATE lists SET list_type = CASE WHEN synth IS NULL THEN 0 "
 					"WHEN id LIKE synth || '%' THEN 1 "
+					"WHEN list_type = 3 THEN 3 "
 					"ELSE 2 "
 					"END;");
-				// Now create list type 3 - import
-				db_.exec("INSERT INTO lists (id, name, synth, last_synced, list_type) SELECT id, name, synth, strftime('%s', date) AS last_synced, 3 FROM imports");
+				// Now create list type 3 - import, where no list with this ID already exists
+				db_.exec("INSERT INTO lists (id, name, synth, last_synced, list_type) "
+					"SELECT id, name, synth, strftime('%s', date) AS last_synced, 3 FROM imports "
+					"WHERE NOT EXISTS (SELECT 1 FROM lists WHERE lists.id = imports.id and lists.synth = imports.synth)");
 				// Now create the list entries for the import lists
 				db_.exec("INSERT INTO patch_in_list (id, synth, md5, order_num) "
 					"SELECT sourceID AS id, synth, md5, "
 					"(ROW_NUMBER() OVER(PARTITION BY sourceID ORDER BY midiBankNo, midiProgramNo) - 1) AS order_num  "
 					"FROM patches "
 					"WHERE sourceID IS NOT NULL; ");
-				// TODO - Fix editbuffer IDs, they must be unique and contain the synth name
+				// Normalize import list ids so they carry the synth name and remain unique per synth.
+				db_.exec("DROP TABLE IF EXISTS tmp_import_ids");
+				db_.exec("CREATE TEMP TABLE tmp_import_ids(old_id TEXT, synth TEXT, new_id TEXT, PRIMARY KEY(old_id, synth))");
+				auto scopedImportIdMigration = fmt::format(
+					R"(INSERT INTO tmp_import_ids (old_id, synth, new_id)
+					   SELECT id AS old_id,
+							  synth,
+					          'import:' || synth || ':' || id AS new_id
+					     FROM lists
+					    WHERE list_type = {0}
+					      AND synth IS NOT NULL
+					      AND id NOT LIKE 'import:%:%')",
+					(int)PatchListType::IMPORT_LIST);
+				db_.exec(scopedImportIdMigration.c_str());
+				db_.exec("UPDATE patch_in_list SET id = (SELECT new_id FROM tmp_import_ids WHERE old_id = patch_in_list.id AND tmp_import_ids.synth = patch_in_list.synth) "
+					"WHERE id IN (SELECT old_id FROM tmp_import_ids)");
+				db_.exec("UPDATE lists SET id = (SELECT new_id FROM tmp_import_ids WHERE old_id = lists.id AND tmp_import_ids.synth = lists.synth) "
+					"WHERE id IN (SELECT old_id FROM tmp_import_ids)");
+				db_.exec("DROP TABLE IF EXISTS tmp_import_ids");
 				db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_id_order_md5_synth ON patch_in_list(id, order_num, md5, synth)");
 				db_.exec("CREATE INDEX IF NOT EXISTS idx_patches_visible  ON patches(synth, md5) WHERE hidden = 0");
+				db_.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_lists_id_synth_unique ON lists(id, synth)");
 
 				// Update schema and commit
 				db_.exec("UPDATE schema_version SET number = 17");
@@ -1133,6 +1160,12 @@ namespace midikraft {
 			std::map<std::string, std::shared_ptr<ImportList>> newImportLists;
 			std::map<std::string, std::shared_ptr<ImportList>> editBufferLists;
 
+			auto synthScopedImportId = [](std::shared_ptr<Synth> synth, std::string const& baseId) {
+				jassert(synth);
+				auto synthName = synth ? synth->getName() : "UnknownSynth";
+				return fmt::format("import:{}:{}", synthName, baseId);
+			};
+
 			auto ensureImportList = [this](std::map<std::string, std::shared_ptr<ImportList>>& cache,
 				std::string const& cacheKey,
 				std::string const& listId,
@@ -1163,14 +1196,13 @@ namespace midikraft {
 				}
 				else if (SourceInfo::isEditBufferImport(newPatch.sourceInfo())) {
 					// In case this is an EditBuffer import (no bank known), always use the same "fake UUID" "EditBufferImport"
-					std::string synthName = newPatch.smartSynth()->getName();
-					std::string editBufferID = fmt::format("EditBufferImport-{}", synthName);
+					std::string editBufferID = synthScopedImportId(newPatch.smartSynth(), "EditBufferImport");
 					auto list = ensureImportList(editBufferLists, editBufferID, editBufferID, newPatch.smartSynth(), "Edit buffer imports");
 					list->addPatch(newPatch);
 				}
 				else {
 					std::string importDisplayString = newPatch.sourceInfo()->toDisplayString(newPatch.synth(), true);
-					std::string importUID = newPatch.sourceInfo()->md5(newPatch.synth());
+					std::string importUID = synthScopedImportId(newPatch.smartSynth(), newPatch.sourceInfo()->md5(newPatch.synth()));
 					auto list = ensureImportList(newImportLists, importUID, importUID, newPatch.smartSynth(), importDisplayString);
 					list->addPatch(newPatch);
 				}

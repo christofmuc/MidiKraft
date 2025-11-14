@@ -554,7 +554,7 @@ namespace midikraft {
 				}
 			}
 			if (!filter.listID.empty()) {
-				where += " AND patch_in_list.id = :LID";
+				where += " AND list_entries.id = :LID";
 			}
 			if (filter.onlySpecifcType) {
 				where += " AND type == :TYP";
@@ -614,9 +614,9 @@ namespace midikraft {
 			std::string orderByClause;
 			switch (filter.orderBy) {
 			case PatchOrdering::No_ordering: orderByClause = ""; break;
-			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY sourceID, midiBankNo, midiProgramNo ";; break;
+			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY (import_pil.id IS NULL), import_pil.id, import_pil.order_num, midiBankNo, midiProgramNo "; break;
 			case PatchOrdering::Order_by_Name: orderByClause = " ORDER BY name, midiBankNo, midiProgramNo "; break;
-			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY order_num"; break;
+			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY list_entries.order_num"; break;
 			case PatchOrdering::Order_by_ProgramNo: orderByClause = " ORDER BY midiProgramNo, name"; break;
 			case PatchOrdering::Order_by_BankNo: orderByClause = " ORDER BY midiBankNo, midiProgramNo, name"; break;
 			default:
@@ -626,17 +626,23 @@ namespace midikraft {
 			return orderByClause;
 		}
 
-		std::string buildJoinClause(PatchFilter filter, bool outer_join = false) {
+		std::string buildJoinClause(PatchFilter filter, bool outer_join = false, bool includeImportOrderingJoin = false) {
 			// If we are also filtering for a list, we need to join the patch_in_list table!
-			std::string joinClause = "";
+			std::string joinClause;
 			if (!filter.listID.empty() || outer_join) {
-				if (outer_join) {
-					joinClause += " LEFT JOIN ";
-				}
-				else {
-					joinClause += " INNER JOIN ";
-				}
-				joinClause += "patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
+				joinClause += outer_join ? " LEFT JOIN " : " INNER JOIN ";
+				joinClause += "patch_in_list AS list_entries ON patches.md5 = list_entries.md5 AND patches.synth = list_entries.synth";
+			}
+			if (includeImportOrderingJoin) {
+				auto importJoin = fmt::format(
+					R"( LEFT JOIN (
+					    SELECT pil.id, pil.synth, pil.md5, pil.order_num
+					      FROM patch_in_list AS pil
+					      JOIN lists AS import_lists ON import_lists.id = pil.id AND import_lists.synth = pil.synth
+					     WHERE import_lists.list_type = {0}
+					) AS import_pil ON patches.md5 = import_pil.md5 AND patches.synth = import_pil.synth)",
+					(int)PatchListType::IMPORT_LIST);
+				joinClause += importJoin;
 			}
 			if (filter.onlyDuplicateNames) {
 				if (outer_join) {
@@ -954,7 +960,8 @@ namespace midikraft {
 		}
 
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder>& result, std::vector<std::pair<std::string, PatchHolder>>& needsReindexing, int skip, int limit) {
-			std::string selectStatement = fmt::format("{} SELECT * FROM patches {} {} {}", buildCTE(filter), buildJoinClause(filter), buildWhereClause(filter, true), buildOrderClause(filter));
+			bool needsImportOrdering = filter.orderBy == PatchOrdering::Order_by_Import_id;
+			std::string selectStatement = fmt::format("{} SELECT * FROM patches {} {} {}", buildCTE(filter), buildJoinClause(filter, false, needsImportOrdering), buildWhereClause(filter, true), buildOrderClause(filter));
 			spdlog::debug("SQL {}", selectStatement);
 			if (limit != -1) {
 				selectStatement += " LIMIT :LIM ";
@@ -1339,7 +1346,7 @@ namespace midikraft {
 					"DELETE FROM patches WHERE ROWID IN ("
 					"   SELECT patches.ROWID FROM patches "
 					"   " + buildJoinClause(filter, true) + buildWhereClause(filter, false) + " "
-					"   AND patch_in_list.id IS NULL"
+					"   AND list_entries.id IS NULL"
 					")";
 				SQLite::Statement deleteQuery(db_, deleteStatement.c_str());
 				bindWhereClause(deleteQuery, filter);
@@ -2159,4 +2166,3 @@ namespace midikraft {
 		return impl->getCategories();
 	}
 }
-

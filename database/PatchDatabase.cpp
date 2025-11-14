@@ -140,6 +140,17 @@ namespace midikraft {
 			}
 		}
 
+		bool columnExists(SQLite::Database& db, std::string const& table_name, std::string const& column_name) {
+			auto pragma = fmt::format("PRAGMA table_info({})", table_name);
+			SQLite::Statement stmt(db, pragma.c_str());
+			while (stmt.executeStep()) {
+				if (column_name == stmt.getColumn("name").getString()) {
+					return true;
+				}
+			}
+			return false;
+		}
+
 		std::string migrateTable(std::string table_name, std::function<void()> create_new_table, std::vector<std::string> const& column_list) {
 			auto old_table_name = table_name + "_old";
 			db_.exec(fmt::format("ALTER TABLE {} RENAME TO {}", table_name, old_table_name).c_str());
@@ -263,7 +274,9 @@ namespace midikraft {
 				backupIfNecessary(hasBackuped);
 				SQLite::Transaction transaction(db_);
 				/// These can't be deleted within a transaction
-				db_.exec("CREATE INDEX IF NOT EXISTS patch_sourceid_idx ON patches (sourceID)");
+				if (columnExists(db_, "patches", "sourceID")) {
+					db_.exec("CREATE INDEX IF NOT EXISTS patch_sourceid_idx ON patches (sourceID)");
+				}
 				db_.exec("UPDATE schema_version SET number = 12");
 				transaction.commit();
 			}
@@ -349,6 +362,7 @@ namespace midikraft {
 					"WHERE id IN (SELECT old_id FROM tmp_import_ids)");
 				db_.exec("DROP TABLE IF EXISTS tmp_import_ids");
 				db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_id_order_md5_synth ON patch_in_list(id, order_num, md5, synth)");
+				db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_import_lookup ON patch_in_list(synth, md5, id)");
 				db_.exec("CREATE INDEX IF NOT EXISTS idx_patches_visible  ON patches(synth, md5) WHERE hidden = 0");
 				db_.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_lists_id_synth_unique ON lists(id, synth)");
 
@@ -410,7 +424,10 @@ namespace midikraft {
 
 			// Creating indexes
 			db_.exec("CREATE INDEX IF NOT EXISTS patch_synth_name_idx ON patches (synth, name)");
-			db_.exec("CREATE INDEX IF NOT EXISTS patch_sourceid_idx ON patches (sourceID)");
+			if (columnExists(db_, "patches", "sourceID")) {
+				db_.exec("CREATE INDEX IF NOT EXISTS patch_sourceid_idx ON patches (sourceID)");
+			}
+			db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_import_lookup ON patch_in_list(synth, md5, id)");
 
 			// Commit transaction
 			transaction.commit();
@@ -854,8 +871,6 @@ namespace midikraft {
 
 					std::string patchName = query.getColumn("name").getString();
 					holder.setName(patchName);
-					std::string sourceId = query.getColumn("sourceID").getString();
-					holder.setSourceId(sourceId);
 
 					auto favoriteColumn = query.getColumn("favorite");
 					if (favoriteColumn.isInteger()) {

@@ -91,16 +91,6 @@ namespace midikraft {
 		return name_;
 	}
 
-	void PatchHolder::setSourceId(std::string const &source_id)
-	{
-		sourceId_ = source_id;
-	}
-
-	std::string PatchHolder::sourceId() const
-	{
-		return sourceId_;
-	}
-
 	void PatchHolder::setPatchNumber(MidiProgramNumber number)
 	{
 		patchNumber_ = number;

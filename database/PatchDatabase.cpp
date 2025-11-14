@@ -39,7 +39,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 17;
+	const int SCHEMA_VERSION = 18;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -58,6 +58,7 @@ namespace midikraft {
 	/* 15 - adding sort order field to categories */
 	/* 16 - adding regular flag to patches */
 	/* 17 - move the imports information into the list table, and create the corresponding patch_in_list entries. Add list type for quick filtering. */
+	/* 18 - drop legacy patches.sourceID column now that imports live in patch_in_list */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -243,7 +244,7 @@ namespace midikraft {
 				backupIfNecessary(hasBackuped);
 				db_.exec("PRAGMA foreign_keys = OFF");
 				SQLite::Transaction transaction(db_);
-				auto table1 = migrateTable("patches", std::bind(&PatchDataBaseImpl::createPatchTable, this),
+				auto table1 = migrateTable("patches", std::bind(&PatchDataBaseImpl::createPatchTableLegacy, this),
 					{ "synth", "md5", "name", "data", "favorite", "sourceID", "sourceName", "sourceInfo", "midiProgramNo", "categories", "categoryUserDecision", "hidden", "type", "midiBankNo" });
 				auto table2 = migrateTable("patch_in_list", std::bind(&PatchDataBaseImpl::createPatchInListTable, this),
 					{ "id", "synth", "md5", "order_num" });
@@ -370,6 +371,21 @@ namespace midikraft {
 				db_.exec("UPDATE schema_version SET number = 17");
 				transaction.commit();
 			}
+			if (currentVersion < 18) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				if (columnExists(db_, "patches", "sourceID")) {
+					auto patchesOld = migrateTable("patches", std::bind(&PatchDataBaseImpl::createPatchTable, this),
+						{ "synth", "md5", "name", "type", "data", "favorite", "regular", "hidden", "sourceName", "sourceInfo", "midiBankNo", "midiProgramNo", "categories", "categoryUserDecision", "comment", "author", "info" });
+					db_.exec(fmt::format("DROP TABLE IF EXISTS {}", patchesOld).c_str());
+					db_.exec("DROP INDEX IF EXISTS patch_sourceid_idx");
+				}
+				else {
+					db_.exec("DROP INDEX IF EXISTS patch_sourceid_idx");
+				}
+				db_.exec("UPDATE schema_version SET number = 18");
+				transaction.commit();
+			}
 		}
 
 		void insertDefaultCategories() {
@@ -390,8 +406,13 @@ namespace midikraft {
 			db_.exec(String("INSERT INTO categories VALUES (14, 'Voice', '" + Colour::fromString("ffa75781").darker().toString() + "', 1, 15)").toStdString().c_str());
 		}
 
-		void createPatchTable() {
+		void createPatchTableLegacy() {
 			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT NOT NULL, md5 TEXT NOT NULL, name TEXT, type INTEGER, data BLOB, favorite INTEGER, regular INTEGER, hidden INTEGER, sourceID TEXT, sourceName TEXT,"
+				" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER, comment TEXT, author TEXT, info TEXT, PRIMARY KEY (synth, md5))");
+		}
+
+		void createPatchTable() {
+			db_.exec("CREATE TABLE IF NOT EXISTS patches (synth TEXT NOT NULL, md5 TEXT NOT NULL, name TEXT, type INTEGER, data BLOB, favorite INTEGER, regular INTEGER, hidden INTEGER, sourceName TEXT,"
 				" sourceInfo TEXT, midiBankNo INTEGER, midiProgramNo INTEGER, categories INTEGER, categoryUserDecision INTEGER, comment TEXT, author TEXT, info TEXT, PRIMARY KEY (synth, md5))");
 		}
 

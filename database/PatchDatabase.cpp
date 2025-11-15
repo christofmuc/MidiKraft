@@ -752,6 +752,40 @@ namespace midikraft {
 			return 0;
 		}
 
+		std::vector<CategoryCount> getCategoryCounts(PatchFilter filter) {
+			std::vector<CategoryCount> result;
+			try {
+				auto filteredSubquery = fmt::format("(SELECT patches.categories FROM patches {} {}) AS filtered_patches", buildJoinClause(filter), buildWhereClause(filter, false));
+				std::string queryString = fmt::format(
+					"{} SELECT categories.bitIndex AS bit_index, categories.name AS cat_name, categories.color AS cat_color, "
+					"categories.active AS cat_active, categories.sort_order AS sort_order, "
+					"COALESCE(SUM(CASE WHEN (filtered_patches.categories & (1 << categories.bitIndex)) != 0 THEN 1 ELSE 0 END), 0) AS category_count "
+					"FROM categories "
+					"LEFT JOIN {} ON 1 = 1 "
+					"GROUP BY categories.bitIndex, categories.name, categories.color, categories.active, categories.sort_order "
+					"ORDER BY categories.sort_order, categories.bitIndex",
+					buildCTE(filter), filteredSubquery);
+
+				SQLite::Statement query(db_, queryString.c_str());
+				bindWhereClause(query, filter);
+				while (query.executeStep()) {
+					auto sortOrder = query.getColumn("sort_order");
+					auto def = std::make_shared<CategoryDefinition>(CategoryDefinition{
+						query.getColumn("bit_index").getInt(),
+						query.getColumn("cat_active").getInt() != 0,
+						query.getColumn("cat_name").getText(),
+						Colour::fromString(query.getColumn("cat_color").getText()),
+						sortOrder.isNull() ? 0 : sortOrder.getInt()
+						});
+					result.push_back({ Category(def), query.getColumn("category_count").getInt() });
+				}
+			}
+			catch (SQLite::Exception& ex) {
+				spdlog::error("DATABASE ERROR in getCategoryCounts: SQL Exception {}", ex.what());
+			}
+			return result;
+		}
+
 		std::vector<Category> getCategories() {
 			ScopedLock lock(categoryLock_);
 			SQLite::Statement query(db_, "SELECT * FROM categories ORDER BY sort_order, bitIndex");
@@ -2049,6 +2083,11 @@ namespace midikraft {
 	int PatchDatabase::getPatchesCount(PatchFilter filter)
 	{
 		return impl->getPatchesCount(filter);
+	}
+
+	std::vector<CategoryCount> PatchDatabase::getCategoryCounts(PatchFilter filter)
+	{
+		return impl->getCategoryCounts(filter);
 	}
 
 	bool PatchDatabase::getSinglePatch(std::shared_ptr<Synth> synth, std::string const& md5, std::vector<PatchHolder>& result)

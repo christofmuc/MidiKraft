@@ -25,6 +25,11 @@ namespace midikraft {
 		std::string name; // The given name of the list
 	};
 
+	struct CategoryCount {
+		Category category;
+		int count;
+	};
+
 	class PatchDatabaseException : public std::runtime_error {
 		using std::runtime_error::runtime_error;
 	};
@@ -68,6 +73,8 @@ namespace midikraft {
 		std::vector<PatchHolder> getPatches(PatchFilter filter, int skip, int limit);
 
 		void getPatchesAsync(PatchFilter filter, std::function<void(PatchFilter const filteredBy, std::vector<PatchHolder> const &)> finished, int skip, int limit);
+
+		std::vector<CategoryCount> getCategoryCounts(PatchFilter filter);
 
 		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice);
 		bool putPatch(PatchHolder const &patch);

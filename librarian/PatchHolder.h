@@ -120,8 +120,6 @@ namespace midikraft {
 		void setName(std::string const &newName);
 		std::string name() const;
 
-		void setSourceId(std::string const &source_id);
-		std::string sourceId() const;
 
 		void setPatchNumber(MidiProgramNumber number);
 		MidiProgramNumber patchNumber() const;
@@ -174,7 +172,6 @@ namespace midikraft {
 		std::shared_ptr<DataFile> patch_;
 		std::weak_ptr<Synth> synth_;
 		std::string name_;
-		std::string sourceId_;
 		Favorite isFavorite_;
 		bool isRegular_;
 		bool isHidden_;

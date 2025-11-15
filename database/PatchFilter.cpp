@@ -66,8 +66,7 @@ namespace midikraft {
 			return true;
 
 		// Then check simple fields
-		return a.importID != b.importID
-			|| a.name != b.name
+		return a.name != b.name
 			|| a.listID != b.listID
 			|| a.onlyFaves != b.onlyFaves
 			|| a.onlySpecifcType != b.onlySpecifcType

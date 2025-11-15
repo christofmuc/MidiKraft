@@ -373,18 +373,30 @@ namespace midikraft {
 			}
 			if (currentVersion < 18) {
 				backupIfNecessary(hasBackuped);
+				bool needsSchemaRewrite = columnExists(db_, "patches", "sourceID");
+				if (needsSchemaRewrite) {
+					db_.exec("PRAGMA foreign_keys = OFF");
+				}
 				SQLite::Transaction transaction(db_);
-				if (columnExists(db_, "patches", "sourceID")) {
+				if (needsSchemaRewrite) {
 					auto patchesOld = migrateTable("patches", std::bind(&PatchDataBaseImpl::createPatchTable, this),
 						{ "synth", "md5", "name", "type", "data", "favorite", "regular", "hidden", "sourceName", "sourceInfo", "midiBankNo", "midiProgramNo", "categories", "categoryUserDecision", "comment", "author", "info" });
 					db_.exec(fmt::format("DROP TABLE IF EXISTS {}", patchesOld).c_str());
 					db_.exec("DROP INDEX IF EXISTS patch_sourceid_idx");
+					auto pilOld = migrateTable("patch_in_list", std::bind(&PatchDataBaseImpl::createPatchInListTable, this),
+						{ "id", "synth", "md5", "order_num" });
+					db_.exec(fmt::format("DROP TABLE IF EXISTS {}", pilOld).c_str());
+					db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_id_order_md5_synth ON patch_in_list(id, order_num, md5, synth)");
+					db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_import_lookup ON patch_in_list(synth, md5, id)");
 				}
 				else {
 					db_.exec("DROP INDEX IF EXISTS patch_sourceid_idx");
 				}
 				db_.exec("UPDATE schema_version SET number = 18");
 				transaction.commit();
+				if (needsSchemaRewrite) {
+					db_.exec("PRAGMA foreign_keys = ON");
+				}
 			}
 		}
 
@@ -533,17 +545,6 @@ namespace midikraft {
 				spdlog::error("DATABASE ERROR in putPatch: SQL Exception {}", ex.what());
 			}
 			return true;
-		}
-
-		std::vector<ImportInfo> getImportsList(Synth* activeSynth) {
-			auto queryStr = fmt::format("SELECT lists.name, lists.id, count(patch_in_list.md5) AS patchCount FROM lists JOIN patch_in_list on lists.id == patch_in_list.id where lists.synth = :SYN AND patch_in_list.synth = :SYN AND lists.list_type = {} GROUP BY lists.id ORDER BY lists.last_synced", (int)PatchListType::IMPORT_LIST);
-			SQLite::Statement query(db_, queryStr);
-			query.bind(":SYN", activeSynth->getName());
-			std::vector<ImportInfo> result;
-			while (query.executeStep()) {
-				result.push_back({ query.getColumn("name").getText(), query.getColumn("id").getText(), query.getColumn("patchCount").getInt() });
-			}
-			return result;
 		}
 
 		bool renameList(std::string listID, std::string newName) {
@@ -1643,6 +1644,25 @@ namespace midikraft {
 			}
 		}
 
+		std::vector<ListInfo> allImportLists(std::shared_ptr<Synth> synth)
+		{
+			if (!synth) return {};
+			try {
+				SQLite::Statement query(db_, "SELECT id, name FROM lists WHERE synth = :SYN AND list_type = :LT");
+				query.bind(":SYN", synth->getName());
+				query.bind(":LT", (int)PatchListType::IMPORT_LIST);
+				std::vector<ListInfo> result;
+				while (query.executeStep()) {
+					result.push_back({ query.getColumn("id").getText(), query.getColumn("name").getText() });
+				}
+				return result;
+			}
+			catch (SQLite::Exception& e) {
+				spdlog::error("Database error when retrieving import lists: {}", e.what());
+				return {};
+			}
+		}
+
 		bool doesListExist(std::string listId) {
 			SQLite::Statement query(db_, "SELECT count(*) as num_lists FROM lists WHERE id = :ID");
 			query.bind(":ID", listId);
@@ -2068,10 +2088,15 @@ namespace midikraft {
 		impl->updateCategories(newdefs);
 	}
 
-	std::vector<ListInfo> PatchDatabase::allPatchLists()
-	{
-		return impl->allPatchLists();
-	}
+std::vector<ListInfo> PatchDatabase::allPatchLists()
+{
+	return impl->allPatchLists();
+}
+
+std::vector<ListInfo> PatchDatabase::allImportLists(std::shared_ptr<Synth> synth)
+{
+	return impl->allImportLists(synth);
+}
 
 	std::vector<ListInfo> PatchDatabase::allSynthBanks(std::shared_ptr<Synth> synth)
 	{
@@ -2161,15 +2186,6 @@ namespace midikraft {
 	size_t PatchDatabase::mergePatchesIntoDatabase(std::vector<PatchHolder>& patches, std::vector<PatchHolder>& outNewPatches, ProgressHandler* progress, unsigned updateChoice)
 	{
 		return impl->mergePatchesIntoDatabase(patches, outNewPatches, progress, updateChoice, true);
-	}
-
-	std::vector<ImportInfo> PatchDatabase::getImportsList(Synth* activeSynth) const {
-		if (activeSynth) {
-			return impl->getImportsList(activeSynth);
-		}
-		else {
-			return {};
-		}
 	}
 
 	std::string PatchDatabase::generateDefaultDatabaseLocation() {

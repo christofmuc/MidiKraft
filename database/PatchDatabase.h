@@ -20,12 +20,6 @@
 
 namespace midikraft {
 
-	struct ImportInfo {
-		std::string name; // The name of the import
-		std::string id; // The database ID, as a unique identifier
-		int countPatches; // The number of patches that currently macht this import ID
-	};
-
 	struct ListInfo {
 		std::string id; // The database ID
 		std::string name; // The given name of the list
@@ -76,7 +70,6 @@ namespace midikraft {
 		void getPatchesAsync(PatchFilter filter, std::function<void(PatchFilter const filteredBy, std::vector<PatchHolder> const &)> finished, int skip, int limit);
 
 		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice);
-		std::vector<ImportInfo> getImportsList(Synth *activeSynth) const;
 		bool putPatch(PatchHolder const &patch);
 		bool putPatches(std::vector<PatchHolder> const &patches);
 
@@ -98,6 +91,7 @@ namespace midikraft {
 		std::vector<ListInfo> allSynthBanks(std::shared_ptr<Synth> synth);
 		std::vector<ListInfo> allUserBanks(std::shared_ptr<Synth> synth);
 		std::vector<ListInfo> allPatchLists();
+		std::vector<ListInfo> allImportLists(std::shared_ptr<Synth> synth);
 		bool doesListExist(std::string listId);
 		std::shared_ptr<PatchList> getPatchList(ListInfo info, std::map<std::string, std::weak_ptr<Synth>> synths);
 		void putPatchList(std::shared_ptr<PatchList> patchList);

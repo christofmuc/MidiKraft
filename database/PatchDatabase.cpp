@@ -1702,7 +1702,8 @@ namespace midikraft {
 					return nullptr;
 				}
 				auto listTypeValue = queryList.getColumn("list_type").getInt();
-				switch (listTypeValue) {
+				auto listType = static_cast<PatchListType>(listTypeValue);
+				switch (listType) {
 				case PatchListType::NORMAL_LIST:
 					list = std::make_shared<midikraft::PatchList>(listID, queryList.getColumn("name").getText());
 					break;

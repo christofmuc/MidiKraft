@@ -587,7 +587,7 @@ namespace midikraft {
 		}
 
 		std::string buildWhereClause(PatchFilter filter, bool needsCollate) {
-			std::string where = " WHERE 1 == 1 ";
+			std::string where = " WHERE ( 1 == 1 ";
 			if (!filter.synths.empty()) {
 				//TODO does SQlite do "IN" clause?
 				where += " AND ( ";
@@ -605,7 +605,7 @@ namespace midikraft {
 				}
 			}
 			if (!filter.listID.empty()) {
-				where += " AND list_entries.id = :LID";
+				where += " AND patch_in_list.id = :LID";
 			}
 			if (filter.onlySpecifcType) {
 				where += " AND type == :TYP";
@@ -621,7 +621,7 @@ namespace midikraft {
 
 			std::string filterClause;
 			// The positive filters are ORed
-			filterClause += (filter.onlyFaves ? (filterClause.empty() ? "" : " OR ") + favoriteTrue : "");
+			filterClause += (filter.onlyFaves ? favoriteTrue : "");
 			filterClause += (filter.showHidden ? (filterClause.empty() ? "" : " OR ") + hiddenTrue: "");
 			filterClause += (filter.showRegular? (filterClause.empty() ? "" : " OR ") + regularTrue: "");
 			filterClause += (filter.showUndecided? (filterClause.empty() ? "" : " OR ") + undecidedTrue: "");
@@ -632,7 +632,8 @@ namespace midikraft {
 			andClause += (!filter.showRegular ? (andClause.empty() ? "" : " AND ") + regularFalse : "");
 			if (filter.onlyFaves || filter.showHidden || filter.showRegular || filter.showUndecided) {
 				// At least one filter is active, insert our calculated clauses
-				where += (filterClause.empty() ? "" : " AND ") + filterClause + (andClause.empty() ? "" : " AND ") + andClause;
+				std::string wrappedFilter = filterClause.empty() ? "" : "( " + filterClause + " )";
+				where += (wrappedFilter.empty() ? "" : " AND " + wrappedFilter) + (andClause.empty() ? "" : " AND " + andClause);
 			} 
 			else {
 				// Show all non hidden
@@ -658,16 +659,16 @@ namespace midikraft {
 				where += " AND patches_count.count > 1";
 			}
 			//spdlog::debug(where);
-			return where;
+			return where + ") ";
 		}
 
 		std::string buildOrderClause(PatchFilter filter) {
 			std::string orderByClause;
 			switch (filter.orderBy) {
 			case PatchOrdering::No_ordering: orderByClause = ""; break;
-			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY (import_pil.id IS NULL), import_pil.id, import_pil.order_num, midiBankNo, midiProgramNo "; break;
+			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY (import_pil.id IS NULL), import_pil.import_name, import_pil.order_num, midiBankNo, midiProgramNo "; break;
 			case PatchOrdering::Order_by_Name: orderByClause = " ORDER BY name, midiBankNo, midiProgramNo "; break;
-			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY list_entries.order_num"; break;
+			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY patch_in_list.order_num"; break;
 			case PatchOrdering::Order_by_ProgramNo: orderByClause = " ORDER BY midiProgramNo, name"; break;
 			case PatchOrdering::Order_by_BankNo: orderByClause = " ORDER BY midiBankNo, midiProgramNo, name"; break;
 			default:
@@ -682,12 +683,12 @@ namespace midikraft {
 			std::string joinClause;
 			if (!filter.listID.empty() || outer_join) {
 				joinClause += outer_join ? " LEFT JOIN " : " INNER JOIN ";
-				joinClause += "patch_in_list AS list_entries ON patches.md5 = list_entries.md5 AND patches.synth = list_entries.synth";
+				joinClause += "patch_in_list ON patches.md5 = patch_in_list.md5 AND patches.synth = patch_in_list.synth";
 			}
 			if (includeImportOrderingJoin) {
 				auto importJoin = fmt::format(
 					R"( LEFT JOIN (
-					    SELECT pil.id, pil.synth, pil.md5, pil.order_num
+					    SELECT pil.id, pil.synth, pil.md5, pil.order_num, import_lists.name as import_name
 					      FROM patch_in_list AS pil
 					      JOIN lists AS import_lists ON import_lists.id = pil.id AND import_lists.synth = pil.synth
 					     WHERE import_lists.list_type = {0}
@@ -1427,7 +1428,7 @@ namespace midikraft {
 					"DELETE FROM patches WHERE ROWID IN ("
 					"   SELECT patches.ROWID FROM patches "
 					"   " + buildJoinClause(filter, true) + buildWhereClause(filter, false) + " "
-					"   AND list_entries.id IS NULL"
+					"   AND patch_in_list.id IS NULL"
 					")";
 				SQLite::Statement deleteQuery(db_, deleteStatement.c_str());
 				bindWhereClause(deleteQuery, filter);
@@ -1692,7 +1693,7 @@ namespace midikraft {
 		{
 			if (!synth) return {};
 			try {
-				SQLite::Statement query(db_, "SELECT id, name FROM lists WHERE synth = :SYN AND list_type = :LT");
+				SQLite::Statement query(db_, "SELECT id, name FROM lists WHERE synth = :SYN AND list_type = :LT ORDER BY lists.name");
 				query.bind(":SYN", synth->getName());
 				query.bind(":LT", (int)PatchListType::IMPORT_LIST);
 				std::vector<ListInfo> result;

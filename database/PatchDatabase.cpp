@@ -28,6 +28,8 @@
 #include <spdlog/spdlog.h>
 #include "SpdLogJuce.h"
 
+#include "SqlExpression.h"
+
 #include <SQLiteCpp/Database.h>
 #include <SQLiteCpp/Statement.h>
 #include <SQLiteCpp/Transaction.h>
@@ -587,28 +589,33 @@ namespace midikraft {
 		}
 
 		std::string buildWhereClause(PatchFilter filter, bool needsCollate) {
-			std::string where = " WHERE ( 1 == 1 ";
+			using namespace sqlexpr;
+
+			std::vector<SqlExpr> andClauses;
+			// Base clause to keep the behaviour compatible with the previous implementation
+			andClauses.push_back(SqlExpr::atomExpr("1 == 1"));
+
 			if (!filter.synths.empty()) {
 				//TODO does SQlite do "IN" clause?
-				where += " AND ( ";
+				std::vector<SqlExpr> synthConditions;
 				int s = 0;
 				for (auto synth : filter.synths) {
-					if (s != 0) where += " OR ";
-					where += "patches.synth = " + synthVariable(s++);
+					synthConditions.push_back(SqlExpr::atomExpr("patches.synth = " + synthVariable(s++)));
 				}
-				where += " ) ";
+				andClauses.push_back(SqlExpr::orExpr(std::move(synthConditions)));
 			}
 			if (!filter.name.empty()) {
-				where += " AND (patches.name LIKE :NAM or patches.comment LIKE :NAM or patches.author LIKE :NAM or patches.info LIKE :NAM)";
+				std::string nameClause = "patches.name LIKE :NAM or patches.comment LIKE :NAM or patches.author LIKE :NAM or patches.info LIKE :NAM";
 				if (needsCollate) {
-					where += " COLLATE NOCASE";
+					nameClause += " COLLATE NOCASE";
 				}
+				andClauses.push_back(SqlExpr::atomExpr(std::move(nameClause)));
 			}
 			if (!filter.listID.empty()) {
-				where += " AND patch_in_list.id = :LID";
+				andClauses.push_back(SqlExpr::atomExpr("patch_in_list.id = :LID"));
 			}
 			if (filter.onlySpecifcType) {
-				where += " AND type == :TYP";
+				andClauses.push_back(SqlExpr::atomExpr("type == :TYP"));
 			}
 
 			std::string hiddenFalse = "(hidden = 0)";
@@ -619,29 +626,61 @@ namespace midikraft {
 			std::string regularFalse = "(regular is null or regular != 1)";
 			std::string undecidedTrue = "(" + hiddenFalse + " AND " + favoriteFalse + " AND " + regularFalse + ")";
 
-			std::string filterClause;
+			std::vector<SqlExpr> positiveFilters;
+			std::vector<SqlExpr> negativeFilters;
+
 			// The positive filters are ORed
-			filterClause += (filter.onlyFaves ? favoriteTrue : "");
-			filterClause += (filter.showHidden ? (filterClause.empty() ? "" : " OR ") + hiddenTrue: "");
-			filterClause += (filter.showRegular? (filterClause.empty() ? "" : " OR ") + regularTrue: "");
-			filterClause += (filter.showUndecided? (filterClause.empty() ? "" : " OR ") + undecidedTrue: "");
+			if (filter.onlyFaves) {
+				positiveFilters.push_back(SqlExpr::atomExpr(favoriteTrue));
+			}
+			if (filter.showHidden) {
+				positiveFilters.push_back(SqlExpr::atomExpr(hiddenTrue));
+			}
+			if (filter.showRegular) {
+				positiveFilters.push_back(SqlExpr::atomExpr(regularTrue));
+			}
+			if (filter.showUndecided) {
+				positiveFilters.push_back(SqlExpr::atomExpr(undecidedTrue));
+			}
+
 			// The negative filters are ANDed
-			std::string andClause;
-			andClause += (!filter.onlyFaves ? (andClause.empty() ? "" : " AND ") + favoriteFalse : "");
-			andClause += (!filter.showHidden ? (andClause.empty() ? "" : " AND ") + hiddenFalse : "");
-			andClause += (!filter.showRegular ? (andClause.empty() ? "" : " AND ") + regularFalse : "");
+			if (!filter.onlyFaves) {
+				negativeFilters.push_back(SqlExpr::atomExpr(favoriteFalse));
+			}
+			if (!filter.showHidden) {
+				negativeFilters.push_back(SqlExpr::atomExpr(hiddenFalse));
+			}
+			if (!filter.showRegular) {
+				negativeFilters.push_back(SqlExpr::atomExpr(regularFalse));
+			}
+
 			if (filter.onlyFaves || filter.showHidden || filter.showRegular || filter.showUndecided) {
 				// At least one filter is active, insert our calculated clauses
-				std::string wrappedFilter = filterClause.empty() ? "" : "( " + filterClause + " )";
-				where += (wrappedFilter.empty() ? "" : " AND " + wrappedFilter) + (andClause.empty() ? "" : " AND " + andClause);
-			} 
+				std::vector<SqlExpr> visibilityClauses;
+
+				if (!positiveFilters.empty()) {
+					visibilityClauses.push_back(SqlExpr::orExpr(std::move(positiveFilters)));
+				}
+				if (!negativeFilters.empty()) {
+					visibilityClauses.push_back(SqlExpr::andExpr(std::move(negativeFilters)));
+				}
+
+				if (!visibilityClauses.empty()) {
+					if (visibilityClauses.size() == 1) {
+						andClauses.push_back(std::move(visibilityClauses.front()));
+					}
+					else {
+						andClauses.push_back(SqlExpr::andExpr(std::move(visibilityClauses)));
+					}
+				}
+			}
 			else {
 				// Show all non hidden
-				where += " AND " + hiddenFalse;
+				andClauses.push_back(SqlExpr::atomExpr(hiddenFalse));
 			}
 
 			if (filter.onlyUntagged) {
-				where += " AND categories == 0";
+				andClauses.push_back(SqlExpr::atomExpr("categories == 0"));
 			}
 			else if (!filter.categories.empty()) {
 				// Empty category filter set will of course return everything
@@ -649,17 +688,22 @@ namespace midikraft {
 				// The correct way to do this would be to create a many to many relationship and run an "exists" query or join/unique the category table. Returning the list of categories also requires 
 				// a concat on sub-query, so we're running into more complex SQL territory here.
 				if (!filter.andCategories) {
-					where += " AND (categories & :CAT != 0)";
+					andClauses.push_back(SqlExpr::atomExpr("(categories & :CAT != 0)"));
 				}
 				else {
-					where += " AND (categories & :CAT == :CAT)";
+					andClauses.push_back(SqlExpr::atomExpr("(categories & :CAT == :CAT)"));
 				}
 			}
 			if (filter.onlyDuplicateNames) {
-				where += " AND patches_count.count > 1";
+				andClauses.push_back(SqlExpr::atomExpr("patches_count.count > 1"));
 			}
-			//spdlog::debug(where);
-			return where + ") ";
+
+			auto whereExpr = SqlExpr::andExpr(std::move(andClauses));
+			std::string where = " WHERE ";
+			where += sqlexpr::toSql(whereExpr);
+			where += " ";
+			spdlog::debug(where);
+			return where;
 		}
 
 		std::string buildOrderClause(PatchFilter filter) {
@@ -667,10 +711,10 @@ namespace midikraft {
 			switch (filter.orderBy) {
 			case PatchOrdering::No_ordering: orderByClause = ""; break;
 			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY (import_pil.id IS NULL), import_pil.import_name, import_pil.order_num, midiBankNo, midiProgramNo "; break;
-			case PatchOrdering::Order_by_Name: orderByClause = " ORDER BY name, midiBankNo, midiProgramNo "; break;
+			case PatchOrdering::Order_by_Name: orderByClause = " ORDER BY patches.name, midiBankNo, midiProgramNo "; break;
 			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY patch_in_list.order_num"; break;
-			case PatchOrdering::Order_by_ProgramNo: orderByClause = " ORDER BY midiProgramNo, name"; break;
-			case PatchOrdering::Order_by_BankNo: orderByClause = " ORDER BY midiBankNo, midiProgramNo, name"; break;
+			case PatchOrdering::Order_by_ProgramNo: orderByClause = " ORDER BY midiProgramNo, patches.name"; break;
+			case PatchOrdering::Order_by_BankNo: orderByClause = " ORDER BY midiBankNo, midiProgramNo, patches.name"; break;
 			default:
 				jassertfalse;
 				spdlog::error("Program error - encountered invalid ordering field in buildOrderClause");

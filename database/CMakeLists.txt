@@ -14,6 +14,7 @@ set(Sources
 	PatchDatabase.cpp PatchDatabase.h
 	PatchFilter.cpp PatchFilter.h
     PatchListType.h
+    SqlExpression.cpp SqlExpression.h
 )
 
 set(SQLITE_CPP_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/../../third_party/SQLiteCpp/include")

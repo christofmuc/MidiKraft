@@ -1044,7 +1044,8 @@ namespace midikraft {
 
 		bool getPatches(PatchFilter filter, std::vector<PatchHolder>& result, std::vector<std::pair<std::string, PatchHolder>>& needsReindexing, int skip, int limit) {
 			bool needsImportOrdering = filter.orderBy == PatchOrdering::Order_by_Import_id;
-			std::string selectStatement = fmt::format("{} SELECT * FROM patches {} {} {}", buildCTE(filter), buildJoinClause(filter, false, needsImportOrdering), buildWhereClause(filter, true), buildOrderClause(filter));
+			// Select patches.* to avoid ambiguous column names when joining list tables; ordering columns stay accessible for ORDER BY.
+			std::string selectStatement = fmt::format("{} SELECT patches.* FROM patches {} {} {}", buildCTE(filter), buildJoinClause(filter, false, needsImportOrdering), buildWhereClause(filter, true), buildOrderClause(filter));
 			spdlog::debug("SQL {}", selectStatement);
 			if (limit != -1) {
 				selectStatement += " LIMIT :LIM ";
@@ -1062,7 +1063,7 @@ namespace midikraft {
 					// Find the synth this patch is for
 					auto synthName = query.getColumn("synth");
 					if (filter.synths.find(synthName) == filter.synths.end()) {
-						spdlog::error("Program error, query returned patch for synth {} which was not part of the filter", synthName.getString());
+						spdlog::error("Program error, query returned patch for synth '{}' which was not part of the filter", synthName.getString());
 						continue;
 					}
 					auto thisSynth = filter.synths[synthName].lock();
@@ -1240,7 +1241,7 @@ namespace midikraft {
 			return false;
 		}
 
-		void sortPatchesIntoImportLists(std::vector<PatchHolder>& patches) {
+		void sortPatchesIntoImportLists(std::vector<PatchHolder> const& patches) {
 			// Sort all patches into the existing or new lists. The lists will be saved after the patches themselves are saved.
 			std::map<std::string, std::shared_ptr<ImportList>> newImportLists;
 			std::map<std::string, std::shared_ptr<ImportList>> editBufferLists;
@@ -1385,9 +1386,6 @@ namespace midikraft {
 				}
 				if (progress) progress->setProgressPercentage(sumOfAll / (double)outNewPatches.size());
 			}
-
-			// Now that all patches have been saved, create the import lists and their content
-			sortPatchesIntoImportLists(patches);
 
 			if (transaction) transaction->commit();
 
@@ -2124,6 +2122,11 @@ namespace midikraft {
 		ignoreUnused(patches);
 		jassert(false);
 		return false;
+	}
+
+	void PatchDatabase::createImportLists(std::vector<PatchHolder> const& patches)
+	{
+		impl->sortPatchesIntoImportLists(patches);
 	}
 
 	std::shared_ptr<AutomaticCategory> PatchDatabase::getCategorizer()

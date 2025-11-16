@@ -79,6 +79,7 @@ namespace midikraft {
 		size_t mergePatchesIntoDatabase(std::vector<PatchHolder> &patches, std::vector<PatchHolder> &outNewPatches, ProgressHandler *progress, unsigned updateChoice);
 		bool putPatch(PatchHolder const &patch);
 		bool putPatches(std::vector<PatchHolder> const &patches);
+		void createImportLists(std::vector<PatchHolder> const& patches);
 
 		std::pair<int, int> deletePatches(PatchFilter filter);
 		std::pair<int, int> deletePatches(std::string const& synth, std::vector<std::string> const& md5s);

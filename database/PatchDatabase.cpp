@@ -331,30 +331,21 @@ namespace midikraft {
 					"WHEN list_type = 3 THEN 3 "
 					"ELSE 2 "
 					"END;");
-				// Now create list type 3 - import, where no list with this ID already exists
-				db_.exec("INSERT INTO lists (id, name, synth, last_synced, list_type) "
-					"SELECT id, name, synth, strftime('%s', date) AS last_synced, 3 FROM imports "
-					"WHERE NOT EXISTS (SELECT 1 FROM lists WHERE lists.id = imports.id and lists.synth = imports.synth)");
-				// Now create the list entries for the import lists
-				db_.exec("INSERT INTO patch_in_list (id, synth, md5, order_num) "
-					"SELECT sourceID AS id, synth, md5, "
-					"(ROW_NUMBER() OVER(PARTITION BY sourceID ORDER BY midiBankNo, midiProgramNo) - 1) AS order_num  "
-					"FROM patches "
-					"WHERE sourceID IS NOT NULL; ");
-				// Ensure legacy NULL hidden flags become visible (0) before new filters rely on explicit values.
-				db_.exec("UPDATE patches SET hidden = 0 WHERE hidden IS NULL");
-				// Normalize import list ids so they carry the synth name and remain unique per synth.
+				// Normalize existing import list ids before creating new ones to avoid PK collisions
 				db_.exec("DROP TABLE IF EXISTS tmp_import_ids");
 				db_.exec("CREATE TEMP TABLE tmp_import_ids(old_id TEXT, synth TEXT, new_id TEXT, PRIMARY KEY(old_id, synth))");
 				auto scopedImportIdMigration = fmt::format(
 					R"(INSERT INTO tmp_import_ids (old_id, synth, new_id)
-					   SELECT id AS old_id,
-							  synth,
-					          'import:' || synth || ':' || id AS new_id
-					     FROM lists
-					    WHERE list_type = {0}
-					      AND synth IS NOT NULL
-					      AND id NOT LIKE 'import:%:%')",
+					   SELECT l.id AS old_id,
+							  l.synth,
+					          'import:' || l.synth || ':' || l.id AS new_id
+					     FROM lists AS l
+					    WHERE l.list_type = {0}
+					      AND l.synth IS NOT NULL
+					      AND l.id NOT LIKE 'import:%:%'
+					      AND NOT EXISTS (
+							  SELECT 1 FROM lists existing
+							   WHERE existing.id = 'import:' || l.synth || ':' || l.id))",
 					(int)PatchListType::IMPORT_LIST);
 				db_.exec(scopedImportIdMigration.c_str());
 				db_.exec("UPDATE patch_in_list SET id = (SELECT new_id FROM tmp_import_ids WHERE old_id = patch_in_list.id AND tmp_import_ids.synth = patch_in_list.synth) "
@@ -362,6 +353,24 @@ namespace midikraft {
 				db_.exec("UPDATE lists SET id = (SELECT new_id FROM tmp_import_ids WHERE old_id = lists.id AND tmp_import_ids.synth = lists.synth) "
 					"WHERE id IN (SELECT old_id FROM tmp_import_ids)");
 				db_.exec("DROP TABLE IF EXISTS tmp_import_ids");
+
+				// Create import lists with synth-qualified ids to ensure uniqueness across synths and reruns
+				db_.exec("INSERT INTO lists (id, name, synth, last_synced, list_type) "
+					"SELECT 'import:' || imports.synth || ':' || imports.id AS new_id, "
+					"       imports.name, imports.synth, strftime('%s', imports.date) AS last_synced, 3 "
+					"FROM imports "
+					"WHERE imports.synth IS NOT NULL "
+					"  AND NOT EXISTS (SELECT 1 FROM lists WHERE lists.id = 'import:' || imports.synth || ':' || imports.id "
+					"                               OR lists.id = imports.id)");
+
+				// Create the list entries for the import lists, using the same synthesized ids
+				db_.exec("INSERT INTO patch_in_list (id, synth, md5, order_num) "
+					"SELECT 'import:' || synth || ':' || sourceID AS id, synth, md5, "
+					"(ROW_NUMBER() OVER(PARTITION BY sourceID ORDER BY midiBankNo, midiProgramNo) - 1) AS order_num  "
+					"FROM patches "
+					"WHERE sourceID IS NOT NULL; ");
+				// Ensure legacy NULL hidden flags become visible (0) before new filters rely on explicit values.
+				db_.exec("UPDATE patches SET hidden = 0 WHERE hidden IS NULL");
 				db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_id_order_md5_synth ON patch_in_list(id, order_num, md5, synth)");
 				db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_import_lookup ON patch_in_list(synth, md5, id)");
 				db_.exec("CREATE INDEX IF NOT EXISTS idx_patches_visible  ON patches(synth, md5) WHERE hidden = 0");
@@ -394,6 +403,9 @@ namespace midikraft {
 				}
 				db_.exec("UPDATE schema_version SET number = 18");
 				transaction.commit();
+				// Ensure patch_in_list indexes exist even when no schema rewrite was needed
+				db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_id_order_md5_synth ON patch_in_list(id, order_num, md5, synth)");
+				db_.exec("CREATE INDEX IF NOT EXISTS idx_pil_import_lookup ON patch_in_list(synth, md5, id)");
 				if (needsSchemaRewrite) {
 					db_.exec("PRAGMA foreign_keys = ON");
 				}

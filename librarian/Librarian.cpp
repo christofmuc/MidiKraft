@@ -114,7 +114,7 @@ namespace midikraft {
 			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput](MidiInput* source, const juce::MidiMessage& editBuffer) {
 				ignoreUnused(source);
 				this->handleNextStreamPart(midiOutput, synth, progressHandler, editBuffer, StreamLoadCapability::StreamType::BANK_DUMP);
-				});
+				}, synth->defaultReplyTimeoutMs());
 			handles_.push(handle);
 			currentDownloadBank_ = bankNo;
 			expectedDownloadNumber_ = SynthBank::numberOfPatchesInBank(synth, bankNo);
@@ -156,7 +156,7 @@ namespace midikraft {
 							progressHandler->onCancel();
 						}
 					}
-					});
+					}, synth->defaultReplyTimeoutMs());
 				handles_.push(handle);
 				handshakeLoadingRequired->startDownload(midiOutput, state);
 			}
@@ -178,7 +178,7 @@ namespace midikraft {
 				auto now = juce::Time::getCurrentTime();
 				std::swap(*timestampOfLastMessage, now);  // Update last received message time
 				this->handleNextBankDump(midiOutput, synth, progressHandler, editBuffer, bankNo);
-				});
+				}, synth->defaultReplyTimeoutMs());
 			auto partialHandle = MidiController::makeOneHandle();
 			MidiController::instance()->addPartialMessageHandler(partialHandle, [timestampOfLastMessage](MidiInput* source, const uint8* data, int numBytesSoFar, double timestamp) {
 				ignoreUnused(source, data, numBytesSoFar, timestamp);
@@ -198,7 +198,7 @@ namespace midikraft {
 				MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput* source, const juce::MidiMessage& editBuffer) {
 					ignoreUnused(source);
 					this->handleNextProgramBuffer(midiOutput, synth, progressHandler, editBuffer, bankNo);
-					});
+					}, synth->defaultReplyTimeoutMs());
 				handles_.push(handle);
 				downloadNumber_ = SynthBank::startIndexInBank(synth, bankNo);
 				startDownloadNumber_ = downloadNumber_;
@@ -214,7 +214,7 @@ namespace midikraft {
 				MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput* source, const juce::MidiMessage& editBuffer) {
 					ignoreUnused(source);
 					this->handleNextEditBuffer(midiOutput, synth, progressHandler, editBuffer, bankNo);
-					});
+					}, synth->defaultReplyTimeoutMs());
 				handles_.push(handle);
 				downloadNumber_ = SynthBank::startIndexInBank(synth, bankNo);
 				startDownloadNumber_ = downloadNumber_;

@@ -72,12 +72,16 @@ namespace midikraft {
 		static HandlerHandle makeNoneHandle() { return juce::Uuid::null(); }
 
 		MidiController(); // Public for PyBind11
+		
+		// Timeout helpers (empty MidiMessage used as sentinel)
+		static MidiMessage makeTimeoutMessage();
+		static bool isTimeoutMessage(const MidiMessage& message);
 
 		static MidiController *instance();
 		static void shutdown(); // Call this last, and never call instance() again after this
 
-		//TODO - I think these should have an optional expiration date/timeout with a timeout handler, like when the expected response doesn't happen
-		void addMessageHandler(HandlerHandle const &handle, MidiCallback handler);
+		// Optional timeout: if timeoutMs > 0, handler receives makeTimeoutMessage() after that idle period
+		void addMessageHandler(HandlerHandle const &handle, MidiCallback handler, int timeoutMs = -1);
 		bool removeMessageHandler(HandlerHandle const &handle);
 		
 		void addPartialMessageHandler(HandlerHandle const& handle, MidiDataCallback handler);
@@ -110,9 +114,16 @@ namespace midikraft {
 
 		static MidiController *instance_;
 
+		struct HandlerEntry {
+			MidiCallback callback;
+			int timeoutMs;
+			uint32 lastActivityMs;
+			bool timeoutTriggered;
+		};
+
 		// The list of handlers needs to be locked for thread-safe access
 		CriticalSection messageHandlerList_;
-		std::map<HandlerHandle, MidiCallback> messageHandlers_;
+		std::map<HandlerHandle, HandlerEntry> messageHandlers_;
 		CriticalSection partialMessageHandlerList_;
 		std::map<HandlerHandle, MidiDataCallback> partialHandlers_;
 
@@ -127,4 +138,3 @@ namespace midikraft {
 	};
 	
 }
-

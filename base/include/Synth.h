@@ -64,6 +64,9 @@ namespace midikraft {
 		virtual void sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
 		virtual void sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const &midiOutput, std::vector<MidiMessage> const& buffer);
 
+		// Default timeout (ms) used for request/response style operations; override per synth as needed
+		virtual int defaultReplyTimeoutMs() const;
+
 		// Helper methods
 		static int sizeOfBank(std::shared_ptr<Synth>, int zeroBasedBankNumber);
 		static MidiBankNumber bankNumberFromInt(std::shared_ptr<Synth>, int zeroBasedBankNumber);

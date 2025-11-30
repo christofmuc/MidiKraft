@@ -21,6 +21,16 @@ namespace midikraft {
 	{
 	}
 
+	MidiMessage MidiController::makeTimeoutMessage()
+	{
+		return MidiMessage();
+	}
+
+	bool MidiController::isTimeoutMessage(const MidiMessage& message)
+	{
+		return message.getRawDataSize() == 0;
+	}
+
 	void SafeMidiOutput::sendMessageNow(const MidiMessage& message) {
 		if (midiOut_) {
 			// Suppress empty sysex messages, they seem to confuse vintage hardware (e.g the Kawai K3 in particular)
@@ -238,10 +248,14 @@ namespace midikraft {
 		// Call all currently registered handlers, but make sure to iterate over a copy of the list as it might get modified while the handlers run
 		// First the new style handlers;
 		std::vector<MidiCallback>newhandlers;
+		auto now = Time::getMillisecondCounter();
 		{
 			ScopedLock lock(messageHandlerList_);
 			for (auto const &handler : messageHandlers_) {
-				newhandlers.push_back(handler.second);
+				auto& entry = handler.second;
+				entry.lastActivityMs = now;
+				entry.timeoutTriggered = false;
+				newhandlers.push_back(entry.callback);
 			}
 		}
 		for (auto const &handler : newhandlers) {
@@ -333,6 +347,34 @@ namespace midikraft {
 			spdlog::debug("Detected change in MIDI device list, notifying listeners");
 			sendChangeMessage();
 		}
+
+		// Timeout handling for registered callbacks
+		std::vector<MidiCallback> timeoutCallbacks;
+		auto now = Time::getMillisecondCounter();
+		{
+			ScopedLock lock(messageHandlerList_);
+			for (auto& handler : messageHandlers_) {
+				auto& entry = handler.second;
+				if (entry.timeoutMs > 0 && !entry.timeoutTriggered) {
+					if (now - entry.lastActivityMs >= static_cast<uint32>(entry.timeoutMs)) {
+						entry.timeoutTriggered = true;
+						entry.lastActivityMs = now;
+						spdlog::warn("MIDI controller timeout reached; dispatching timeout sentinel to handler");
+						timeoutCallbacks.push_back(entry.callback);
+					}
+				}
+			}
+		}
+
+		// Use any available input as a placeholder for the timeout notification; handlers that compare names will ignore it
+		MidiInput* placeholderInput = nullptr;
+		if (!inputsOpen_.empty()) {
+			placeholderInput = inputsOpen_.begin()->second.get();
+		}
+
+		for (auto const& handler : timeoutCallbacks) {
+			handler(placeholderInput, makeTimeoutMessage());
+		}
 	}
 
 	std::set<juce::MidiDeviceInfo> MidiController::currentInputs(bool withHistory)
@@ -409,9 +451,9 @@ namespace midikraft {
 		return MidiDeviceInfo(name, "");
 	}
 
-	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler) {
+	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler, int timeoutMs) {
 		ScopedLock lock(messageHandlerList_);
-		messageHandlers_.insert(std::make_pair(handle, handler));
+		messageHandlers_.insert(std::make_pair(handle, HandlerEntry{ handler, timeoutMs, Time::getMillisecondCounter(), false }));
 	}
 
 	bool MidiController::removeMessageHandler(HandlerHandle const &handle) {

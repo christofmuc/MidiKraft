@@ -64,6 +64,11 @@ namespace midikraft {
 		maxNumberMessagesPerBank_ = getEnvWithDefault("ORM_MAX_MSG_PER_BANK", 256);
 	}
 
+	int Synth::defaultReplyTimeoutMs() const
+	{
+		return 2000;
+	}
+
 	std::string Synth::friendlyProgramName(MidiProgramNumber programNo) const
 	{
 		// The default implementation is just that you see something

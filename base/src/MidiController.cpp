@@ -251,7 +251,7 @@ namespace midikraft {
 		auto now = Time::getMillisecondCounter();
 		{
 			ScopedLock lock(messageHandlerList_);
-			for (auto const &handler : messageHandlers_) {
+			for (auto& handler : messageHandlers_) {
 				auto& entry = handler.second;
 				entry.lastActivityMs = now;
 				entry.timeoutTriggered = false;

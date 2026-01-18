@@ -41,7 +41,7 @@ namespace midikraft {
 	const std::string kDataBaseFileName = "SysexDatabaseOfAllPatches.db3";
 	const std::string kDataBaseBackupSuffix = "-backup";
 
-	const int SCHEMA_VERSION = 18;
+	const int SCHEMA_VERSION = 19;
 	/* History */
 	/* 1 - Initial schema */
 	/* 2 - adding hidden flag (aka deleted) */
@@ -61,6 +61,7 @@ namespace midikraft {
 	/* 16 - adding regular flag to patches */
 	/* 17 - move the imports information into the list table, and create the corresponding patch_in_list entries. Add list type for quick filtering. */
 	/* 18 - drop legacy patches.sourceID column now that imports live in patch_in_list */
+	/* 2026-01-18: 19 - fix user banks stored as synth banks when created via UI in 2.8.x beta versions */
 
 	class PatchDatabase::PatchDataBaseImpl {
 	public:
@@ -411,6 +412,33 @@ namespace midikraft {
 				if (needsSchemaRewrite) {
 					db_.exec("PRAGMA foreign_keys = ON");
 				}
+			}
+			if (currentVersion < 19) {
+				backupIfNecessary(hasBackuped);
+				SQLite::Transaction transaction(db_);
+				// Fix user banks accidentally stored as synth banks (list_type = SYNTH_BANK) in older versions.
+				SQLite::Statement findUserBanksToRecover(db_, "SELECT id, name, synth, midi_bank_number "
+					"FROM lists "
+					"WHERE list_type = 1 "
+					"  AND synth IS NOT NULL "
+					"  AND midi_bank_number IS NOT NULL "
+					"  AND id != synth || '-bank-' || midi_bank_number");
+				while (findUserBanksToRecover.executeStep()) {
+					spdlog::warn("Recovering user bank stored as synth bank: id='{}', name='{}', synth='{}', midi_bank_number={}",
+						findUserBanksToRecover.getColumn("id").getString(),
+						findUserBanksToRecover.getColumn("name").getString(),
+						findUserBanksToRecover.getColumn("synth").getString(),
+						findUserBanksToRecover.getColumn("midi_bank_number").getInt());
+				}
+				db_.exec("UPDATE lists "
+					"SET list_type = 2 "
+					"WHERE list_type = 1 "
+					"  AND synth IS NOT NULL "
+					"  AND midi_bank_number IS NOT NULL "
+					// Exclude active synth banks whose ids follow the 'synth-bank-<midi_bank_number>' convention.
+					"  AND id != synth || '-bank-' || midi_bank_number");
+				db_.exec("UPDATE schema_version SET number = 19");
+				transaction.commit();
 			}
 		}
 

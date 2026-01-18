@@ -29,6 +29,9 @@ namespace midikraft {
 		
 		virtual void changePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
 		virtual void updatePatchAtPosition(MidiProgramNumber programPlace, PatchHolder patch);
+
+		virtual bool isUserBank() const = 0;
+		virtual bool isActiveSynthBank() const = 0;
 		
 		void copyListToPosition(MidiProgramNumber programPlace, PatchList const& list);
 
@@ -82,6 +85,9 @@ namespace midikraft {
 		UserBank(std::string const& id, std::string const& name, std::shared_ptr<Synth> synth, MidiBankNumber bank) 
 			: SynthBank(id, name, synth, bank) 
 		{}
+
+		bool isUserBank() const override { return true; }
+		bool isActiveSynthBank() const override { return false; }
 	};
 
 	class ActiveSynthBank : public SynthBank
@@ -95,6 +101,9 @@ namespace midikraft {
 		{
 			return lastSynced_;
 		}
+
+		bool isUserBank() const override { return false; }
+		bool isActiveSynthBank() const override { return true; }
 
 	private:
 		juce::Time lastSynced_;

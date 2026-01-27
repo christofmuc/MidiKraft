@@ -738,7 +738,7 @@ namespace midikraft {
 			std::string orderByClause;
 			switch (filter.orderBy) {
 			case PatchOrdering::No_ordering: orderByClause = ""; break;
-			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY (import_pil.id IS NULL), import_pil.import_name, import_pil.order_num, midiBankNo, midiProgramNo "; break;
+			case PatchOrdering::Order_by_Import_id: orderByClause = " ORDER BY (import_pil.id IS NULL), import_pil.import_time, import_pil.order_num, midiBankNo, midiProgramNo "; break;
 			case PatchOrdering::Order_by_Name: orderByClause = " ORDER BY patches.name, midiBankNo, midiProgramNo "; break;
 			case PatchOrdering::Order_by_Place_in_List: orderByClause = " ORDER BY patch_in_list.order_num"; break;
 			case PatchOrdering::Order_by_ProgramNo: orderByClause = " ORDER BY midiProgramNo, patches.name"; break;
@@ -760,11 +760,20 @@ namespace midikraft {
 			if (includeImportOrderingJoin) {
 				auto importJoin = fmt::format(
 					R"( LEFT JOIN (
-					    SELECT pil.id, pil.synth, pil.md5, pil.order_num, import_lists.name as import_name
+					    SELECT pil.id,
+					           pil.synth,
+					           pil.md5,
+					           pil.order_num,
+					           import_lists.name as import_name,
+					           COALESCE(import_lists.last_synced, 0) as import_time,
+					           ROW_NUMBER() OVER (
+					               PARTITION BY pil.synth, pil.md5
+					               ORDER BY COALESCE(import_lists.last_synced, 0), pil.order_num, import_lists.name
+					           ) AS rn
 					      FROM patch_in_list AS pil
 					      JOIN lists AS import_lists ON import_lists.id = pil.id AND import_lists.synth = pil.synth
 					     WHERE import_lists.list_type = {0}
-					) AS import_pil ON patches.md5 = import_pil.md5 AND patches.synth = import_pil.synth)",
+					) AS import_pil ON patches.md5 = import_pil.md5 AND patches.synth = import_pil.synth AND import_pil.rn = 1)",
 					(int)PatchListType::IMPORT_LIST);
 				joinClause += importJoin;
 			}

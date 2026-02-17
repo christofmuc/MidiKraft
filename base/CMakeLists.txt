@@ -17,6 +17,7 @@ set(Sources
 	include/BidirectionalSyncCapability.h
 	include/Capability.h
 	include/CreateInitPatchDataCapability.h
+	include/CustomProgramChangeCapability.h
 	include/DataFileLoadCapability.h
 	include/DataFileSendCapability.h
 	include/DetailedParametersCapability.h

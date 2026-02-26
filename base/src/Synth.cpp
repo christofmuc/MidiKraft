@@ -200,14 +200,16 @@ namespace midikraft {
 				std::deque<MidiMessage> currentBank;
 				// Try to parse and load these messages as a bank dump
 				for (auto message : sysexMessages) {
-					if (bankDumpSynth->isBankDump(message)) {
+					auto partReply = bankDumpSynth->isMessagePartOfBankDump(message);
+					// During offline file parsing there is no MIDI output to send handshake replies.
+					if (partReply.isPartOfBankDump) {
 						currentBank.push_back(message);
 						if (currentBank.size() > maxNumberMessagesPerBank_) {
 							spdlog::debug("Dropping message during parsing as potential number of MIDI messages per patch is larger than {}", maxNumberMessagesPerPatch_);
 							currentBank.pop_front();
 						}
 						std::vector<MidiMessage> slidingWindow(currentBank.begin(), currentBank.end());
-						if (bankDumpSynth->isBankDumpFinished(slidingWindow)) {
+						if (bankDumpSynth->bankDumpFinishedWithReply(slidingWindow).isFinished) {
 							auto morePatches = bankDumpSynth->patchesFromSysexBank(slidingWindow);
 							spdlog::info("Loaded bank dump with {} patches", morePatches.size());
 							std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(results));

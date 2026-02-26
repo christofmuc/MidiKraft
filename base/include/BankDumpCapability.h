@@ -26,14 +26,8 @@ namespace midikraft {
 			std::vector<MidiMessage> handshakeReply;
 		};
 
-		virtual bool isBankDump(const MidiMessage& message) const = 0;
-		virtual bool isBankDumpFinished(std::vector<MidiMessage> const &bankDump) const = 0;
-		virtual HandshakeReply isMessagePartOfBankDump(const MidiMessage& message) const {
-			return { isBankDump(message), {} };
-		}
-		virtual FinishedReply bankDumpFinishedWithReply(std::vector<MidiMessage> const &bankDump) const {
-			return { isBankDumpFinished(bankDump), {} };
-		}
+		virtual HandshakeReply isMessagePartOfBankDump(const MidiMessage& message) const = 0;
+		virtual FinishedReply bankDumpFinishedWithReply(std::vector<MidiMessage> const &bankDump) const = 0;
 		virtual TPatchVector patchesFromSysexBank(std::vector<MidiMessage> const& messages) const = 0;
 	};
 

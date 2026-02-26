@@ -16,8 +16,24 @@ namespace midikraft {
 	// This synth supports some kind of Bank Dump (MidiMessages to Patches is M:N)
 	class BankDumpCapability {
 	public:
+		struct HandshakeReply {
+			bool isPartOfBankDump;
+			std::vector<MidiMessage> handshakeReply;
+		};
+
+		struct FinishedReply {
+			bool isFinished;
+			std::vector<MidiMessage> handshakeReply;
+		};
+
 		virtual bool isBankDump(const MidiMessage& message) const = 0;
 		virtual bool isBankDumpFinished(std::vector<MidiMessage> const &bankDump) const = 0;
+		virtual HandshakeReply isMessagePartOfBankDump(const MidiMessage& message) const {
+			return { isBankDump(message), {} };
+		}
+		virtual FinishedReply bankDumpFinishedWithReply(std::vector<MidiMessage> const &bankDump) const {
+			return { isBankDumpFinished(bankDump), {} };
+		}
 		virtual TPatchVector patchesFromSysexBank(std::vector<MidiMessage> const& messages) const = 0;
 	};
 

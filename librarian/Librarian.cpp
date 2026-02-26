@@ -981,11 +981,22 @@ namespace midikraft {
 
 	void Librarian::handleNextBankDump(std::shared_ptr<SafeMidiOutput> midiOutput, std::shared_ptr<Synth> synth, ProgressHandler* progressHandler, const juce::MidiMessage& bankDump, MidiBankNumber bankNo)
 	{
-		ignoreUnused(midiOutput); //TODO why?
 		auto bankDumpCapability = midikraft::Capability::hasCapability<BankDumpCapability>(synth);
-		if (bankDumpCapability && bankDumpCapability->isBankDump(bankDump)) {
-			currentDownload_.push_back(bankDump);
-			if (bankDumpCapability->isBankDumpFinished(currentDownload_)) {
+		if (bankDumpCapability) {
+			auto partReply = bankDumpCapability->isMessagePartOfBankDump(bankDump);
+			if (!partReply.handshakeReply.empty()) {
+				synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), partReply.handshakeReply);
+			}
+			if (partReply.isPartOfBankDump) {
+				currentDownload_.push_back(bankDump);
+			}
+
+			auto finishedReply = bankDumpCapability->bankDumpFinishedWithReply(currentDownload_);
+			if (!finishedReply.handshakeReply.empty()) {
+				synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), finishedReply.handshakeReply);
+			}
+
+			if (finishedReply.isFinished) {
 				clearHandlers();
 				auto patches = synth->loadSysex(currentDownload_);
 				onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
@@ -995,7 +1006,7 @@ namespace midikraft {
 				clearHandlers();
 				progressHandler->onCancel();
 			}
-			else {
+			else if (partReply.isPartOfBankDump) {
 				progressHandler->setProgressPercentage(currentDownload_.size() / (double)(expectedDownloadNumber_));
 			}
 		}

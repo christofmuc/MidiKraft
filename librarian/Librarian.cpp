@@ -175,9 +175,17 @@ namespace midikraft {
 			expectedDownloadNumber_ = SynthBank::numberOfPatchesInBank(synth, bankNo);
 			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo, timestampOfLastMessage](MidiInput* source, const juce::MidiMessage& editBuffer) {
 				ignoreUnused(source);
+				bool timeout = MidiController::isTimeoutMessage(editBuffer);
 				auto now = juce::Time::getCurrentTime();
 				std::swap(*timestampOfLastMessage, now);  // Update last received message time
 				this->handleNextBankDump(midiOutput, synth, progressHandler, editBuffer, bankNo);
+				if (timeout) {
+					spdlog::warn("Timeout while downloading bank from {}, canceling operation", synth->getName());
+					clearHandlers();
+					if (progressHandler) {
+						progressHandler->onCancel();
+					}
+				}
 				}, synth->defaultReplyTimeoutMs());
 			auto partialHandle = MidiController::makeOneHandle();
 			MidiController::instance()->addPartialMessageHandler(partialHandle, [timestampOfLastMessage](MidiInput* source, const uint8* data, int numBytesSoFar, double timestamp) {
@@ -983,30 +991,33 @@ namespace midikraft {
 	{
 		auto bankDumpCapability = midikraft::Capability::hasCapability<BankDumpCapability>(synth);
 		if (bankDumpCapability) {
+			bool timeout = MidiController::isTimeoutMessage(bankDump);
 			auto partReply = bankDumpCapability->isMessagePartOfBankDump(bankDump);
-			if (!partReply.handshakeReply.empty()) {
+			if (!timeout && !partReply.handshakeReply.empty()) {
 				synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), partReply.handshakeReply);
 			}
-			if (partReply.isPartOfBankDump) {
+			if (!timeout && partReply.isPartOfBankDump) {
 				currentDownload_.push_back(bankDump);
 			}
 
 			auto finishedReply = bankDumpCapability->bankDumpFinishedWithReply(currentDownload_);
-			if (!finishedReply.handshakeReply.empty()) {
+			if (!timeout && !finishedReply.handshakeReply.empty()) {
 				synth->sendBlockOfMessagesToSynth(midiOutput->deviceInfo(), finishedReply.handshakeReply);
 			}
 
-			if (finishedReply.isFinished) {
+			if (!timeout && finishedReply.isFinished) {
 				clearHandlers();
 				auto patches = synth->loadSysex(currentDownload_);
 				onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
-				progressHandler->onSuccess();
+				if (progressHandler) {
+					progressHandler->onSuccess();
+				}
 			}
-			else if (progressHandler->shouldAbort()) {
+			else if (!timeout && progressHandler && progressHandler->shouldAbort()) {
 				clearHandlers();
 				progressHandler->onCancel();
 			}
-			else if (partReply.isPartOfBankDump) {
+			else if (!timeout && progressHandler && partReply.isPartOfBankDump) {
 				progressHandler->setProgressPercentage(currentDownload_.size() / (double)(expectedDownloadNumber_));
 			}
 		}

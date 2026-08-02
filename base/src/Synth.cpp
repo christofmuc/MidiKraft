@@ -133,7 +133,7 @@ namespace midikraft {
 		else {
 			// The other Synth types load message by message
 			TPatchVector results;
-			std::map<std::string, std::shared_ptr<midikraft::DataFile>> programDumpsById;
+			std::map<std::string, int> programDumpCountsById;
 			if (programDumpSynth) {
 				std::deque<MidiMessage> currentProgramDumps;
 				int patchNo = 0;
@@ -150,7 +150,7 @@ namespace midikraft {
 							auto patch = programDumpSynth->patchFromProgramDumpSysex(slidingWindow);
 							if (patch) {
 								results.push_back(patch);
-								programDumpsById[calculateFingerprint(patch)] = patch;
+								programDumpCountsById[calculateFingerprint(patch)]++;
 							}
 							else {
 								spdlog::warn("Error decoding program dump for patch #{}, skipping it. {}", patchNo, Sysex::dumpSysexToString(slidingWindow));
@@ -178,7 +178,7 @@ namespace midikraft {
 							auto patch = editBufferSynth->patchFromSysex(slidingWindow);
 							if (patch) {
 								auto id = calculateFingerprint(patch);
-								if (programDumpsById.find(id) == programDumpsById.end()) {
+								if (programDumpCountsById.find(id) == programDumpCountsById.end()) {
 									results.push_back(patch);
 								}
 								else {
@@ -198,6 +198,8 @@ namespace midikraft {
 
 			if (bankDumpSynth) {
 				std::deque<MidiMessage> currentBank;
+				// Some bank responses are streams of valid program dumps. Match them one-for-one so identical bank slots are preserved.
+				auto unmatchedProgramDumpCountsById = programDumpCountsById;
 				// Try to parse and load these messages as a bank dump
 				for (auto message : sysexMessages) {
 					if (bankDumpSynth->isBankDump(message)) {
@@ -209,8 +211,19 @@ namespace midikraft {
 						std::vector<MidiMessage> slidingWindow(currentBank.begin(), currentBank.end());
 						if (bankDumpSynth->isBankDumpFinished(slidingWindow)) {
 							auto morePatches = bankDumpSynth->patchesFromSysexBank(slidingWindow);
-							spdlog::info("Loaded bank dump with {} patches", morePatches.size());
-							std::copy(morePatches.begin(), morePatches.end(), std::back_inserter(results));
+							int duplicates = 0;
+							for (auto const& patch : morePatches) {
+								auto id = calculateFingerprint(patch);
+								auto programDumpCount = unmatchedProgramDumpCountsById.find(id);
+								if (programDumpCount != unmatchedProgramDumpCountsById.end() && programDumpCount->second > 0) {
+									programDumpCount->second--;
+									duplicates++;
+								}
+								else {
+									results.push_back(patch);
+								}
+							}
+							spdlog::info("Loaded bank dump with {} patches, ignored {} already parsed as program dumps", morePatches.size(), duplicates);
 							currentBank.clear();
 						}
 					}

@@ -212,7 +212,13 @@ namespace midikraft {
 						if (bankDumpSynth->isBankDumpFinished(slidingWindow)) {
 							auto morePatches = bankDumpSynth->patchesFromSysexBank(slidingWindow);
 							int duplicates = 0;
+							int patchNo = 0;
 							for (auto const& patch : morePatches) {
+								if (!patch) {
+									spdlog::warn("Error decoding bank dump for patch #{}, skipping it.", patchNo);
+									patchNo++;
+									continue;
+								}
 								auto id = calculateFingerprint(patch);
 								auto programDumpCount = unmatchedProgramDumpCountsById.find(id);
 								if (programDumpCount != unmatchedProgramDumpCountsById.end() && programDumpCount->second > 0) {
@@ -222,6 +228,7 @@ namespace midikraft {
 								else {
 									results.push_back(patch);
 								}
+								patchNo++;
 							}
 							spdlog::info("Loaded bank dump with {} patches, ignored {} already parsed as program dumps", morePatches.size(), duplicates);
 							currentBank.clear();

@@ -1,0 +1,9 @@
+{
+  "formatVersion": 1,
+  "adaptationId": "Oberheim Matrix 1000",
+  "dataTypeId": "single-program",
+  "name": "Corrupt",
+  "fingerprint": "sha256:d651ff451aef53a00faf1a1c65b2d65c07aa0b7a57cf92f0aec76b6d6f0f6020",
+  "payloadEncoding": "base64",
+  "payload": "not-base64!"
+}

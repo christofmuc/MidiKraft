@@ -1007,10 +1007,15 @@ namespace midikraft {
 
 			if (!timeout && finishedReply.isFinished) {
 				clearHandlers();
-				auto patches = synth->loadSysex(currentDownload_);
-				onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
-				if (progressHandler) {
-					progressHandler->onSuccess();
+				if (finishedReply.wasSuccessful) {
+					auto patches = synth->loadSysex(currentDownload_);
+					onFinished_(tagPatchesWithImportFromSynth(synth, patches, bankNo));
+					if (progressHandler) {
+						progressHandler->onSuccess();
+					}
+				}
+				else if (progressHandler) {
+					progressHandler->onCancel();
 				}
 			}
 			else if (!timeout && progressHandler && progressHandler->shouldAbort()) {

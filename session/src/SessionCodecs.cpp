@@ -250,8 +250,8 @@ namespace midikraft::session {
 			if (patch.payload.size() > limits.maxPayloadBytes) {
 				fail(CodecErrorCode::PayloadTooLarge, "$.payload", "payload exceeds configured size limit");
 			}
-			static constexpr char DOMAIN[] = "KnobKraft.SessionPatchFingerprint.v1";
-			std::vector<std::uint8_t> input(DOMAIN, DOMAIN + sizeof(DOMAIN));
+			static constexpr char FINGERPRINT_DOMAIN[] = "KnobKraft.SessionPatchFingerprint.v1";
+			std::vector<std::uint8_t> input(FINGERPRINT_DOMAIN, FINGERPRINT_DOMAIN + sizeof(FINGERPRINT_DOMAIN));
 			appendString(input, patch.adaptationId);
 			appendString(input, patch.dataTypeId);
 			appendUint64(input, patch.payload.size());

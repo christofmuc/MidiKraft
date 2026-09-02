@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "pluginInstanceId": "bbb77904-c98d-4c6f-8808-44b287885bf4",
+  "instanceName": "Matrix Bass",
+  "futureRootField": { "mayBeIgnored": true },
+  "binding": {
+    "fallbackAdaptationId": "Oberheim Matrix 1000",
+    "futureBindingField": 17
+  },
+  "recallPolicy": "manual",
+  "selectedSoundId": "sound-1",
+  "sounds": [
+    {
+      "soundId": "sound-1",
+      "futureSoundField": [1, 2, 3],
+      "patch": {
+        "formatVersion": 1,
+        "adaptationId": "Oberheim Matrix 1000",
+        "dataTypeId": "single-program",
+        "name": "Warm Bass",
+        "fingerprint": "sha256:d651ff451aef53a00faf1a1c65b2d65c07aa0b7a57cf92f0aec76b6d6f0f6020",
+        "payloadEncoding": "base64",
+        "payload": "8AEC9w==",
+        "futurePatchField": "ignored"
+      }
+    }
+  ]
+}

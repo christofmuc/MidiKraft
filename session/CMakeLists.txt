@@ -3,7 +3,10 @@ cmake_minimum_required(VERSION 3.14)
 set(Sources
 	include/SessionTypes.h
 	include/SessionCodecs.h
+	include/SessionService.h
+	include/FakeSessionService.h
 	src/SessionCodecs.cpp
+	src/FakeSessionService.cpp
 )
 
 add_library(midikraft-session STATIC ${Sources})
@@ -25,4 +28,8 @@ if(MIDIKRAFT_BUILD_SESSION_TESTS)
 	target_compile_definitions(midikraft-session-tests PRIVATE
 		MIDIKRAFT_SESSION_FIXTURES_DIR="${CMAKE_CURRENT_LIST_DIR}/tests/fixtures")
 	add_test(NAME midikraft-session-codecs COMMAND midikraft-session-tests)
+
+	add_executable(midikraft-session-service-tests tests/SessionServiceTests.cpp)
+	target_link_libraries(midikraft-session-service-tests PRIVATE midikraft-session)
+	add_test(NAME midikraft-session-service COMMAND midikraft-session-service-tests)
 endif()

@@ -17,11 +17,28 @@ namespace midikraft {
 	const char
 		*kChannel = "channel",
 		*kInput = "input",
-		*kOutput = "output";
+		*kInputId = "input-id",
+		*kOutput = "output",
+		*kOutputId = "output-id";
 
 	static std::string midiSetupKey(DiscoverableDevice *synth, std::string const &trait) {
+		auto configured = dynamic_cast<SimpleDiscoverableDevice*>(synth);
+		if (configured && !configured->configuredSynthInstanceId().empty()) {
+			return fmt::format("configured-synth-{}-{}", configured->configuredSynthInstanceId(), trait);
+		}
 		auto nameCap = dynamic_cast<NamedDeviceCapability*>(synth);
 		return fmt::format("{}-{}", nameCap ? nameCap->getName() : "invalid", trait);
+	}
+
+	static std::string legacyMidiSetupKey(DiscoverableDevice *synth, std::string const &trait) {
+		auto nameCap = dynamic_cast<NamedDeviceCapability*>(synth);
+		return fmt::format("{}-{}", nameCap ? nameCap->getName() : "invalid", trait);
+	}
+
+	static std::string settingWithLegacyFallback(DiscoverableDevice *synth, std::string const& trait) {
+		auto value = Settings::instance().get(midiSetupKey(synth, trait));
+		if (value.empty()) value = Settings::instance().get(legacyMidiSetupKey(synth, trait));
+		return value;
 	}
 
 	AutoDetection::AutoDetection() : handler_(MidiController::makeOneHandle())
@@ -89,20 +106,30 @@ namespace midikraft {
 		if (synth->midiInput().name.isNotEmpty()) {
 			Settings::instance().set(midiSetupKey(synth, kInput), synth->midiInput().name.toStdString());
 		}
+		if (synth->midiInput().identifier.isNotEmpty()) {
+			Settings::instance().set(midiSetupKey(synth, kInputId), synth->midiInput().identifier.toStdString());
+		}
 		if (synth->midiOutput().name.isNotEmpty()) {
 			Settings::instance().set(midiSetupKey(synth, kOutput), synth->midiOutput().name.toStdString());
+		}
+		if (synth->midiOutput().identifier.isNotEmpty()) {
+			Settings::instance().set(midiSetupKey(synth, kOutputId), synth->midiOutput().identifier.toStdString());
 		}
 	}
 
 	void AutoDetection::loadSettings(SimpleDiscoverableDevice *synth)
 	{
-		std::string input = Settings::instance().get(midiSetupKey(synth, kInput));
-		synth->setInput(MidiController::instance()->getMidiInputByName(input));
-		std::string output = Settings::instance().get(midiSetupKey(synth, kOutput));
-		synth->setOutput(MidiController::instance()->getMidiOutputByName(output));
+		std::string input = settingWithLegacyFallback(synth, kInput);
+		auto midiInput = MidiController::instance()->getMidiInputByIdentifier(settingWithLegacyFallback(synth, kInputId));
+		if (midiInput.identifier.isEmpty()) midiInput = MidiController::instance()->getMidiInputByName(input);
+		synth->setInput(midiInput);
+		std::string output = settingWithLegacyFallback(synth, kOutput);
+		auto midiOutput = MidiController::instance()->getMidiOutputByIdentifier(settingWithLegacyFallback(synth, kOutputId));
+		if (midiOutput.identifier.isEmpty()) midiOutput = MidiController::instance()->getMidiOutputByName(output);
+		synth->setOutput(midiOutput);
 
 		synth->setChannel(MidiChannel::invalidChannel());
-		std::string channelString = Settings::instance().get(midiSetupKey(synth, kChannel));
+		std::string channelString = settingWithLegacyFallback(synth, kChannel);
 		if (!channelString.empty()) {
 			int channel = std::atoi(channelString.c_str());
 			if (channel >= 0 && channel < 16) {

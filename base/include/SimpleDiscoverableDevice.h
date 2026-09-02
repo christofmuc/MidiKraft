@@ -14,6 +14,12 @@ namespace midikraft {
 
 	class SimpleDiscoverableDevice : public DiscoverableDevice, public MidiLocationCapability, virtual public NamedDeviceCapability {
 	public:
+		// Identifies this configured hardware instance. This is assigned by the
+		// application configuration layer and is deliberately independent of
+		// getName(), which identifies the synth model/adaptation.
+		virtual void setConfiguredSynthInstanceId(std::string instanceId);
+		[[nodiscard]] virtual std::string const& configuredSynthInstanceId() const;
+
 		virtual void setCurrentChannelZeroBased(juce::MidiDeviceInfo const &midiInput, juce::MidiDeviceInfo const &midiOutput, int midiChannel);
 		virtual void setChannel(MidiChannel newChannel);
 		virtual void setInput(juce::MidiDeviceInfo const &midiInput); // To override auto-detection
@@ -29,6 +35,7 @@ namespace midikraft {
 		virtual MidiChannel channel() const override;
 
 	private:
+		std::string configuredSynthInstanceId_;
 		MidiChannel channel_ = MidiChannel::invalidChannel();
 		bool wasDetected_ = false;
 		juce::MidiDeviceInfo midiInput_;

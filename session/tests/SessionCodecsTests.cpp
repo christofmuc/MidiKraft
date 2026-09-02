@@ -166,7 +166,13 @@ namespace {
 	}
 }
 
+namespace configured_synth_tests {
+	int failures = 0;
+	void run();
+}
+
 int main() {
+	configured_synth_tests::run();
 	validManifestRoundTripsSemantically();
 	minimalPatchNeedsNoProvenance();
 	unknownFieldsAreIgnored();
@@ -176,6 +182,7 @@ int main() {
 	sizeLimitsAreAppliedBeforeUnboundedParsing();
 	payloadsAreNotLimitedByMetadataStringSize();
 	publicBoundaryReturnsErrorsInsteadOfThrowing();
-	if (failures != 0) std::cerr << failures << " session codec test(s) failed\n";
+	failures += configured_synth_tests::failures;
+	if (failures != 0) std::cerr << failures << " session test(s) failed\n";
 	return failures == 0 ? 0 : 1;
 }

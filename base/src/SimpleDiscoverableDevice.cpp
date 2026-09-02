@@ -6,7 +6,18 @@
 
 #include "SimpleDiscoverableDevice.h"
 
+#include <utility>
+
 namespace midikraft {
+	void SimpleDiscoverableDevice::setConfiguredSynthInstanceId(std::string instanceId)
+	{
+		configuredSynthInstanceId_ = std::move(instanceId);
+	}
+
+	std::string const& SimpleDiscoverableDevice::configuredSynthInstanceId() const
+	{
+		return configuredSynthInstanceId_;
+	}
 
 	void SimpleDiscoverableDevice::setCurrentChannelZeroBased(juce::MidiDeviceInfo const &midiInput, juce::MidiDeviceInfo const &midiOutput, int midiChannel)
 	{

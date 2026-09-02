@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 3.14)
 
 set(Sources
+	include/ConfiguredSynthInstance.h
 	include/SessionTypes.h
 	include/SessionCodecs.h
 	include/SessionService.h
 	include/FakeSessionService.h
+	src/ConfiguredSynthInstance.cpp
 	src/SessionCodecs.cpp
 	src/FakeSessionService.cpp
 )
@@ -23,7 +25,7 @@ else()
 endif()
 
 if(MIDIKRAFT_BUILD_SESSION_TESTS)
-	add_executable(midikraft-session-tests tests/SessionCodecsTests.cpp)
+	add_executable(midikraft-session-tests tests/ConfiguredSynthInstanceTests.cpp tests/SessionCodecsTests.cpp)
 	target_link_libraries(midikraft-session-tests PRIVATE midikraft-session nlohmann_json::nlohmann_json)
 	target_compile_definitions(midikraft-session-tests PRIVATE
 		MIDIKRAFT_SESSION_FIXTURES_DIR="${CMAKE_CURRENT_LIST_DIR}/tests/fixtures")

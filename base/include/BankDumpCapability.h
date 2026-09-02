@@ -24,6 +24,8 @@ namespace midikraft {
 		struct FinishedReply {
 			bool isFinished;
 			std::vector<MidiMessage> handshakeReply;
+			// Kept last so existing two-element aggregate initializers remain successful by default.
+			bool wasSuccessful = true;
 		};
 
 		virtual HandshakeReply isMessagePartOfBankDump(const MidiMessage& message) const = 0;

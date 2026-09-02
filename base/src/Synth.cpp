@@ -197,6 +197,9 @@ namespace midikraft {
 			}
 
 			if (bankDumpSynth) {
+				// Start every offline parse with clean protocol state. Stateful adaptations use an
+				// empty message as the same reset sentinel the live downloader sends on timeout.
+				bankDumpSynth->isMessagePartOfBankDump(MidiController::makeTimeoutMessage());
 				std::deque<MidiMessage> currentBank;
 				// Some bank responses are streams of valid program dumps. Match them one-for-one so identical bank slots are preserved.
 				auto unmatchedProgramDumpCountsById = programDumpCountsById;
@@ -211,7 +214,8 @@ namespace midikraft {
 							currentBank.pop_front();
 						}
 						std::vector<MidiMessage> slidingWindow(currentBank.begin(), currentBank.end());
-						if (bankDumpSynth->bankDumpFinishedWithReply(slidingWindow).isFinished) {
+						auto finishedReply = bankDumpSynth->bankDumpFinishedWithReply(slidingWindow);
+						if (finishedReply.isFinished && finishedReply.wasSuccessful) {
 							auto morePatches = bankDumpSynth->patchesFromSysexBank(slidingWindow);
 							int duplicates = 0;
 							int patchNo = 0;
@@ -234,6 +238,12 @@ namespace midikraft {
 							}
 							spdlog::info("Loaded bank dump with {} patches, ignored {} already parsed as program dumps", morePatches.size(), duplicates);
 							currentBank.clear();
+						}
+						else if (finishedReply.isFinished) {
+							// A rejected bank is terminal too. Do not let its partial messages or
+							// protocol state contaminate a later bank in the same file.
+							currentBank.clear();
+							bankDumpSynth->isMessagePartOfBankDump(MidiController::makeTimeoutMessage());
 						}
 					}
 				}

@@ -23,7 +23,9 @@ namespace midikraft {
 
 	MidiMessage MidiController::makeTimeoutMessage()
 	{
-		return MidiMessage();
+		// JUCE's default MidiMessage is an empty SysEx frame (F0 F7), not a
+		// zero-length message. Use an explicitly empty payload for the sentinel.
+		return MidiMessage(static_cast<void const*>(nullptr), 0);
 	}
 
 	bool MidiController::isTimeoutMessage(const MidiMessage& message)

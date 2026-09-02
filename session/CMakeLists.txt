@@ -6,9 +6,11 @@ set(Sources
 	include/SessionCodecs.h
 	include/SessionService.h
 	include/FakeSessionService.h
+	include/SessionTransport.h
 	src/ConfiguredSynthInstance.cpp
 	src/SessionCodecs.cpp
 	src/FakeSessionService.cpp
+	src/SessionTransport.cpp
 )
 
 add_library(midikraft-session STATIC ${Sources})
@@ -16,6 +18,11 @@ add_library(midikraft::session ALIAS midikraft-session)
 
 target_include_directories(midikraft-session PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 target_link_libraries(midikraft-session PRIVATE nlohmann_json::nlohmann_json)
+find_package(Threads REQUIRED)
+target_link_libraries(midikraft-session PRIVATE Threads::Threads)
+if(WIN32)
+	target_link_libraries(midikraft-session PRIVATE ws2_32 bcrypt)
+endif()
 target_compile_features(midikraft-session PUBLIC cxx_std_20)
 
 if(MSVC)
@@ -34,4 +41,8 @@ if(MIDIKRAFT_BUILD_SESSION_TESTS)
 	add_executable(midikraft-session-service-tests tests/SessionServiceTests.cpp)
 	target_link_libraries(midikraft-session-service-tests PRIVATE midikraft-session)
 	add_test(NAME midikraft-session-service COMMAND midikraft-session-service-tests)
+
+	add_executable(midikraft-session-transport-tests tests/SessionTransportTests.cpp)
+	target_link_libraries(midikraft-session-transport-tests PRIVATE midikraft-session nlohmann_json::nlohmann_json)
+	add_test(NAME midikraft-session-transport COMMAND midikraft-session-transport-tests)
 endif()

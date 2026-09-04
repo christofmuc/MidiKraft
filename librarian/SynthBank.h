@@ -24,6 +24,8 @@ namespace midikraft {
 		std::string targetBankName() const;
 		// Test if this is a ROM bank
 		bool isWritable() const;
+		// Empty banks and placeholder slots cannot be converted to MIDI messages.
+		bool hasEmptySlots() const;
 
 		virtual void fillWithPatch(PatchHolder patch);
 		

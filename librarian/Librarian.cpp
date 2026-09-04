@@ -514,6 +514,16 @@ namespace midikraft {
 
 	void Librarian::sendBankToSynth(SynthBank const& synthBank, bool fullBank, ProgressHandler* progressHandler, std::function<void(bool completed)> finishedHandler)
 	{
+		// Validate the entire bank before converting or sending any patches, so a
+		// placeholder later in the bank cannot cause a crash after a partial upload.
+		if (synthBank.hasEmptySlots()) {
+			spdlog::warn("Cannot send bank '{}': fill all empty slots before sending", synthBank.name());
+			if (finishedHandler) {
+				finishedHandler(false);
+			}
+			return;
+		}
+
 		auto synth = synthBank.synth();
 		if (!synth) {
 			return;

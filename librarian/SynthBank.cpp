@@ -87,6 +87,19 @@ namespace midikraft {
 		return true;
 	}
 
+	bool SynthBank::hasEmptySlots() const {
+		auto bankPatches = patches();
+		if (bankPatches.empty() || static_cast<int>(bankPatches.size()) < bankNo_.bankSize()) {
+			return true;
+		}
+		for (auto const& patch : bankPatches) {
+			if (!patch.patch()) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	void SynthBank::fillWithPatch(PatchHolder initPatch) {
 		auto copy = patches();
 		bool modified = false;

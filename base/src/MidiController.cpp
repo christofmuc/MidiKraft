@@ -257,6 +257,7 @@ namespace midikraft {
 				auto& entry = handler.second;
 				entry.lastActivityMs = now;
 				entry.timeoutTriggered = false;
+				entry.activityGeneration++;
 				newhandlers.push_back(entry.callback);
 			}
 		}
@@ -266,6 +267,21 @@ namespace midikraft {
 	}
 
 	void MidiController::handlePartialSysexMessage(MidiInput* source, const uint8* messageData, int numBytesSoFar, double timestamp) {
+		// JUCE only delivers the completed MidiMessage after the terminating F7. Until then, each partial
+		// packet is receive activity for handlers that opted into tracking long SysEx transfers.
+		auto now = Time::getMillisecondCounter();
+		{
+			ScopedLock lock(messageHandlerList_);
+			for (auto& handler : messageHandlers_) {
+				auto& entry = handler.second;
+				if (entry.timeoutActivity == TimeoutActivity::IncludePartialSysex) {
+					entry.lastActivityMs = now;
+					entry.timeoutTriggered = false;
+					entry.activityGeneration++;
+				}
+			}
+		}
+
 		// Call all currently registered handlers, but make sure to iterate over a copy of the list as it might get modified while the handlers run
 		// First the new style handlers;
 		std::vector<MidiDataCallback> newhandlers;
@@ -350,23 +366,9 @@ namespace midikraft {
 			sendChangeMessage();
 		}
 
-		// Timeout handling for registered callbacks
-		std::vector<MidiCallback> timeoutCallbacks;
-		auto now = Time::getMillisecondCounter();
-		{
-			ScopedLock lock(messageHandlerList_);
-			for (auto& handler : messageHandlers_) {
-				auto& entry = handler.second;
-				if (entry.timeoutMs > 0 && !entry.timeoutTriggered) {
-					if (now - entry.lastActivityMs >= static_cast<uint32>(entry.timeoutMs)) {
-						entry.timeoutTriggered = true;
-						entry.lastActivityMs = now;
-						spdlog::warn("MIDI controller timeout reached; dispatching timeout sentinel to handler");
-						timeoutCallbacks.push_back(entry.callback);
-					}
-				}
-			}
-		}
+		// Keep the handle and activity generation so a partial SysEx packet arriving while callbacks
+		// are being prepared can invalidate a stale timeout.
+		auto pendingTimeouts = collectExpiredHandlers(Time::getMillisecondCounter());
 
 		// Use any available input as a placeholder for the timeout notification; handlers that compare names will ignore it
 		MidiInput* placeholderInput = nullptr;
@@ -374,9 +376,43 @@ namespace midikraft {
 			placeholderInput = inputsOpen_.begin()->second.get();
 		}
 
-		for (auto const& handler : timeoutCallbacks) {
-			handler(placeholderInput, makeTimeoutMessage());
+		for (auto const& pending : pendingTimeouts) {
+			auto handler = timeoutCallbackIfStillCurrent(pending);
+			if (handler) {
+				spdlog::warn("MIDI controller timeout reached; dispatching timeout sentinel to handler");
+				handler(placeholderInput, makeTimeoutMessage());
+			}
 		}
+	}
+
+	std::vector<MidiController::PendingTimeout> MidiController::collectExpiredHandlers(uint32 now)
+	{
+		std::vector<PendingTimeout> result;
+		ScopedLock lock(messageHandlerList_);
+		for (auto& handler : messageHandlers_) {
+			auto& entry = handler.second;
+			if (entry.timeoutMs > 0 && !entry.timeoutTriggered
+				&& now - entry.lastActivityMs >= static_cast<uint32>(entry.timeoutMs)) {
+				entry.timeoutTriggered = true;
+				result.push_back(PendingTimeout{ handler.first, entry.activityGeneration });
+			}
+		}
+		return result;
+	}
+
+	MidiCallback MidiController::timeoutCallbackIfStillCurrent(PendingTimeout const& pending)
+	{
+		ScopedLock lock(messageHandlerList_);
+		auto handler = messageHandlers_.find(pending.handle);
+		if (handler == messageHandlers_.end()) {
+			return {};
+		}
+
+		auto const& entry = handler->second;
+		if (!entry.timeoutTriggered || entry.activityGeneration != pending.activityGeneration) {
+			return {};
+		}
+		return entry.callback;
 	}
 
 	std::set<juce::MidiDeviceInfo> MidiController::currentInputs(bool withHistory)
@@ -453,9 +489,9 @@ namespace midikraft {
 		return MidiDeviceInfo(name, "");
 	}
 
-	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler, int timeoutMs) {
+	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler, int timeoutMs, TimeoutActivity timeoutActivity) {
 		ScopedLock lock(messageHandlerList_);
-		messageHandlers_.insert(std::make_pair(handle, HandlerEntry{ handler, timeoutMs, Time::getMillisecondCounter(), false }));
+		messageHandlers_.insert(std::make_pair(handle, HandlerEntry{ handler, timeoutMs, Time::getMillisecondCounter(), false, timeoutActivity, 0 }));
 	}
 
 	bool MidiController::removeMessageHandler(HandlerHandle const &handle) {

@@ -64,7 +64,8 @@ namespace midikraft {
 		virtual void sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
 		virtual void sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const &midiOutput, std::vector<MidiMessage> const& buffer);
 
-		// Default timeout (ms) used for request/response style operations; override per synth as needed
+		// Maximum receive inactivity (ms) for request/response operations; override per synth as needed.
+		// The total response duration may be longer while MIDI data continues to arrive.
 		virtual int defaultReplyTimeoutMs() const;
 
 		// Helper methods

@@ -4,6 +4,11 @@ project(MidiKraft)
 
 option(MIDIKRAFT_BUILD_LIBRARIAN "Select whether to add the optional librarian module" OFF)
 option(MIDIKRAFT_BUILD_DATABASE "Select whether to add the optional database (PatchDatabase) module. Requires Librarian" OFF)
+option(MIDIKRAFT_BUILD_TESTS "Build MidiKraft unit tests" OFF)
+
+if(MIDIKRAFT_BUILD_TESTS)
+enable_testing()
+endif()
 
 if (TARGET fmt)
 else()

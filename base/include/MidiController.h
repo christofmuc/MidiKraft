@@ -34,6 +34,7 @@ namespace midikraft {
 
 	// Forward declaration for the SafeMidiOutput class
 	class MidiController;
+	struct MidiControllerTestAccess;
 
 	typedef std::function<void(MidiInput *source, MidiMessage const &message)> MidiCallback;
 	typedef std::function<void(MidiInput *source, const uint8* data, int numBytesSoFar, double timestamp)> MidiDataCallback;
@@ -68,6 +69,11 @@ namespace midikraft {
 	{
 	public:
 		typedef juce::Uuid HandlerHandle;
+		enum class TimeoutActivity {
+			CompleteMessagesOnly,
+			IncludePartialSysex
+		};
+
 		static HandlerHandle makeOneHandle() { return juce::Uuid(); }
 		static HandlerHandle makeNoneHandle() { return juce::Uuid::null(); }
 
@@ -80,8 +86,10 @@ namespace midikraft {
 		static MidiController *instance();
 		static void shutdown(); // Call this last, and never call instance() again after this
 
-		// Optional timeout: if timeoutMs > 0, handler receives makeTimeoutMessage() after that idle period
-		void addMessageHandler(HandlerHandle const &handle, MidiCallback handler, int timeoutMs = -1);
+		// Optional inactivity timeout: if timeoutMs > 0, handler receives makeTimeoutMessage() after that idle period.
+		// Long SysEx transfers should use IncludePartialSysex so each incoming packet refreshes the timeout.
+		void addMessageHandler(HandlerHandle const &handle, MidiCallback handler, int timeoutMs = -1,
+			TimeoutActivity timeoutActivity = TimeoutActivity::CompleteMessagesOnly);
 		bool removeMessageHandler(HandlerHandle const &handle);
 		
 		void addPartialMessageHandler(HandlerHandle const& handle, MidiDataCallback handler);
@@ -106,6 +114,8 @@ namespace midikraft {
 		void setMidiLogLevel(MidiLogLevel level);
 
 	private:
+		friend struct MidiControllerTestAccess;
+
 		// Implementation of Callback
 		virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
 		virtual void handlePartialSysexMessage(MidiInput* source, const uint8* messageData, int numBytesSoFar, double timestamp) override;
@@ -119,7 +129,17 @@ namespace midikraft {
 			int timeoutMs;
 			uint32 lastActivityMs;
 			bool timeoutTriggered;
+			TimeoutActivity timeoutActivity;
+			uint64 activityGeneration;
 		};
+
+		struct PendingTimeout {
+			HandlerHandle handle;
+			uint64 activityGeneration;
+		};
+
+		std::vector<PendingTimeout> collectExpiredHandlers(uint32 now);
+		MidiCallback timeoutCallbackIfStillCurrent(PendingTimeout const& pending);
 
 		// The list of handlers needs to be locked for thread-safe access
 		CriticalSection messageHandlerList_;

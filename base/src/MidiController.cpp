@@ -256,7 +256,7 @@ namespace midikraft {
 			for (auto& handler : messageHandlers_) {
 				auto& entry = handler.second;
 				entry.lastActivityMs = now;
-				entry.timeoutTriggered = false;
+				entry.timeoutState = TimeoutState::ACTIVE;
 				entry.activityGeneration++;
 				newhandlers.push_back(entry.callback);
 			}
@@ -274,9 +274,9 @@ namespace midikraft {
 			ScopedLock lock(messageHandlerList_);
 			for (auto& handler : messageHandlers_) {
 				auto& entry = handler.second;
-				if (entry.timeoutActivity == TimeoutActivity::IncludePartialSysex) {
+				if (entry.timeoutActivity == TimeoutActivity::INCLUDE_PARTIAL_SYSEX) {
 					entry.lastActivityMs = now;
-					entry.timeoutTriggered = false;
+					entry.timeoutState = TimeoutState::ACTIVE;
 					entry.activityGeneration++;
 				}
 			}
@@ -377,7 +377,9 @@ namespace midikraft {
 		}
 
 		for (auto const& pending : pendingTimeouts) {
-			auto handler = timeoutCallbackIfStillCurrent(pending);
+			// The locked transition to DISPATCHING is the linearization point between MIDI activity and
+			// timeout delivery. Activity before it cancels PENDING; activity after it cannot revoke dispatch.
+			auto handler = beginTimeoutDispatch(pending);
 			if (handler) {
 				spdlog::warn("MIDI controller timeout reached; dispatching timeout sentinel to handler");
 				handler(placeholderInput, makeTimeoutMessage());
@@ -391,16 +393,16 @@ namespace midikraft {
 		ScopedLock lock(messageHandlerList_);
 		for (auto& handler : messageHandlers_) {
 			auto& entry = handler.second;
-			if (entry.timeoutMs > 0 && !entry.timeoutTriggered
+			if (entry.timeoutMs > 0 && entry.timeoutState == TimeoutState::ACTIVE
 				&& now - entry.lastActivityMs >= static_cast<uint32>(entry.timeoutMs)) {
-				entry.timeoutTriggered = true;
+				entry.timeoutState = TimeoutState::PENDING;
 				result.push_back(PendingTimeout{ handler.first, entry.activityGeneration });
 			}
 		}
 		return result;
 	}
 
-	MidiCallback MidiController::timeoutCallbackIfStillCurrent(PendingTimeout const& pending)
+	MidiCallback MidiController::beginTimeoutDispatch(PendingTimeout const& pending)
 	{
 		ScopedLock lock(messageHandlerList_);
 		auto handler = messageHandlers_.find(pending.handle);
@@ -408,10 +410,12 @@ namespace midikraft {
 			return {};
 		}
 
-		auto const& entry = handler->second;
-		if (!entry.timeoutTriggered || entry.activityGeneration != pending.activityGeneration) {
+		auto& entry = handler->second;
+		if (entry.timeoutState != TimeoutState::PENDING || entry.activityGeneration != pending.activityGeneration) {
 			return {};
 		}
+
+		entry.timeoutState = TimeoutState::DISPATCHING;
 		return entry.callback;
 	}
 
@@ -491,7 +495,7 @@ namespace midikraft {
 
 	void MidiController::addMessageHandler(HandlerHandle const &handle, MidiCallback handler, int timeoutMs, TimeoutActivity timeoutActivity) {
 		ScopedLock lock(messageHandlerList_);
-		messageHandlers_.insert(std::make_pair(handle, HandlerEntry{ handler, timeoutMs, Time::getMillisecondCounter(), false, timeoutActivity, 0 }));
+		messageHandlers_.insert(std::make_pair(handle, HandlerEntry{ handler, timeoutMs, Time::getMillisecondCounter(), TimeoutState::ACTIVE, timeoutActivity, 0 }));
 	}
 
 	bool MidiController::removeMessageHandler(HandlerHandle const &handle) {

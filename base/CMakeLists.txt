@@ -74,6 +74,8 @@ else()
 endif()
 
 if(MIDIKRAFT_BUILD_TESTS)
+    target_compile_definitions(midikraft-base PUBLIC MIDIKRAFT_BUILD_TESTS=1)
+
     include(FetchContent)
     FetchContent_Declare(
         Catch2

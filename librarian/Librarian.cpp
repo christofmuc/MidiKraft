@@ -183,7 +183,7 @@ namespace midikraft {
 						progressHandler->onCancel();
 					}
 				}
-				}, synth->defaultReplyTimeoutMs(), MidiController::TimeoutActivity::IncludePartialSysex);
+				}, synth->defaultReplyTimeoutMs(), MidiController::TimeoutActivity::INCLUDE_PARTIAL_SYSEX);
 			handles_.push(handle);
 			currentDownload_.clear();
 			synth->sendBlockOfMessagesToSynth(outname, buffer);

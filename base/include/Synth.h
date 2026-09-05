@@ -66,6 +66,8 @@ namespace midikraft {
 
 		// Maximum receive inactivity (ms) for request/response operations; override per synth as needed.
 		// The total response duration may be longer while MIDI data continues to arrive.
+		// MidiController handlers track complete messages by default; direct callers receiving long partial
+		// SysEx transfers must opt into MidiController::TimeoutActivity::INCLUDE_PARTIAL_SYSEX to refresh it per packet.
 		virtual int defaultReplyTimeoutMs() const;
 
 		// Helper methods

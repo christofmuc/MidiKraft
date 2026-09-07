@@ -171,13 +171,10 @@ namespace midikraft {
 			// one message per patch (e.g. Access Virus or Matrix1000)
 			auto buffer = bankCapableSynth->requestBankDump(bankNo);
 			auto outname = midiOutput->deviceInfo();
-			auto timestampOfLastMessage = std::make_shared<juce::Time>(juce::Time::getCurrentTime());
 			expectedDownloadNumber_ = SynthBank::numberOfPatchesInBank(synth, bankNo);
-			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo, timestampOfLastMessage](MidiInput* source, const juce::MidiMessage& editBuffer) {
+			MidiController::instance()->addMessageHandler(handle, [this, synth, progressHandler, midiOutput, bankNo](MidiInput* source, const juce::MidiMessage& editBuffer) {
 				ignoreUnused(source);
 				bool timeout = MidiController::isTimeoutMessage(editBuffer);
-				auto now = juce::Time::getCurrentTime();
-				std::swap(*timestampOfLastMessage, now);  // Update last received message time
 				this->handleNextBankDump(midiOutput, synth, progressHandler, editBuffer, bankNo);
 				if (timeout) {
 					spdlog::warn("Timeout while downloading bank from {}, canceling operation", synth->getName());
@@ -186,15 +183,8 @@ namespace midikraft {
 						progressHandler->onCancel();
 					}
 				}
-				}, synth->defaultReplyTimeoutMs());
-			auto partialHandle = MidiController::makeOneHandle();
-			MidiController::instance()->addPartialMessageHandler(partialHandle, [timestampOfLastMessage](MidiInput* source, const uint8* data, int numBytesSoFar, double timestamp) {
-				ignoreUnused(source, data, numBytesSoFar, timestamp);
-				auto now = juce::Time::getCurrentTime();
-				std::swap(*timestampOfLastMessage, now);
-				});
+				}, synth->defaultReplyTimeoutMs(), MidiController::TimeoutActivity::INCLUDE_PARTIAL_SYSEX);
 			handles_.push(handle);
-			handles_.push(partialHandle);
 			currentDownload_.clear();
 			synth->sendBlockOfMessagesToSynth(outname, buffer);
 			break;

@@ -72,3 +72,20 @@ else()
     # lots of warnings and all warnings as errors
     target_compile_options(midikraft-base PRIVATE -Wall -Wextra -pedantic -Wno-deprecated-declarations) #-Werror )
 endif()
+
+if(MIDIKRAFT_BUILD_TESTS)
+    target_compile_definitions(midikraft-base PUBLIC MIDIKRAFT_BUILD_TESTS=1)
+
+    include(FetchContent)
+    FetchContent_Declare(
+        Catch2
+        URL https://github.com/catchorg/Catch2/archive/refs/tags/v2.13.10.zip
+    )
+    FetchContent_MakeAvailable(Catch2)
+
+    add_executable(midikraft-base-tests tests/MidiControllerTests.cpp)
+    target_link_libraries(midikraft-base-tests PRIVATE midikraft-base Catch2::Catch2)
+
+    include(${catch2_SOURCE_DIR}/contrib/Catch.cmake)
+    catch_discover_tests(midikraft-base-tests)
+endif()

@@ -399,6 +399,14 @@ namespace midikraft {
 			return;
 		}
 		spdlog::debug("Sending data file '{}' to synth {}", nameForPatch(dataFile), getName());
+		if (!midikraft::Capability::hasCapability<UploadHandshakeCapability>(this)) {
+			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
+			if (midiLocation && midiLocation->channel().isValid()
+				&& !MidiController::instance()->enableMidiOutput(midiLocation->midiOutput())) {
+				if (finished) finished({ UploadResult::Status::TRANSPORT_ERROR, "missing_midi_output", "The configured MIDI output is unavailable" });
+				return;
+			}
+		}
 		sendMessagesToSynthWithUploadHandshake(std::move(messages), std::move(finished));
 	}
 

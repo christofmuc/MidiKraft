@@ -88,6 +88,7 @@ namespace midikraft {
 		std::vector<MidiMessage> currentProgramDump_;
 		MidiBankNumber currentDownloadBank_;
 		std::stack<MidiController::HandlerHandle> handles_;
+		std::weak_ptr<Synth> activeUploadSynth_;
 		TFinishedHandler onFinished_;
 		TStepSequencerFinishedHandler onSequencerFinished_;
 		int downloadNumber_;

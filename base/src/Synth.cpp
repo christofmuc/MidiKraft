@@ -22,6 +22,8 @@
 #include "StreamLoadCapability.h"
 #include "StoredPatchNameCapability.h"
 #include "StoredPatchNumberCapability.h"
+#include "UploadHandshakeCapability.h"
+#include "UploadOperation.h"
 
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
@@ -33,6 +35,11 @@
 
 
 namespace midikraft {
+
+	Synth::~Synth()
+	{
+		activeUpload_.reset();
+	}
 
 	std::optional<int> getEnvIfSet(std::string const& env_name) {
 		auto userValue = juce::SystemStats::getEnvironmentVariable(env_name, "NOTSET");
@@ -377,21 +384,56 @@ namespace midikraft {
 
 	void Synth::sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
-		auto messages = dataFileToSysex(dataFile, target);
-		if (!messages.empty()) {
-			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
-			if (midiLocation && !messages.empty()) {
-				if (midiLocation->channel().isValid()) {
-					auto outputName = midiLocation->midiOutput().name.toStdString();
-					spdlog::debug("Data file sent is '{}' for synth {} to device {}", nameForPatch(dataFile), getName(), outputName);
-					MidiController::instance()->enableMidiOutput(midiLocation->midiOutput());
-					sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
-				}
-				else {
-					spdlog::error("Synth {} has no valid channel and output defined, don't know where to send!", getName());
-				}
+		sendDataFileToSynth(std::move(dataFile), std::move(target), [synthName = getName()](const UploadResult& result) {
+			if (!result.successful()) {
+				spdlog::error("Upload to {} failed: {}", synthName, result.message);
 			}
+		});
+	}
+
+	void Synth::sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target, std::function<void(const UploadResult&)> finished)
+	{
+		auto messages = dataFileToSysex(dataFile, target);
+		if (messages.empty()) {
+			if (finished) finished({ UploadResult::Status::ADAPTATION_ERROR, "empty_upload", "The upload produced no MIDI messages" });
+			return;
 		}
+		spdlog::debug("Sending data file '{}' to synth {}", nameForPatch(dataFile), getName());
+		sendMessagesToSynthWithUploadHandshake(std::move(messages), std::move(finished));
+	}
+
+	void Synth::sendMessagesToSynthWithUploadHandshake(std::vector<MidiMessage> messages, std::function<void(const UploadResult&)> finished)
+	{
+		if (activeUpload_ && activeUpload_->active()) {
+			if (finished) finished({ UploadResult::Status::BUSY, "upload_busy", "Another upload to this synth is still active" });
+			return;
+		}
+
+		auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
+		if (!midiLocation || !midiLocation->channel().isValid()) {
+			if (finished) finished({ UploadResult::Status::TRANSPORT_ERROR, "missing_midi_location", "The synth has no valid MIDI channel and output" });
+			return;
+		}
+
+		auto handshake = midikraft::Capability::hasCapability<UploadHandshakeCapability>(this);
+		if (!handshake) {
+			if (!MidiController::instance()->enableMidiOutput(midiLocation->midiOutput())) {
+				if (finished) finished({ UploadResult::Status::TRANSPORT_ERROR, "missing_midi_output", "The configured MIDI output is unavailable" });
+				return;
+			}
+			sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
+			if (finished) finished({ UploadResult::Status::SENT_WITHOUT_ACKNOWLEDGEMENT, {}, {}, messages.size(), false });
+			return;
+		}
+
+		activeUpload_ = UploadOperation::start(
+			this, midiLocation->midiInput(), midiLocation->midiOutput(), handshake,
+			std::move(messages), std::move(finished));
+	}
+
+	void Synth::cancelActiveUpload()
+	{
+		if (activeUpload_ && activeUpload_->active()) activeUpload_->cancel();
 	}
 
 	void Synth::sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const& midiOutput, std::vector<MidiMessage> const& buffer)

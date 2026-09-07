@@ -57,6 +57,9 @@ set(Sources
 	include/SysexDataSerializationCapability.h
 	include/Tag.h src/Tag.cpp
 	include/TimedMidiSender.h src/TimedMidiSender.cpp 
+	include/UploadHandshakeCapability.h
+	include/UploadOperation.h src/UploadOperation.cpp
+	include/UploadSequence.h src/UploadSequence.cpp
 )
 
 # Setup library

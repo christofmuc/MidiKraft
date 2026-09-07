@@ -417,10 +417,6 @@ namespace midikraft {
 
 		auto handshake = midikraft::Capability::hasCapability<UploadHandshakeCapability>(this);
 		if (!handshake) {
-			if (!MidiController::instance()->enableMidiOutput(midiLocation->midiOutput())) {
-				if (finished) finished({ UploadResult::Status::TRANSPORT_ERROR, "missing_midi_output", "The configured MIDI output is unavailable" });
-				return;
-			}
 			sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
 			if (finished) finished({ UploadResult::Status::SENT_WITHOUT_ACKNOWLEDGEMENT, {}, {}, messages.size(), false });
 			return;

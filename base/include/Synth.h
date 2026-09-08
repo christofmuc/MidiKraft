@@ -13,6 +13,7 @@
 #include "MidiProgramNumber.h"
 #include "MidiBankNumber.h"
 #include "Logger.h"
+#include "UploadSequence.h"
 
 #ifdef _MSC_VER
 // We have to disable warning deprecated, because we use /WX all warnings as errors, and cannot turn off the error level for just one 
@@ -25,6 +26,7 @@ namespace midikraft {
 	class SendTarget;
 	class DataFile;
 	class Patch;
+	class UploadOperation;
 
 	typedef std::vector<std::shared_ptr<DataFile>> TPatchVector;
 
@@ -33,7 +35,7 @@ namespace midikraft {
 		typedef std::vector<uint8> PatchData;
 
 		Synth();
-		virtual ~Synth() = default;
+		virtual ~Synth();
 
 		virtual std::shared_ptr<DataFile> patchFromPatchData(const Synth::PatchData &data, MidiProgramNumber place) const = 0;
 		virtual bool isOwnSysex(MidiMessage const &message) const = 0;
@@ -62,6 +64,9 @@ namespace midikraft {
 		virtual void saveSysex(std::string const &filename, std::vector<MidiMessage> messages);
 		virtual std::vector<MidiMessage> dataFileToSysex(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
 		virtual void sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
+		void sendDataFileToSynthAsync(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target, std::function<void(const UploadResult&)> finished);
+		void sendMessagesToSynthWithUploadHandshake(std::vector<MidiMessage> messages, std::function<void(const UploadResult&)> finished);
+		void cancelActiveUpload();
 		virtual void sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const &midiOutput, std::vector<MidiMessage> const& buffer);
 
 		// Maximum receive inactivity (ms) for request/response operations; override per synth as needed.
@@ -74,9 +79,15 @@ namespace midikraft {
 		static int sizeOfBank(std::shared_ptr<Synth>, int zeroBasedBankNumber);
 		static MidiBankNumber bankNumberFromInt(std::shared_ptr<Synth>, int zeroBasedBankNumber);
 
+	protected:
+		// Kept virtual so alternate transports and tests that override the send method
+		// can provide the corresponding readiness check.
+		virtual bool prepareMidiOutputForUpload(juce::MidiDeviceInfo const& midiOutput);
+
 	private:
 		size_t maxNumberMessagesPerPatch_; // UGLY global configuration which can be overriden by environment variable ORM_MAX_MSG_PER_PATCH. Default was 10, which was large enough for refaceDX but too small for other synths.
 		size_t maxNumberMessagesPerBank_; // UGLY global configuration which can be overriden by environment variable ORM_MAX_MSG_PER_BANK. Setting this to 256 for now (Yamaha FS1R)
+		std::shared_ptr<UploadOperation> activeUpload_;
 	};
 
 	enum class BankDownloadMethod {

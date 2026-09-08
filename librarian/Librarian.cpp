@@ -528,6 +528,8 @@ namespace midikraft {
 		auto bankSendCapability = midikraft::Capability::hasCapability<BankSendCapability>(synth);
 		auto editBufferCapability = midikraft::Capability::hasCapability<EditBufferCapability>(synth);
 		auto programDumpCapability = midikraft::Capability::hasCapability<ProgramDumpCabability>(synth);
+		std::vector<std::vector<MidiMessage>> uploads;
+		std::vector<std::string> uploadNames;
 		if (bankSendCapability && (editBufferCapability || programDumpCapability)) {
 			// We use the BankSendCapability to create one or messages to transport all patches
 			std::vector<std::vector<MidiMessage>> patchMessages;
@@ -543,51 +545,109 @@ namespace midikraft {
 				}
 			}
 
-			auto messages = bankSendCapability->createBankMessages(patchMessages);
-			synth->sendBlockOfMessagesToSynth(location->midiOutput(), messages);
-			if (finishedHandler) {
-				finishedHandler(true);
-			}
-
+			uploads.push_back(bankSendCapability->createBankMessages(patchMessages));
+			uploadNames.push_back(synthBank.name());
 		} else if (programDumpCapability) {
-			// Count how many to send first
-			int count = 0;
 			int i = 0;
 			for (auto const& patch : synthBank.patches()) {
-				ignoreUnused(patch);
 				if (fullBank || synthBank.isPositionDirty(i++)) {
-					count++;
+					uploads.push_back(programDumpCapability->patchToProgramDumpSysex(patch.patch(), patch.patchNumber()));
+					uploadNames.push_back(fmt::format("{} ({})", patch.name(), synth->friendlyProgramName(patch.patchNumber())));
 				}
-			}
-
-			// Now to send and update the progressHandler
-			int sent = 0;
-			i = 0;
-			for (auto const& patch : synthBank.patches()) {
-				if (progressHandler) progressHandler->setMessage(fmt::format("Sending patch {} to {}", patch.name(), synth->friendlyProgramName(patch.patchNumber())));
-				if (fullBank || synthBank.isPositionDirty(i++)) {
-					auto messages = programDumpCapability->patchToProgramDumpSysex(patch.patch(), patch.patchNumber());
-					synth->sendBlockOfMessagesToSynth(location->midiOutput(), messages);
-				}
-				if (progressHandler) {
-					progressHandler->setMessage(fmt::format("Sending patch #{}: '{}'...", sent, patch.name()));
-					progressHandler->setProgressPercentage(++sent / (double)count);
-				}
-				if (progressHandler && progressHandler->shouldAbort()) {
-					spdlog::warn("Canceled bank upload in mid-flight!");
-					if (finishedHandler) {
-						finishedHandler(false);
-					}
-					return;
-				}
-			}
-			if (finishedHandler) {
-				finishedHandler(true);
 			}
 		}
 		else {
 			spdlog::warn("Sending banks to {} is not implemented yet", synth->getName());
+			if (finishedHandler) finishedHandler(false);
+			return;
 		}
+
+		if (uploads.empty()) {
+			if (finishedHandler) finishedHandler(true);
+			return;
+		}
+
+		struct BankUploadState {
+			std::shared_ptr<Synth> synth;
+			std::vector<std::vector<MidiMessage>> uploads;
+			std::vector<std::string> names;
+			ProgressHandler* progress = nullptr;
+			std::function<void(bool)> finished;
+			std::shared_ptr<std::function<void()>> continuation;
+			size_t next = 0;
+			bool completed = false;
+			bool continuationRunning = false;
+			bool continueRequested = false;
+		};
+
+		auto state = std::make_shared<BankUploadState>();
+		state->synth = synth;
+		state->uploads = std::move(uploads);
+		state->names = std::move(uploadNames);
+		state->progress = progressHandler;
+		state->finished = std::move(finishedHandler);
+		activeUploadSynth_ = synth;
+		std::weak_ptr<BankUploadState> weakState = state;
+
+		auto finish = [this, weakState](bool success) {
+			auto state = weakState.lock();
+			if (!state) return;
+			if (state->completed) return;
+			state->completed = true;
+			activeUploadSynth_.reset();
+			if (state->finished) state->finished(success);
+			state->continuation.reset();
+		};
+
+		state->continuation = std::make_shared<std::function<void()>>();
+		*state->continuation = [weakState, finish]() {
+			auto state = weakState.lock();
+			if (!state) return;
+			if (state->continuationRunning) {
+				state->continueRequested = true;
+				return;
+			}
+
+			state->continuationRunning = true;
+			do {
+				state->continueRequested = false;
+				if (state->progress && state->progress->shouldAbort()) {
+					state->synth->cancelActiveUpload();
+					finish(false);
+					break;
+				}
+				if (state->next >= state->uploads.size()) {
+					finish(true);
+					break;
+				}
+
+				auto index = state->next;
+				if (state->progress) {
+					state->progress->setMessage(fmt::format("Sending {}", state->names[index]));
+				}
+				state->synth->sendMessagesToSynthWithUploadHandshake(state->uploads[index],
+					[state, finish, index](const UploadResult& result) {
+						if (!result.successful()) {
+							spdlog::error("Bank upload stopped at {}: {}", state->names[index], result.message);
+							finish(false);
+							return;
+						}
+						state->next = index + 1;
+						if (state->progress) {
+							state->progress->setProgressPercentage(state->next / static_cast<double>(state->uploads.size()));
+						}
+						if (state->continuationRunning) {
+							state->continueRequested = true;
+						}
+						else if (auto continuation = state->continuation) {
+							(*continuation)();
+						}
+					});
+			} while (!state->completed && state->continueRequested);
+			state->continuationRunning = false;
+		};
+		auto continuation = state->continuation;
+		(*continuation)();
 	}
 
 	class ExportSysexFilesInBackground : public ThreadWithProgressWindow {
@@ -810,6 +870,10 @@ namespace midikraft {
 
 	void Librarian::clearHandlers()
 	{
+		if (auto synth = activeUploadSynth_.lock()) {
+			synth->cancelActiveUpload();
+		}
+		activeUploadSynth_.reset();
 		// This is to clear up any remaining MIDI callback handlers, e.g. on User canceling an operation
 		while (!handles_.empty()) {
 			auto handle = handles_.top();

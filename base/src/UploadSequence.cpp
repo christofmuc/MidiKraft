@@ -72,9 +72,9 @@ namespace midikraft {
 		}
 	}
 
-	void UploadSequence::handleIncomingMessage(const MidiMessage& message)
+	UploadHandshakeReply::Status UploadSequence::handleIncomingMessage(const MidiMessage& message)
 	{
-		if (!active_ || !waitingForReply_ || !handshake_) return;
+		if (!active_ || !waitingForReply_ || !handshake_) return UploadHandshakeReply::Status::UNRELATED;
 
 		UploadHandshakeReply reply;
 		try {
@@ -82,28 +82,29 @@ namespace midikraft {
 		}
 		catch (const std::exception& ex) {
 			finish({ UploadResult::Status::ADAPTATION_ERROR, "invalid_upload_reply", ex.what(), currentMessage_, true });
-			return;
+			return UploadHandshakeReply::Status::ADAPTATION_ERROR;
 		}
 
 		switch (reply.status) {
 		case UploadHandshakeReply::Status::UNRELATED:
-			return;
+			return reply.status;
 		case UploadHandshakeReply::Status::CONTINUE:
 			if (!reply.response.empty()) send(reply.response);
-			return;
+			return reply.status;
 		case UploadHandshakeReply::Status::ACCEPTED:
-			if (!reply.response.empty() && !send(reply.response)) return;
+			if (!reply.response.empty() && !send(reply.response)) return reply.status;
 			waitingForReply_ = false;
 			++currentMessage_;
 			advance();
-			return;
+			return reply.status;
 		case UploadHandshakeReply::Status::DEVICE_ERROR:
 			finish({ UploadResult::Status::DEVICE_ERROR, reply.code, reply.message, currentMessage_, false });
-			return;
+			return reply.status;
 		case UploadHandshakeReply::Status::ADAPTATION_ERROR:
 			finish({ UploadResult::Status::ADAPTATION_ERROR, reply.code, reply.message, currentMessage_, true });
-			return;
+			return reply.status;
 		}
+		return UploadHandshakeReply::Status::ADAPTATION_ERROR;
 	}
 
 	void UploadSequence::timeout()

@@ -52,7 +52,7 @@ namespace midikraft {
 			Finished finished);
 
 		void start();
-		void handleIncomingMessage(const MidiMessage& message);
+		UploadHandshakeReply::Status handleIncomingMessage(const MidiMessage& message);
 		void timeout();
 		void cancel();
 

@@ -83,7 +83,7 @@ namespace midikraft {
 
 		auto weak = weak_from_this();
 		sequence_ = std::make_unique<UploadSequence>(
-			handshake_, messages_,
+			handshake_, std::move(messages_),
 			[this](const std::vector<MidiMessage>& messages) {
 				synth_->sendBlockOfMessagesToSynth(midiOutput_, messages);
 			},
@@ -96,19 +96,17 @@ namespace midikraft {
 
 	void UploadOperation::receive(MidiInput* source, const MidiMessage& message)
 	{
-		if (completed_ || !sequence_ || !sequence_->waitingForReply()) return;
 		if (!source || source->getDeviceInfo().identifier != midiInput_.identifier) return;
 
 		auto weak = weak_from_this();
 		MessageManager::callAsync([weak, message]() {
 			if (auto operation = weak.lock()) {
-				if (!operation->completed_ && operation->sequence_) {
-					auto previousMessage = operation->sequence_->currentMessageIndex();
-					operation->sequence_->handleIncomingMessage(message);
-					// Unrelated input and progress replies must not extend the current
-					// step. Only acceptance can start a new step and deadline.
-					if (!operation->completed_
-						&& operation->sequence_->currentMessageIndex() != previousMessage) {
+				if (!operation->completed_ && operation->sequence_ && operation->sequence_->waitingForReply()) {
+					auto status = operation->sequence_->handleIncomingMessage(message);
+					// A related reply proves the device is making progress. Refresh the
+					// deadline for CONTINUE and for an accepted step followed by another.
+					if (!operation->completed_ && operation->sequence_->waitingForReply()
+						&& status != UploadHandshakeReply::Status::UNRELATED) {
 						operation->updateDeadline();
 					}
 				}

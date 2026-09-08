@@ -64,7 +64,7 @@ namespace midikraft {
 		virtual void saveSysex(std::string const &filename, std::vector<MidiMessage> messages);
 		virtual std::vector<MidiMessage> dataFileToSysex(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
 		virtual void sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target);
-		void sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target, std::function<void(const UploadResult&)> finished);
+		void sendDataFileToSynthAsync(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target, std::function<void(const UploadResult&)> finished);
 		void sendMessagesToSynthWithUploadHandshake(std::vector<MidiMessage> messages, std::function<void(const UploadResult&)> finished);
 		void cancelActiveUpload();
 		virtual void sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const &midiOutput, std::vector<MidiMessage> const& buffer);
@@ -78,6 +78,11 @@ namespace midikraft {
 		// Helper methods
 		static int sizeOfBank(std::shared_ptr<Synth>, int zeroBasedBankNumber);
 		static MidiBankNumber bankNumberFromInt(std::shared_ptr<Synth>, int zeroBasedBankNumber);
+
+	protected:
+		// Kept virtual so alternate transports and tests that override the send method
+		// can provide the corresponding readiness check.
+		virtual bool prepareMidiOutputForUpload(juce::MidiDeviceInfo const& midiOutput);
 
 	private:
 		size_t maxNumberMessagesPerPatch_; // UGLY global configuration which can be overriden by environment variable ORM_MAX_MSG_PER_PATCH. Default was 10, which was large enough for refaceDX but too small for other synths.

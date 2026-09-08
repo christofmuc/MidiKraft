@@ -384,14 +384,14 @@ namespace midikraft {
 
 	void Synth::sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target)
 	{
-		sendDataFileToSynth(std::move(dataFile), std::move(target), [synthName = getName()](const UploadResult& result) {
+		sendDataFileToSynthAsync(std::move(dataFile), std::move(target), [synthName = getName()](const UploadResult& result) {
 			if (!result.successful()) {
 				spdlog::error("Upload to {} failed: {}", synthName, result.message);
 			}
 		});
 	}
 
-	void Synth::sendDataFileToSynth(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target, std::function<void(const UploadResult&)> finished)
+	void Synth::sendDataFileToSynthAsync(std::shared_ptr<DataFile> dataFile, std::shared_ptr<SendTarget> target, std::function<void(const UploadResult&)> finished)
 	{
 		auto messages = dataFileToSysex(dataFile, target);
 		if (messages.empty()) {
@@ -399,14 +399,6 @@ namespace midikraft {
 			return;
 		}
 		spdlog::debug("Sending data file '{}' to synth {}", nameForPatch(dataFile), getName());
-		if (!midikraft::Capability::hasCapability<UploadHandshakeCapability>(this)) {
-			auto midiLocation = midikraft::Capability::hasCapability<MidiLocationCapability>(this);
-			if (midiLocation && midiLocation->channel().isValid()
-				&& !MidiController::instance()->enableMidiOutput(midiLocation->midiOutput())) {
-				if (finished) finished({ UploadResult::Status::TRANSPORT_ERROR, "missing_midi_output", "The configured MIDI output is unavailable" });
-				return;
-			}
-		}
 		sendMessagesToSynthWithUploadHandshake(std::move(messages), std::move(finished));
 	}
 
@@ -425,6 +417,10 @@ namespace midikraft {
 
 		auto handshake = midikraft::Capability::hasCapability<UploadHandshakeCapability>(this);
 		if (!handshake) {
+			if (!prepareMidiOutputForUpload(midiLocation->midiOutput())) {
+				if (finished) finished({ UploadResult::Status::TRANSPORT_ERROR, "missing_midi_output", "The configured MIDI output is unavailable" });
+				return;
+			}
 			sendBlockOfMessagesToSynth(midiLocation->midiOutput(), messages);
 			if (finished) finished({ UploadResult::Status::SENT_WITHOUT_ACKNOWLEDGEMENT, {}, {}, messages.size(), false });
 			return;
@@ -443,6 +439,11 @@ namespace midikraft {
 	void Synth::sendBlockOfMessagesToSynth(juce::MidiDeviceInfo const& midiOutput, std::vector<MidiMessage> const& buffer)
 	{
 		MidiController::instance()->getMidiOutput(midiOutput)->sendBlockOfMessagesFullSpeed(buffer);
+	}
+
+	bool Synth::prepareMidiOutputForUpload(juce::MidiDeviceInfo const& midiOutput)
+	{
+		return MidiController::instance()->enableMidiOutput(midiOutput);
 	}
 
 

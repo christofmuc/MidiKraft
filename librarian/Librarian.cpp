@@ -576,6 +576,8 @@ namespace midikraft {
 			std::shared_ptr<std::function<void()>> continuation;
 			size_t next = 0;
 			bool completed = false;
+			bool continuationRunning = false;
+			bool continueRequested = false;
 		};
 
 		auto state = std::make_shared<BankUploadState>();
@@ -601,35 +603,51 @@ namespace midikraft {
 		*state->continuation = [weakState, finish]() {
 			auto state = weakState.lock();
 			if (!state) return;
-			if (state->progress && state->progress->shouldAbort()) {
-				state->synth->cancelActiveUpload();
-				finish(false);
-				return;
-			}
-			if (state->next >= state->uploads.size()) {
-				finish(true);
+			if (state->continuationRunning) {
+				state->continueRequested = true;
 				return;
 			}
 
-			auto index = state->next;
-			if (state->progress) {
-				state->progress->setMessage(fmt::format("Sending {}", state->names[index]));
-			}
-			state->synth->sendMessagesToSynthWithUploadHandshake(state->uploads[index],
-				[state, finish, index](const UploadResult& result) {
-					if (!result.successful()) {
-						spdlog::error("Bank upload stopped at {}: {}", state->names[index], result.message);
-						finish(false);
-						return;
-					}
-					state->next = index + 1;
-					if (state->progress) {
-						state->progress->setProgressPercentage(state->next / static_cast<double>(state->uploads.size()));
-					}
-					if (state->continuation) (*state->continuation)();
-				});
+			state->continuationRunning = true;
+			do {
+				state->continueRequested = false;
+				if (state->progress && state->progress->shouldAbort()) {
+					state->synth->cancelActiveUpload();
+					finish(false);
+					break;
+				}
+				if (state->next >= state->uploads.size()) {
+					finish(true);
+					break;
+				}
+
+				auto index = state->next;
+				if (state->progress) {
+					state->progress->setMessage(fmt::format("Sending {}", state->names[index]));
+				}
+				state->synth->sendMessagesToSynthWithUploadHandshake(state->uploads[index],
+					[state, finish, index](const UploadResult& result) {
+						if (!result.successful()) {
+							spdlog::error("Bank upload stopped at {}: {}", state->names[index], result.message);
+							finish(false);
+							return;
+						}
+						state->next = index + 1;
+						if (state->progress) {
+							state->progress->setProgressPercentage(state->next / static_cast<double>(state->uploads.size()));
+						}
+						if (state->continuationRunning) {
+							state->continueRequested = true;
+						}
+						else if (auto continuation = state->continuation) {
+							(*continuation)();
+						}
+					});
+			} while (!state->completed && state->continueRequested);
+			state->continuationRunning = false;
 		};
-		(*state->continuation)();
+		auto continuation = state->continuation;
+		(*continuation)();
 	}
 
 	class ExportSysexFilesInBackground : public ThreadWithProgressWindow {

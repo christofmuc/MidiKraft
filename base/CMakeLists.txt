@@ -42,6 +42,7 @@ set(Sources
 	include/MTSFile.h src/MTSFile.cpp
 	include/NamedDeviceCapability.h	
 	include/Patch.h src/Patch.cpp
+	include/PatchEventCapability.h
 	include/ProgramDumpCapability.h
 	include/ReadonlySoundExpander.h src/ReadonlySoundExpander.cpp
 	include/SendsProgramChangeCapability.h

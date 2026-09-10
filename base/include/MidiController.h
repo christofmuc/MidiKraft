@@ -43,7 +43,7 @@ namespace midikraft {
 
 	class SafeMidiOutput {
 	public:
-		SafeMidiOutput(MidiController *controller, MidiOutput *midiOutput);
+		SafeMidiOutput(MidiController *controller, std::shared_ptr<MidiOutput> midiOutput);
 
 		void sendMessageNow(const MidiMessage& message);
 		void sendMessageDebounced(const MidiMessage &message, int milliseconds);
@@ -56,7 +56,10 @@ namespace midikraft {
 		bool isValid() const;
 
 	private:
-		MidiOutput * midiOut_;
+		friend class MidiController;
+		void sendMessageNow(const MidiMessage& message, bool mirrorToSecondary);
+
+		std::shared_ptr<MidiOutput> midiOut_;
 		MidiController *controller_;
 		DebounceTimer debouncer_;
 	};
@@ -100,6 +103,11 @@ namespace midikraft {
 		void setMidiLogFunction(std::function<void(const MidiMessage& message, const String& source, bool)>);
 		void logMidiMessage(const MidiMessage& message, const String& source, bool isOut);
 
+		// Select/open on the UI thread. An empty device disables the secondary output.
+		void setSecondaryMidiOutput(juce::MidiDeviceInfo const& output);
+		// Returns false when no usable secondary output is selected. Never mirrors these messages again.
+		bool sendToSecondaryMidiOut(std::vector<MidiMessage> const& messages);
+
 		bool enableMidiOutput(juce::MidiDeviceInfo const &newOutput);
 		std::shared_ptr<SafeMidiOutput> getMidiOutput(juce::MidiDeviceInfo const &name);
 		bool enableMidiInput(juce::MidiDeviceInfo const &newInput);
@@ -116,6 +124,13 @@ namespace midikraft {
 		void setMidiLogLevel(MidiLogLevel level);
 
 	private:
+		friend class SafeMidiOutput;
+		void midiMessageSent(const MidiMessage& message, juce::MidiDeviceInfo const& output);
+
+		CriticalSection secondaryMidiOutputLock_;
+		String secondaryMidiOutputIdentifier_;
+		std::function<void(const MidiMessage&)> secondaryMidiSender_;
+
 #if defined(MIDIKRAFT_BUILD_TESTS)
 		friend struct MidiControllerTestAccess;
 #endif
@@ -159,7 +174,7 @@ namespace midikraft {
 
 		std::set<juce::MidiDeviceInfo> knownInputs_, historyOfAllInputs_;
 		std::set<juce::MidiDeviceInfo> knownOutputs_, historyOfAllOutpus_;
-		std::map<String, std::unique_ptr<MidiOutput>> outputsOpen_;
+		std::map<String, std::shared_ptr<MidiOutput>> outputsOpen_;
 		std::map<String, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
 		std::map<String, std::unique_ptr<MidiInput>> inputsOpen_;
 		std::function<void(const MidiMessage& message, const String& source, bool)> midiLogFunction_;

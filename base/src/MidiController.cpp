@@ -16,16 +16,19 @@
 
 namespace midikraft {
 
-	SafeMidiOutput::SafeMidiOutput(MidiController *controller, MidiOutput *midiOutput) :
-		midiOut_(midiOutput), controller_(controller)
+	SafeMidiOutput::SafeMidiOutput(MidiController *controller, std::shared_ptr<MidiOutput> midiOutput) :
+		midiOut_(std::move(midiOutput)), controller_(controller)
 	{
 	}
 
 	MidiMessage MidiController::makeTimeoutMessage()
 	{
 		// JUCE's default MidiMessage is an empty SysEx frame (F0 F7), not a
-		// zero-length message. Use an explicitly empty payload for the sentinel.
-		return MidiMessage(static_cast<void const*>(nullptr), 0);
+		// zero-length message. The raw-data constructor requires a positive length;
+		// use the parser's invalid-status result to construct an empty message safely.
+		const uint8 noStatus = 0;
+		int bytesUsed = 0;
+		return MidiMessage(&noStatus, 1, bytesUsed, 0, 0.0, false);
 	}
 
 	bool MidiController::isTimeoutMessage(const MidiMessage& message)
@@ -34,11 +37,20 @@ namespace midikraft {
 	}
 
 	void SafeMidiOutput::sendMessageNow(const MidiMessage& message) {
+		sendMessageNow(message, true);
+	}
+
+	void SafeMidiOutput::sendMessageNow(const MidiMessage& message, bool mirrorToSecondary) {
 		if (midiOut_) {
 			// Suppress empty sysex messages, they seem to confuse vintage hardware (e.g the Kawai K3 in particular)
 			if (!(message.isSysEx() && message.getSysExDataSize() == 0)) {
-				controller_->logMidiMessage(message, midiOut_->getName(), true);
 				midiOut_->sendMessageNow(message);
+				if (mirrorToSecondary) {
+					controller_->midiMessageSent(message, midiOut_->getDeviceInfo());
+				}
+				else {
+					controller_->logMidiMessage(message, midiOut_->getName(), true);
+				}
 			}
 		}
 	}
@@ -54,11 +66,11 @@ namespace midikraft {
 	void SafeMidiOutput::sendBlockOfMessagesFullSpeed(const MidiBuffer& buffer) {
 		if (midiOut_) {
 			MidiBuffer filtered = MidiHelpers::removeEmptySysexMessages(buffer);
+			midiOut_->sendBlockOfMessagesNow(filtered);
 			for (auto message : filtered) {
 				auto m = message.getMessage();
-				controller_->logMidiMessage(m, midiOut_->getName(), true);
+				controller_->midiMessageSent(m, midiOut_->getDeviceInfo());
 			}
-			midiOut_->sendBlockOfMessagesNow(filtered);
 		}
 	}
 
@@ -68,7 +80,7 @@ namespace midikraft {
 			for (const auto& message : buffer) {
 				if (MidiHelpers::isEmptySysex(message)) continue;
 				midiOut_->sendMessageNow(message);
-				controller_->logMidiMessage(message, midiOut_->getName(), true);
+				controller_->midiMessageSent(message, midiOut_->getDeviceInfo());
 			}
 		}
 	}
@@ -80,7 +92,7 @@ namespace midikraft {
 				if (MidiHelpers::isEmptySysex(message)) continue;
 				Thread::sleep(millisecondsWait);
 				midiOut_->sendMessageNow(message);
-				controller_->logMidiMessage(message, midiOut_->getName(), true);
+				controller_->midiMessageSent(message, midiOut_->getDeviceInfo());
 			}
 		}
 	}
@@ -151,6 +163,53 @@ namespace midikraft {
 		}
 	}
 
+	void MidiController::setSecondaryMidiOutput(juce::MidiDeviceInfo const& output)
+	{
+		std::function<void(const MidiMessage&)> sender;
+		if (output.identifier.isNotEmpty()) {
+			auto midiOutput = getMidiOutput(output);
+			if (midiOutput->isValid()) {
+				sender = [midiOutput](const MidiMessage& message) {
+					midiOutput->sendMessageNow(message, false);
+				};
+			}
+		}
+		ScopedLock lock(secondaryMidiOutputLock_);
+		secondaryMidiOutputIdentifier_ = output.identifier;
+		secondaryMidiSender_ = std::move(sender);
+	}
+
+	bool MidiController::sendToSecondaryMidiOut(std::vector<MidiMessage> const& messages)
+	{
+		std::function<void(const MidiMessage&)> sender;
+		{
+			ScopedLock lock(secondaryMidiOutputLock_);
+			sender = secondaryMidiSender_;
+		}
+		if (!sender) return false;
+		for (const auto& message : messages) {
+			if (message.getRawDataSize() > 0 && !MidiHelpers::isEmptySysex(message)) {
+				sender(message);
+			}
+		}
+		return true;
+	}
+
+	void MidiController::midiMessageSent(const MidiMessage& message, juce::MidiDeviceInfo const& output)
+	{
+		std::function<void(const MidiMessage&)> sender;
+		{
+			ScopedLock lock(secondaryMidiOutputLock_);
+			// Device identifiers distinguish ports even when their display names match.
+			if (output.identifier != secondaryMidiOutputIdentifier_) {
+				sender = secondaryMidiSender_;
+			}
+		}
+		if (sender) sender(message);
+		// Filtering the log must never affect transmission.
+		logMidiMessage(message, output.name, true);
+	}
+
 	bool MidiController::enableMidiOutput(juce::MidiDeviceInfo const &newOutput)
 	{
 		if (newOutput.identifier.isEmpty()) return false;
@@ -163,7 +222,7 @@ namespace midikraft {
 					auto newDevice = juce::MidiOutput::openDevice(device.identifier);
 					if (newDevice) {
 						// Take responsibility for the lifetime of the returned output
-						newDevice.swap(outputsOpen_[newOutput.identifier]);
+						outputsOpen_[newOutput.identifier] = std::move(newDevice);
 						spdlog::trace("MIDI output {} opened with ID {}", newOutput.name, device.identifier);
 						return true;
 					}
@@ -192,7 +251,7 @@ namespace midikraft {
 					return safeOutputs_[midiOutput.identifier];
 				}
 			}
-			safeOutputs_[midiOutput.identifier] = std::make_shared<SafeMidiOutput>(this, outputsOpen_[midiOutput.identifier].get());
+			safeOutputs_[midiOutput.identifier] = std::make_shared<SafeMidiOutput>(this, outputsOpen_[midiOutput.identifier]);
 		}
 		return safeOutputs_[midiOutput.identifier];
 	}
@@ -338,6 +397,11 @@ namespace midikraft {
 		for (auto output = outputsOpen_.begin(); output != outputsOpen_.end(); output++) {
 			if (std::none_of(outputDevices.cbegin(), outputDevices.cend(), [output](juce::MidiDeviceInfo const& info) { return info.identifier == output->first;  })) {
 				spdlog::info("MIDI Output {} unplugged", output->second->getName());
+				{
+					ScopedLock lock(secondaryMidiOutputLock_);
+					if (output->first == secondaryMidiOutputIdentifier_) secondaryMidiSender_ = {};
+				}
+				// An in-flight secondary send retains the device until it returns.
 				output->second.reset();
 				toDeleteOutput.push_back(output->first);
 				dirty = true;

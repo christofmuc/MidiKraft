@@ -141,7 +141,7 @@ TEST_CASE("explicit secondary output preserves order and ignores empty messages"
 		[&](const MidiMessage& message) { sent.push_back(message); });
 	auto first = MidiMessage::controllerEvent(1, 0, 2);
 	auto second = MidiMessage::programChange(1, 42);
-	REQUIRE(controller.sendToSecondaryMidiOut({ first, midikraft::MidiController::makeTimeoutMessage(), MidiMessage::createSysExMessage(nullptr, 0), second }));
+	REQUIRE(controller.sendToSecondaryMidiOut({ first, midikraft::MidiController::makeTimeoutMessage(), MidiMessage(), second }));
 	REQUIRE(sent.size() == 2);
 	CHECK(bytesOf(sent[0]) == bytesOf(first));
 	CHECK(bytesOf(sent[1]) == bytesOf(second));

@@ -67,6 +67,14 @@ add_library(midikraft-base ${Sources})
 target_include_directories(midikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 target_link_libraries(midikraft-base PUBLIC juce-utils spdlog::spdlog)
 
+option(MIDIKRAFT_BUILD_DETECTION_TESTS "Build hardware-independent detection regression tests" OFF)
+if(MIDIKRAFT_BUILD_DETECTION_TESTS)
+	enable_testing()
+	add_executable(midikraft_detection_tests tests/AutoDetectionTests.cpp)
+	target_link_libraries(midikraft_detection_tests PRIVATE midikraft-base)
+	add_test(NAME midikraft_detection_tests COMMAND midikraft_detection_tests)
+endif()
+
 # Pedantic about warnings
 if (MSVC)
     # warning level 4 and all warnings as errors

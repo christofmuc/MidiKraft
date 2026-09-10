@@ -24,18 +24,11 @@ namespace midikraft {
 		return fmt::format("{}-{}", nameCap ? nameCap->getName() : "invalid", trait);
 	}
 
-	AutoDetection::AutoDetection() : handler_(MidiController::makeOneHandle())
-	{
-		MidiController::instance()->addMessageHandler(handler_, [this](MidiInput *source, MidiMessage const &midimessage) {
-			if (!isSynth_.expired()) {
-				isSynth_.lock()->handleIncomingMidiMessage(source, midimessage);
-			}
-		});
-	}
-
-	AutoDetection::~AutoDetection()
-	{
-		MidiController::instance()->removeMessageHandler(handler_);
+	static int savedChannel(SimpleDiscoverableDevice *synth) {
+		auto text = Settings::instance().get(midiSetupKey(synth, kChannel));
+		if (text.empty() || text.size() > 2 || text.find_first_not_of("0123456789") != std::string::npos) return -1;
+		int channel = std::stoi(text);
+		return channel < 16 ? channel : -1;
 	}
 
 	void AutoDetection::autoconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths, ProgressHandler *progressHandler)
@@ -43,6 +36,7 @@ namespace midikraft {
 		spdlog::debug("Starting auto configure of all synths");
 		// For all devices that are discoverable, run the find method
 		for (auto synthHolder : allSynths) {
+			if (progressHandler && progressHandler->shouldAbort()) break;
 			if (synthHolder) {
 				findSynth(synthHolder.get(), progressHandler);
 			}
@@ -52,11 +46,12 @@ namespace midikraft {
 		sendChangeMessage();
 	}
 
-	void AutoDetection::quickconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths)
+	void AutoDetection::quickconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths, ProgressHandler *progressHandler)
 	{
 		spdlog::debug("Starting quick configure of all synths");
 		// For all devices that are discoverable, run the find method
 		for (auto &synthHolder : allSynths) {
+			if (progressHandler && progressHandler->shouldAbort()) break;
 			if (synthHolder) {
 				auto synth = synthHolder.get();
 				// Load the synthesizer setup from the settings file
@@ -65,10 +60,13 @@ namespace midikraft {
 				if (synthHolder->deviceDetectSleepMS() < 0) {
 					continue;
 				}
-				if (!checkSynth(synth)) {
+				if (progressHandler) progressHandler->setMessage(fmt::format("Checking saved connection for {}...", synth->getName()));
+				bool connected = checkSynth(synth, progressHandler);
+				if (progressHandler && progressHandler->shouldAbort()) break;
+				if (!connected) {
 					spdlog::warn(
-						"Lost communication with {} on channel {} of device {} - please rerun auto-detect synths!",
-							 synth->getName(), synth->channel().toOneBasedInt(), synth->midiOutput().name.toStdString());
+						"No response from {} on channel {} of device {} - turn it on and check its saved connection, or use Find this synth if it has moved.",
+							 synth->getName(), synth->channel().isValid() ? synth->channel().toOneBasedInt() : 0, synth->midiOutput().name.toStdString());
 				}
 				else {
 					spdlog::info("Detected {} on channel {} of device {}",
@@ -102,13 +100,17 @@ namespace midikraft {
 		synth->setOutput(MidiController::instance()->getMidiOutputByName(output));
 
 		synth->setChannel(MidiChannel::invalidChannel());
-		std::string channelString = Settings::instance().get(midiSetupKey(synth, kChannel));
-		if (!channelString.empty()) {
-			int channel = std::atoi(channelString.c_str());
-			if (channel >= 0 && channel < 16) {
-				synth->setChannel(MidiChannel::fromZeroBase(channel));
-			}
-		}
+		int channel = savedChannel(synth);
+		if (channel >= 0) synth->setChannel(MidiChannel::fromZeroBase(channel));
+	}
+
+	bool AutoDetection::hasSavedConnection(SimpleDiscoverableDevice *synth) {
+		if (!synth) return false;
+		auto &settings = Settings::instance();
+		int channel = savedChannel(synth);
+		return !settings.get(midiSetupKey(synth, kInput)).empty()
+			&& !settings.get(midiSetupKey(synth, kOutput)).empty()
+			&& channel >= 0 && channel < 16;
 	}
 
 	void AutoDetection::findSynth(SimpleDiscoverableDevice *synth, ProgressHandler *progressHandler) {
@@ -122,6 +124,8 @@ namespace midikraft {
 		}
 
 		auto locations = FindSynthOnMidiNetwork::detectSynth(*synth, progressHandler);
+		if (progressHandler && progressHandler->shouldAbort()) return;
+		synth->setWasDetected(!locations.empty());
 		if (locations.size() > 0) {
 			for (auto loc : locations) {
 				spdlog::info("Found {} on channel {} replying on device {} when sending to {} on channel {}",
@@ -141,16 +145,30 @@ namespace midikraft {
 		}
 	}
 
-	bool AutoDetection::checkSynth(SimpleDiscoverableDevice *synth) {
+	bool AutoDetection::checkSynth(SimpleDiscoverableDevice *synth, ProgressHandler *progressHandler) {
 		// Hack - if the wait time is negative, don't autodetect. This needs to be replaced by some proper dynamic cast
 		if (synth->deviceDetectSleepMS() < 0) {
+			return false;
+		}
+		if (!synth->channel().isValid() || synth->channel().isOmni()
+			|| synth->midiInput().identifier.isEmpty() || synth->midiOutput().identifier.isEmpty()) {
+			synth->setWasDetected(false);
 			return false;
 		}
 
 		// This is the fast version of the FindSynthOnMidiNetwork routine - just a single pass to see if the synth responds
 		std::shared_ptr<IsSynth> callback = std::make_shared<IsSynth>(*synth);
-		isSynth_ = callback;
-		MidiController::instance()->enableMidiInput(synth->midiInput());
+		auto handler = MidiController::makeOneHandle();
+		MidiController::instance()->addMessageHandler(handler, [weak = std::weak_ptr<IsSynth>(callback)](MidiInput *source, MidiMessage const &message) {
+			if (auto detector = weak.lock()) detector->handleIncomingMidiMessage(source, message);
+		});
+		juce::ScopeGuard removeHandler { [handler]() { MidiController::instance()->removeMessageHandler(handler); } };
+		ScopedMidiInput listener(*MidiController::instance(), synth->midiInput());
+		auto output = MidiController::instance()->getMidiOutput(synth->midiOutput());
+		if (!listener.isEnabled() || !output->isValid()) {
+			synth->setWasDetected(false);
+			return false;
+		}
 
 		// Send the detect message
 		int deviceDetectId = 0x7f;
@@ -162,10 +180,14 @@ namespace midikraft {
 		auto detectMessage = synth->deviceDetect(deviceDetectId);
 		// As of Dec 2020 the only Synth that needs more than one message for detection seems to be the Matrix 6, which is fast. 
 		//TODO:  I cannot use the synth's sendBlockOfMessagesToSynth() here because I do not have a synth pointer. Smell?
-		MidiController::instance()->getMidiOutput(synth->midiOutput())->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
+		output->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
 
 		// Sleep as long as the synth thinks is enough
-		Thread::sleep(synth->deviceDetectSleepMS());
+		for (int remaining = synth->deviceDetectSleepMS(); remaining > 0; remaining -= 20) {
+			if (progressHandler && progressHandler->shouldAbort()) return false;
+			Thread::sleep(std::min(remaining, 20));
+		}
+		if (progressHandler && progressHandler->shouldAbort()) return false;
 
 		// Check if we found it
 		bool ok = false;
@@ -179,7 +201,6 @@ namespace midikraft {
 				}
 			}
 		}
-		MidiController::instance()->disableMidiInput(synth->midiInput());
 		synth->setWasDetected(ok);
 		return ok;
 	}
@@ -187,7 +208,7 @@ namespace midikraft {
 	void AutoDetection::listenerToAllFound(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths) {
 		// Listen to all detected synths
 		for (auto synth : allSynths) {
-			if (synth->wasDetected()) {
+			if (synth && synth->wasDetected()) {
 				MidiController::instance()->enableMidiInput(synth->midiInput());
 			}
 		}

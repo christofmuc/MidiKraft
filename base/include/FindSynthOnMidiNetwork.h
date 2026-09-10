@@ -21,12 +21,13 @@ namespace midikraft {
 
 		virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
 
-		std::vector<MidiNetworkLocation> locations() { return found_; }
-		void restart() { found_.clear(); }
+		std::vector<MidiNetworkLocation> locations() { ScopedLock lock(lock_); return found_; }
+		void restart() { ScopedLock lock(lock_); found_.clear(); }
 
 	private:
 		DiscoverableDevice & synth_;
 		std::vector<MidiNetworkLocation> found_;
+		CriticalSection lock_;
 	};
 
 
@@ -43,7 +44,7 @@ namespace midikraft {
 		virtual ~FindSynthOnMidiNetwork() override;
 
 		MidiController::HandlerHandle handler_;
-		std::weak_ptr<IsSynth> isSynth_; // The synth that is to be detected
+		std::shared_ptr<IsSynth> isSynth_;
 		DiscoverableDevice &synth_;
 		std::vector<MidiNetworkLocation> locations_;
 		ProgressHandler *progressHandler_;

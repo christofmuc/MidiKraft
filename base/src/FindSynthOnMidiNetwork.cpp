@@ -18,19 +18,20 @@ namespace midikraft {
 
 	void IsSynth::handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message)
 	{
+		if (!source || MidiController::isTimeoutMessage(message)) return;
 		MidiChannel channel = synth_.channelIfValidDeviceResponse(message);
 		if (channel.isValid()) {
-			synth_.setWasDetected(true);
+			ScopedLock lock(lock_);
 			found_.push_back(MidiNetworkLocation(source->getDeviceInfo(), MidiDeviceInfo(), channel));
 		}
 	}
 
 	FindSynthOnMidiNetwork::FindSynthOnMidiNetwork(DiscoverableDevice &synth, std::string const &text, ProgressHandler *progressHandler) :
-		Thread(text), handler_(MidiController::makeOneHandle()), synth_(synth), progressHandler_(progressHandler)
+		Thread(text), handler_(MidiController::makeOneHandle()), isSynth_(std::make_shared<IsSynth>(synth)), synth_(synth), progressHandler_(progressHandler)
 	{
-		MidiController::instance()->addMessageHandler(handler_, [this](MidiInput *source, MidiMessage const &midimessage) {
-			if (!isSynth_.expired()) {
-				isSynth_.lock()->handleIncomingMidiMessage(source, midimessage);
+		MidiController::instance()->addMessageHandler(handler_, [weak = std::weak_ptr<IsSynth>(isSynth_)](MidiInput *source, MidiMessage const &midimessage) {
+			if (auto callback = weak.lock()) {
+				callback->handleIncomingMidiMessage(source, midimessage);
 			}
 		});
 	}
@@ -44,68 +45,72 @@ namespace midikraft {
 	{
 		// We will do the following - select a MIDI in, and send the "Device ID" message to all MIDI outs.
 		// If none found, repeat with the next MIDI in
-		int midiIns = MidiInput::getAvailableDevices().size();
-		int midiOuts = MidiOutput::getAvailableDevices().size();
+		if (progressHandler_ && progressHandler_->shouldAbort()) return;
+		// Keep one snapshot: hot-plugging must not change the meaning of an output index.
+		auto inputs = MidiInput::getAvailableDevices();
+		auto outputs = MidiOutput::getAvailableDevices();
+		int midiOuts = outputs.size();
 
 		// This detector can be enabled on all ins during the scan
-		std::shared_ptr<IsSynth> callback = std::make_shared<IsSynth>(synth_);
-		isSynth_ = callback;
+		auto callback = isSynth_;
 
 		// Loop over all inputs and enable them, add the callback
-		for (int input = 0; input < midiIns; input++) {
-			auto inputName = MidiInput::getAvailableDevices()[input];
-			MidiController::instance()->enableMidiInput(inputName);
+		std::vector<std::unique_ptr<ScopedMidiInput>> inputListeners;
+		for (auto const &input : inputs) {
+			inputListeners.push_back(std::make_unique<ScopedMidiInput>(*MidiController::instance(), input));
 		}
 
 		// Now loop over outputs
 		for (int output = 0; output < midiOuts; output++) {
 			if (progressHandler_ && progressHandler_->shouldAbort()) break;
+			auto midiOutput = MidiController::instance()->getMidiOutput(outputs[output]);
+			if (!midiOutput->isValid()) continue;
 			callback->restart();
 			if (synth_.needsChannelSpecificDetection()) {
 				// Test all 16 channels
 				for (int channel = 0; channel < 16; channel++) {
+					if (progressHandler_ && progressHandler_->shouldAbort()) break;
 					// Send the synth detection signal
 					auto detectMessage = synth_.deviceDetect(channel);
 					//TODO:  I cannot use the synth's sendBlockOfMessagesToSynth() here because I do not have a synth pointer. Smell?
-					MidiController::instance()->getMidiOutput(MidiOutput::getAvailableDevices()[output])->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
+					midiOutput->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
 				}
 			}
 			else {
 				// Just one message is enough - use a "broadcast" channel or sysex device ID as parameter
 				auto detectMessage = synth_.deviceDetect(0x7f);
 				//TODO:  I cannot use the synth's sendBlockOfMessagesToSynth() here because I do not have a synth pointer. Smell?
-				MidiController::instance()->getMidiOutput(MidiOutput::getAvailableDevices()[output])->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
+				midiOutput->sendBlockOfMessagesFullSpeed(MidiHelpers::bufferFromMessages(detectMessage));
 			}
 
 			// Sleep
-			Thread::sleep(synth_.deviceDetectSleepMS());
+			for (int remaining = synth_.deviceDetectSleepMS(); remaining > 0; remaining -= 20) {
+				if (progressHandler_ && progressHandler_->shouldAbort()) break;
+				Thread::sleep(std::min(remaining, 20));
+			}
 
 			// must check this as often as possible, because this is
 			// how we know if the user's pressed 'cancel'
-			if (threadShouldExit())
+			if (progressHandler_ && progressHandler_->shouldAbort())
 				break;
 
 			// this will update the progress bar on the dialog box
-			if (progressHandler_) progressHandler_->setProgressPercentage(output / (double)midiOuts);
+			if (progressHandler_) progressHandler_->setProgressPercentage((output + 1) / (double)midiOuts);
 
 			// Copy results
 			for (auto const &found : callback->locations()) {
 				auto withOutput = found;
-				withOutput.output = MidiOutput::getAvailableDevices()[output];
+				withOutput.output = outputs[output];
 				locations_.push_back(withOutput);
 				// Super special case - we might want to terminate the successful device detection with a special message sent to the same output as the detect message!
 				MidiMessage endDetectMessage;
 				if (synth_.endDeviceDetect(endDetectMessage)) {
-					MidiController::instance()->getMidiOutput(MidiOutput::getAvailableDevices()[output])->sendMessageNow(endDetectMessage);
+					midiOutput->sendMessageNow(endDetectMessage);
 				}
 			}
 		}
 
-		// Loop over all inputs and turn them off, remove callback
-		for (int input = 0; input < midiIns; input++) {
-			auto inputName = MidiInput::getAvailableDevices()[input];
-			MidiController::instance()->disableMidiInput(inputName);
-		}
+		// Scoped listeners restore the inputs on completion, cancellation and exceptions.
 		
 	}
 
@@ -113,17 +118,10 @@ namespace midikraft {
 	{
 		auto nameCap = dynamic_cast<NamedDeviceCapability*>(&synth);
 		FindSynthOnMidiNetwork m(synth, fmt::format("Looking for {} on your MIDI network...", nameCap ? nameCap->getName() : "'invalid name'"), progressHandler);
-		m.startThread();
-		if (m.waitForThreadToExit(15000))
-		{
-			// thread finished normally..
-			return m.locations_;
-		}
-		else
-		{
-			// user pressed the cancel button respectively timeout, return empty list
-			return std::vector<MidiNetworkLocation>();
-		}
+		// The caller already runs detection on a worker. Do not destroy a still-running
+		// nested thread after an arbitrary 15-second timeout on larger MIDI networks.
+		m.run();
+		return m.locations_;
 	}
 
 }

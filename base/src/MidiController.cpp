@@ -209,6 +209,7 @@ namespace midikraft {
 					inputsOpen_[toEnable.identifier] = juce::MidiInput::openDevice(device.identifier, this);
 					if (inputsOpen_[toEnable.identifier]) {
 						inputsOpen_[toEnable.identifier]->start();
+						{ ScopedLock lock(enabledInputsLock_); enabledInputs_.insert(toEnable.identifier); }
 						spdlog::trace("MIDI input {} opened with ID {}", toEnable.name, device.identifier);
 						return true;
 					}
@@ -221,6 +222,7 @@ namespace midikraft {
 				else {
 					// Make sure it is still open and running. This could happen when e.g. a MIDI USB device is removed and inserted back in
 					inputsOpen_[toEnable.identifier]->start();
+					{ ScopedLock lock(enabledInputsLock_); enabledInputs_.insert(toEnable.identifier); }
 					spdlog::trace("MIDI input device {} restarted, id is {}", toEnable.name, toEnable.identifier);
 					return true;
 				}
@@ -232,6 +234,7 @@ namespace midikraft {
 
 	void MidiController::disableMidiInput(juce::MidiDeviceInfo const& toDisable) {
 		if (toDisable.identifier.isEmpty()) return;
+		{ ScopedLock lock(enabledInputsLock_); enabledInputs_.erase(toDisable.identifier); }
 
 		// Has this device ever been opened?
 		if (inputsOpen_.find(toDisable.identifier) == inputsOpen_.end()) {
@@ -241,6 +244,11 @@ namespace midikraft {
 			spdlog::trace("MIDI input {} stopped, id {}", toDisable.name, toDisable.identifier);
 			inputsOpen_[toDisable.identifier]->stop();
 		}
+	}
+
+	bool MidiController::isMidiInputEnabled(juce::MidiDeviceInfo const &input) const {
+		ScopedLock lock(enabledInputsLock_);
+		return enabledInputs_.count(input.identifier) != 0;
 	}
 
 	// These methods handle callbacks from the midi device
@@ -311,6 +319,7 @@ namespace midikraft {
 				// Nope, that one is gone, closing it!
 				spdlog::info("MIDI Input unplugged", input->second->getName());
 				input->second.reset();
+				{ ScopedLock lock(enabledInputsLock_); enabledInputs_.erase(input->first); }
 				toDelete.push_back(input->first);
 				dirty = true;
 			}

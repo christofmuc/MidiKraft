@@ -37,6 +37,7 @@ set(Sources
 	include/MasterkeyboardCapability.h	
 	include/MidiClockCapability.h
 	include/MidiController.h src/MidiController.cpp
+	include/MidiInputOwnership.h
 	include/MidiLocationCapability.h
 	include/MidiRequest.h src/MidiRequest.cpp
 	include/MTSFile.h src/MTSFile.cpp
@@ -73,6 +74,7 @@ if(MIDIKRAFT_BUILD_DETECTION_TESTS)
 	add_executable(midikraft_detection_tests tests/AutoDetectionTests.cpp)
 	target_link_libraries(midikraft_detection_tests PRIVATE midikraft-base)
 	add_test(NAME midikraft_detection_tests COMMAND midikraft_detection_tests)
+	set_tests_properties(midikraft_detection_tests PROPERTIES TIMEOUT 30)
 endif()
 
 # Pedantic about warnings

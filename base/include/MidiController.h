@@ -12,6 +12,7 @@
 #include <set>
 
 #include "DebounceTimer.h"
+#include "MidiInputOwnership.h"
 
 /*
 inline bool operator <(const juce::MidiDeviceInfo &a, const juce::MidiDeviceInfo &b)
@@ -112,6 +113,11 @@ namespace midikraft {
 		std::shared_ptr<SafeMidiOutput> getMidiOutput(juce::MidiDeviceInfo const &name);
 		bool enableMidiInput(juce::MidiDeviceInfo const &newInput);
 		void disableMidiInput(juce::MidiDeviceInfo const &input);
+		bool isMidiInputEnabled(juce::MidiDeviceInfo const &input) const;
+		// Each successful scoped acquisition must be released. An input stays running
+		// until both its final lease and any explicit enableMidiInput request are gone.
+		bool acquireMidiInput(juce::MidiDeviceInfo const &input);
+		void releaseMidiInput(juce::MidiDeviceInfo const &input);
         MidiDeviceInfo getMidiInputByIdentifier(String const &identifier);
         MidiDeviceInfo getMidiOutputByIdentifier(String const &identifier);
 
@@ -134,6 +140,8 @@ namespace midikraft {
 #if defined(MIDIKRAFT_BUILD_TESTS)
 		friend struct MidiControllerTestAccess;
 #endif
+		bool startMidiInput(juce::MidiDeviceInfo const &input);
+		void stopMidiInput(juce::MidiDeviceInfo const &input);
 
 		// Implementation of Callback
 		virtual void handleIncomingMidiMessage(MidiInput* source, const MidiMessage& message) override;
@@ -177,9 +185,29 @@ namespace midikraft {
 		std::map<String, std::shared_ptr<MidiOutput>> outputsOpen_;
 		std::map<String, std::shared_ptr<SafeMidiOutput>> safeOutputs_;
 		std::map<String, std::unique_ptr<MidiInput>> inputsOpen_;
+		MidiInputOwnership inputOwnership_;
 		std::function<void(const MidiMessage& message, const String& source, bool)> midiLogFunction_;
 
 		MidiLogLevel midiLogLevel_;
 	};
+
+	// Temporarily listen on an input without stopping another synth's existing listener.
+	template <typename Controller>
+	class ScopedMidiInputFor {
+	public:
+		ScopedMidiInputFor(Controller &controller, MidiDeviceInfo input)
+			: controller_(controller), input_(std::move(input)), enabled_(controller.acquireMidiInput(input_)) {}
+		~ScopedMidiInputFor() {
+			if (enabled_) controller_.releaseMidiInput(input_);
+		}
+		bool isEnabled() const { return enabled_; }
+		ScopedMidiInputFor(ScopedMidiInputFor const &) = delete;
+		ScopedMidiInputFor &operator=(ScopedMidiInputFor const &) = delete;
+	private:
+		Controller &controller_;
+		MidiDeviceInfo input_;
+		bool enabled_;
+	};
+	using ScopedMidiInput = ScopedMidiInputFor<MidiController>;
 	
 }

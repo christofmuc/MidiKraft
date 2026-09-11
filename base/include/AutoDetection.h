@@ -18,21 +18,20 @@ namespace midikraft {
 
 	class AutoDetection : public ChangeBroadcaster {
 	public:
-		AutoDetection();
-		virtual ~AutoDetection();
+		AutoDetection() = default;
+		virtual ~AutoDetection() = default;
 
 		void autoconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths, ProgressHandler *progressHandler);
-		void quickconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths);
+		void quickconfigure(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths, ProgressHandler *progressHandler = nullptr);
+		static bool hasSavedConnection(SimpleDiscoverableDevice *synth);
 		static void persistSetting(SimpleDiscoverableDevice *synth);
 		static void loadSettings(SimpleDiscoverableDevice *synth);
 
 	private:
 		void findSynth(SimpleDiscoverableDevice *synth, ProgressHandler *progressHandler);
-		bool checkSynth(SimpleDiscoverableDevice *synth);
+		bool checkSynth(SimpleDiscoverableDevice *synth, ProgressHandler *progressHandler);
 		void listenerToAllFound(std::vector<std::shared_ptr<SimpleDiscoverableDevice>> &allSynths);
 
-		MidiController::HandlerHandle handler_;
-		std::weak_ptr<IsSynth> isSynth_; // The synth currently detected by the single callback function. Can be expired in case we gave up on this
 	};
 
 }

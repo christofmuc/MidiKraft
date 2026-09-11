@@ -37,6 +37,7 @@ set(Sources
 	include/MasterkeyboardCapability.h	
 	include/MidiClockCapability.h
 	include/MidiController.h src/MidiController.cpp
+	include/MidiInputOwnership.h
 	include/MidiLocationCapability.h
 	include/MidiRequest.h src/MidiRequest.cpp
 	include/MTSFile.h src/MTSFile.cpp
@@ -68,6 +69,15 @@ set(Sources
 add_library(midikraft-base ${Sources})
 target_include_directories(midikraft-base PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 target_link_libraries(midikraft-base PUBLIC juce-utils spdlog::spdlog)
+
+option(MIDIKRAFT_BUILD_DETECTION_TESTS "Build hardware-independent detection regression tests" OFF)
+if(MIDIKRAFT_BUILD_DETECTION_TESTS)
+	enable_testing()
+	add_executable(midikraft_detection_tests tests/AutoDetectionTests.cpp)
+	target_link_libraries(midikraft_detection_tests PRIVATE midikraft-base)
+	add_test(NAME midikraft_detection_tests COMMAND midikraft_detection_tests)
+	set_tests_properties(midikraft_detection_tests PROPERTIES TIMEOUT 30)
+endif()
 
 # Pedantic about warnings
 if (MSVC)

@@ -256,8 +256,23 @@ namespace midikraft {
 		return safeOutputs_[midiOutput.identifier];
 	}
 
-	bool MidiController::enableMidiInput(juce::MidiDeviceInfo const& toEnable)
-	{
+	bool MidiController::enableMidiInput(juce::MidiDeviceInfo const& toEnable) {
+		return inputOwnership_.enable(toEnable.identifier, [this, &toEnable]() { return startMidiInput(toEnable); });
+	}
+
+	void MidiController::disableMidiInput(juce::MidiDeviceInfo const &input) {
+		inputOwnership_.disable(input.identifier, [this, &input]() { stopMidiInput(input); });
+	}
+
+	bool MidiController::acquireMidiInput(juce::MidiDeviceInfo const &input) {
+		return inputOwnership_.acquire(input.identifier, [this, &input]() { return startMidiInput(input); });
+	}
+
+	void MidiController::releaseMidiInput(juce::MidiDeviceInfo const &input) {
+		inputOwnership_.release(input.identifier, [this, &input]() { stopMidiInput(input); });
+	}
+
+	bool MidiController::startMidiInput(juce::MidiDeviceInfo const& toEnable) {
 		// Do not and never open a MIDI Input with an empty identifier, as this is a "catch all" function for JUCE, and you suddenly get duplicated messages everywhere!
 		if (toEnable.identifier.isEmpty()) return false;
 
@@ -289,7 +304,7 @@ namespace midikraft {
 		return false;
 	}
 
-	void MidiController::disableMidiInput(juce::MidiDeviceInfo const& toDisable) {
+	void MidiController::stopMidiInput(juce::MidiDeviceInfo const& toDisable) {
 		if (toDisable.identifier.isEmpty()) return;
 
 		// Has this device ever been opened?
@@ -300,6 +315,10 @@ namespace midikraft {
 			spdlog::trace("MIDI input {} stopped, id {}", toDisable.name, toDisable.identifier);
 			inputsOpen_[toDisable.identifier]->stop();
 		}
+	}
+
+	bool MidiController::isMidiInputEnabled(juce::MidiDeviceInfo const &input) const {
+		return inputOwnership_.isEnabled(input.identifier);
 	}
 
 	// These methods handle callbacks from the midi device
@@ -363,20 +382,25 @@ namespace midikraft {
 		
 		// Check if all open devices are still there, else stop them and delete them
 		//TODO Could I use the new set knownDevices_ here to an advantage?
-		std::vector<String> toDelete;
-		auto inputDevices = currentInputs(false);
-		for (auto input = inputsOpen_.begin(); input != inputsOpen_.end(); input++) {
-			if (std::none_of(inputDevices.cbegin(), inputDevices.cend(), [input](juce::MidiDeviceInfo const& info) { return info.identifier == input->first;  })) {
-				// Nope, that one is gone, closing it!
-				spdlog::info("MIDI Input unplugged", input->second->getName());
-				input->second.reset();
-				toDelete.push_back(input->first);
-				dirty = true;
+		std::set<juce::MidiDeviceInfo> inputDevices;
+		{
+			ScopedLock lock(inputOwnership_.lock_);
+			inputDevices = currentInputs(false);
+			std::vector<String> toDelete;
+			for (auto input = inputsOpen_.begin(); input != inputsOpen_.end(); input++) {
+				if (std::none_of(inputDevices.cbegin(), inputDevices.cend(), [input](juce::MidiDeviceInfo const& info) { return info.identifier == input->first;  })) {
+					// Nope, that one is gone, closing it!
+					spdlog::info("MIDI Input unplugged", input->second->getName());
+					input->second.reset();
+					inputOwnership_.disconnected(input->first);
+					toDelete.push_back(input->first);
+					dirty = true;
+				}
 			}
-		}
 
-		for (auto del : toDelete) {
-			inputsOpen_.erase(del);
+			for (auto del : toDelete) {
+				inputsOpen_.erase(del);
+			}
 		}
 
 		// Check if any new devices came up
@@ -436,8 +460,11 @@ namespace midikraft {
 
 		// Use any available input as a placeholder for the timeout notification; handlers that compare names will ignore it
 		MidiInput* placeholderInput = nullptr;
-		if (!inputsOpen_.empty()) {
-			placeholderInput = inputsOpen_.begin()->second.get();
+		{
+			ScopedLock lock(inputOwnership_.lock_);
+			if (!inputsOpen_.empty()) {
+				placeholderInput = inputsOpen_.begin()->second.get();
+			}
 		}
 
 		for (auto const& pending : pendingTimeouts) {

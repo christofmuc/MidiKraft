@@ -197,8 +197,7 @@ namespace midikraft {
 		return safeOutputs_[midiOutput.identifier];
 	}
 
-	bool MidiController::enableMidiInput(juce::MidiDeviceInfo const& toEnable)
-	{
+	bool MidiController::enableMidiInput(juce::MidiDeviceInfo const& toEnable) {
 		return inputOwnership_.enable(toEnable.identifier, [this, &toEnable]() { return startMidiInput(toEnable); });
 	}
 
@@ -214,8 +213,7 @@ namespace midikraft {
 		inputOwnership_.release(input.identifier, [this, &input]() { stopMidiInput(input); });
 	}
 
-	bool MidiController::startMidiInput(juce::MidiDeviceInfo const& toEnable)
-	{
+	bool MidiController::startMidiInput(juce::MidiDeviceInfo const& toEnable) {
 		// Do not and never open a MIDI Input with an empty identifier, as this is a "catch all" function for JUCE, and you suddenly get duplicated messages everywhere!
 		if (toEnable.identifier.isEmpty()) return false;
 

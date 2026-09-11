@@ -7,24 +7,41 @@
 namespace {
 	class TestSynth : public midikraft::SimpleDiscoverableDevice {
 	public:
-		std::string getName() const override { return "Detection test synth"; }
+		explicit TestSynth(std::string name = "Detection test synth") : name_(name) {}
+		std::string getName() const override { return name_; }
 		std::vector<juce::MidiMessage> deviceDetect(int) override {
 			++requests;
 			return {};
 		}
-		int deviceDetectSleepMS() override { return waitMs; }
+		int deviceDetectSleepMS() override {
+			++waitQueries;
+			return waitMs;
+		}
 		MidiChannel channelIfValidDeviceResponse(juce::MidiMessage const &) override { return MidiChannel::invalidChannel(); }
 		bool needsChannelSpecificDetection() override { return true; }
-		int requests = 0, waitMs = 10;
+		int requests = 0, waitMs = 10, waitQueries = 0;
+
+	private:
+		std::string name_;
 	};
 
-	class CancelledProgress : public ProgressHandler {
+	class UnexpectedDetection : public std::runtime_error {
 	public:
-		bool shouldAbort() const override { return true; }
+		explicit UnexpectedDetection(std::string const &message) : std::runtime_error(message) {}
+	};
+
+	class NoDetectionProgress : public ProgressHandler {
+	public:
+		explicit NoDetectionProgress(bool cancelled) : cancelled_(cancelled) {}
+		bool shouldAbort() const override { return cancelled_; }
 		void setProgressPercentage(double) override {}
-		void setMessage(std::string const &) override {}
+		// Fail before any physical ports can be opened if a skip guard regresses.
+		void setMessage(std::string const &message) override { throw UnexpectedDetection(message); }
 		void onSuccess() override {}
 		void onCancel() override {}
+
+	private:
+		bool cancelled_;
 	};
 
 	// Exercise input ownership without opening the test machine's physical MIDI ports.
@@ -86,19 +103,48 @@ namespace {
 			expectEquals(settings.get(synth->getName() + "-output"), std::string("Missing test output"));
 
 			beginTest("Cancellation leaves detection and routing unchanged and sends no probes");
-			CancelledProgress cancel;
-			synth->setChannel(MidiChannel::fromZeroBase(7));
-			detector.quickconfigure(selected, &cancel);
-			detector.autoconfigure(selected, &cancel);
-			expectEquals(synth->channel().toZeroBasedInt(), 7);
-			expectEquals(synth->requests, 0);
-			expect(!synth->wasDetected());
+			for (bool fullSearch : {false, true}) {
+				auto cancelledSynth = std::make_shared<TestSynth>("Cancelled detection test synth");
+				expect(!midikraft::AutoDetection::hasSavedConnection(cancelledSynth.get()));
+				cancelledSynth->setChannel(MidiChannel::fromZeroBase(7));
+				cancelledSynth->setInput({"Original input", "original-input"});
+				cancelledSynth->setOutput({"Original output", "original-output"});
+				std::vector<std::shared_ptr<midikraft::SimpleDiscoverableDevice>> cancelledSelection{cancelledSynth};
+				NoDetectionProgress cancel(true);
+				try {
+					if (fullSearch)
+						detector.autoconfigure(cancelledSelection, &cancel);
+					else
+						detector.quickconfigure(cancelledSelection, &cancel);
+				} catch (UnexpectedDetection const &error) {
+					expect(false, error.what());
+				}
+				expectEquals(cancelledSynth->channel().toZeroBasedInt(), 7);
+				expectEquals(cancelledSynth->midiInput().identifier, juce::String("original-input"));
+				expectEquals(cancelledSynth->midiOutput().identifier, juce::String("original-output"));
+				expectEquals(cancelledSynth->waitQueries, 0);
+				expectEquals(cancelledSynth->requests, 0);
+				expect(!cancelledSynth->wasDetected());
+			}
 
 			beginTest("Adaptations that disable detection are not probed");
-			synth->waitMs = -1;
-			detector.quickconfigure(selected);
-			detector.autoconfigure(selected, nullptr);
-			expectEquals(synth->requests, 0);
+			for (bool fullSearch : {false, true}) {
+				auto disabledSynth = std::make_shared<TestSynth>("Disabled detection test synth");
+				expect(!midikraft::AutoDetection::hasSavedConnection(disabledSynth.get()));
+				disabledSynth->waitMs = -1;
+				std::vector<std::shared_ptr<midikraft::SimpleDiscoverableDevice>> disabledSelection{disabledSynth};
+				NoDetectionProgress progress(false);
+				try {
+					if (fullSearch)
+						detector.autoconfigure(disabledSelection, &progress);
+					else
+						detector.quickconfigure(disabledSelection, &progress);
+				} catch (UnexpectedDetection const &error) {
+					expect(false, error.what());
+				}
+				expect(disabledSynth->waitQueries > 0, "Detection support must be checked before skipping the synth");
+				expectEquals(disabledSynth->requests, 0);
+			}
 
 			beginTest("A scan preserves another synth's input and releases its own temporary input");
 			FakeInputs inputs;

@@ -552,13 +552,15 @@ namespace midikraft {
 		}
 
 		bool putPatch(PatchHolder const& patch) {
+			const auto synthName = patch.synth()->getName();
+			const auto fingerprint = patch.md5();
 			try {
 				SQLite::Statement sql(db_, "INSERT INTO patches (synth, md5, name, type, data, favorite, regular, hidden, sourceName, sourceInfo, midiBankNo, midiProgramNo, categories, categoryUserDecision, comment, author, info)"
 					" VALUES (:SYN, :MD5, :NAM, :TYP, :DAT, :FAV, :REG, :HID, :SNM, :SRC, :BNK, :PRG, :CAT, :CUD, :COM, :AUT, :INF)");
 
 				// Insert values into prepared statement
-				sql.bind(":SYN", patch.synth()->getName().c_str());
-				sql.bind(":MD5", patch.md5());
+				sql.bind(":SYN", synthName.c_str());
+				sql.bind(":MD5", fingerprint);
 				sql.bind(":NAM", patch.name());
 				sql.bind(":TYP", patch.getType());
 				sql.bind(":DAT", patch.patch()->data().data(), (int)patch.patch()->data().size());
@@ -584,7 +586,10 @@ namespace midikraft {
 				sql.exec();
 			}
 			catch (SQLite::Exception& ex) {
-				spdlog::error("DATABASE ERROR in putPatch: SQL Exception {}", ex.what());
+				spdlog::error(
+					"DATABASE ERROR in putPatch for synth '{}' and fingerprint '{}': {} (SQLite code {}, extended code {})",
+					synthName, fingerprint, ex.what(), ex.getErrorCode(), ex.getExtendedErrorCode());
+				return false;
 			}
 			return true;
 		}
@@ -1166,13 +1171,19 @@ namespace midikraft {
 			return false;
 		}
 
-		std::map<std::string, PatchHolder> bulkGetPatches(std::vector<PatchHolder> const& patches, ProgressHandler* progress) {
+		using PatchKey = std::pair<std::string, std::string>;
+
+		PatchKey keyForPatch(PatchHolder const& patch) const {
+			return { patch.synth()->getName(), patch.md5() };
+		}
+
+		std::map<PatchKey, PatchHolder> bulkGetPatches(std::vector<PatchHolder> const& patches, ProgressHandler* progress) {
 			// Query the database for exactly those patches, we want to know which ones are already there!
-			std::map<std::string, PatchHolder> result;
+			std::map<PatchKey, PatchHolder> result;
 
 			int checkedForExistance = 0;
 			for (auto ph : patches) {
-				if (progress && progress->shouldAbort()) return std::map<std::string, PatchHolder>();
+				if (progress && progress->shouldAbort()) return {};
 				// First, calculate list of "IDs"
 				// Query the database if this exists. Normally, I would bulk, but as the database is local for now I think we're going to be fine
 				try {
@@ -1189,7 +1200,7 @@ namespace midikraft {
 						existingPatch.setPatchNumber(program);
 						std::string name = query.getColumn("name");
 						existingPatch.setName(name);
-						result.emplace(md5, existingPatch);
+						result.emplace(PatchKey{ ph.synth()->getName(), md5 }, existingPatch);
 					}
 				}
 				catch (SQLite::Exception& ex) {
@@ -1379,17 +1390,19 @@ namespace midikraft {
 			// Now store them in the database
 			for (auto const& list : newImportLists) {
 				spdlog::info("Storing import list {}", list.second->name());
-				this->putPatchList(list.second, false);
+				this->putPatchList(list.second);
 			}
 			for (auto const& list : editBufferLists) {
 				spdlog::info("Storing list of edit buffer imports for synth {}", list.second->synth()->getName());
-				this->putPatchList(list.second, false);
+				this->putPatchList(list.second);
 			}
 		}
 
 		size_t mergePatchesIntoDatabase(std::vector<PatchHolder>& patches, std::vector<PatchHolder>& outNewPatches, ProgressHandler* progress, unsigned updateChoice, bool useTransaction) {
 			// This works by doing a bulk get operation for the patches from the database...
 			auto knownPatches = bulkGetPatches(patches, progress);
+			std::vector<PatchHolder> newPatchCandidates;
+			outNewPatches.clear();
 
 			std::unique_ptr<SQLite::Transaction> transaction;
 			if (useTransaction) {
@@ -1401,23 +1414,25 @@ namespace midikraft {
 			for (auto& patch : patches) {
 				if (progress && progress->shouldAbort()) return 0;
 
-				auto md5_key = patch.md5();
+				auto patchKey = keyForPatch(patch);
+				auto const& md5Key = patchKey.second;
 
-				if (knownPatches.find(md5_key) != knownPatches.end()) {
+				if (knownPatches.find(patchKey) != knownPatches.end()) {
+					auto const& knownPatch = knownPatches.at(patchKey);
 					// Super special logic - do not set the name if the patch name is a default name to prevent us from losing manually given names or those imported from "better" sysex files
 					unsigned onlyUpdateThis = updateChoice;
 					if (hasDefaultName(patch.patch().get(), patch.name())) {
 						onlyUpdateThis = onlyUpdateThis & (~UPDATE_NAME);
 					}
-					if ((onlyUpdateThis & UPDATE_NAME) && (patch.name() != knownPatches[md5_key].name())) {
+					if ((onlyUpdateThis & UPDATE_NAME) && (patch.name() != knownPatch.name())) {
 						updatedNames++;
-						spdlog::info("Renaming {} with better name {}", knownPatches[md5_key].name(), patch.name());
+						spdlog::info("Renaming {} with better name {}", knownPatch.name(), patch.name());
 					}
 
 					// Update the database with the new info. If more than the name should be updated, we first need to load the full existing patch (the bulkGetPatches only is a projection with the name loaded only)
 					if (onlyUpdateThis != UPDATE_NAME) {
 						std::vector<PatchHolder> result;
-						if (getSinglePatch(patch.smartSynth(), md5_key, result)) {
+						if (getSinglePatch(patch.smartSynth(), md5Key, result)) {
 							updatePatch(patch, result.back(), onlyUpdateThis);
 						}
 						else {
@@ -1426,12 +1441,12 @@ namespace midikraft {
 					}
 					else {
 						// We don't need to get back to the database if we only update the name
-						updatePatch(patch, knownPatches[md5_key], UPDATE_NAME);
+						updatePatch(patch, knownPatch, UPDATE_NAME);
 					}
 				}
 				else {
 					// This is a new patch - it needs to be uploaded into the database!
-					outNewPatches.push_back(patch);
+					newPatchCandidates.push_back(patch);
 				}
 				if (progress) progress->setProgressPercentage(loop++ / (double)patches.size());
 			}
@@ -1442,15 +1457,15 @@ namespace midikraft {
 			}
 
 			//TODO can be replaced by repaired bulkPut
-			std::map<String, PatchHolder> md5Inserted;
+			std::map<PatchKey, PatchHolder> insertedPatches;
 			int sumOfAll = 0;
-			for (const auto& newPatch : outNewPatches) {
+			for (const auto& newPatch : newPatchCandidates) {
 				if (progress && progress->shouldAbort()) {
 					return (size_t)sumOfAll;
 				}
-				std::string patchMD5 = newPatch.md5();
-				if (md5Inserted.find(patchMD5) != md5Inserted.end()) {
-					auto duplicate = md5Inserted[patchMD5];
+				auto patchKey = keyForPatch(newPatch);
+				if (insertedPatches.find(patchKey) != insertedPatches.end()) {
+					auto duplicate = insertedPatches.at(patchKey);
 
 					// The new one could have better name?
 					if (hasDefaultName(duplicate.patch().get(), duplicate.name()) && !hasDefaultName(newPatch.patch().get(), newPatch.name())) {
@@ -1460,13 +1475,16 @@ namespace midikraft {
 					else {
 						spdlog::info("Skipping patch {} because it is a duplicate of {}", newPatch.name(), duplicate.name());
 					}
+					outNewPatches.push_back(newPatch);
 				}
 				else {
-					putPatch(newPatch);
-					md5Inserted[patchMD5] = newPatch;
-					sumOfAll++;
+					if (putPatch(newPatch)) {
+						insertedPatches.emplace(patchKey, newPatch);
+						outNewPatches.push_back(newPatch);
+						sumOfAll++;
+					}
 				}
-				if (progress) progress->setProgressPercentage(sumOfAll / (double)outNewPatches.size());
+				if (progress) progress->setProgressPercentage(sumOfAll / (double)newPatchCandidates.size());
 			}
 
 			if (transaction) transaction->commit();
@@ -1888,12 +1906,30 @@ namespace midikraft {
 		}
 
 		void addPatchToListInternal(std::string const& listId, std::string const& synthName, std::string const& md5, int insertIndex) {
-			SQLite::Statement insert(db_, "INSERT INTO patch_in_list (id, synth, md5, order_num) VALUES (:ID, :SYN, :MD5, :ONO)");
-			insert.bind(":ID", listId);
-			insert.bind(":SYN", synthName);
-			insert.bind(":MD5", md5);
-			insert.bind(":ONO", insertIndex);
-			insert.exec();
+			try {
+				SQLite::Statement insert(db_, "INSERT INTO patch_in_list (id, synth, md5, order_num) VALUES (:ID, :SYN, :MD5, :ONO)");
+				insert.bind(":ID", listId);
+				insert.bind(":SYN", synthName);
+				insert.bind(":MD5", md5);
+				insert.bind(":ONO", insertIndex);
+				insert.exec();
+			}
+			catch (SQLite::Exception& ex) {
+				bool parentPatchExists = false;
+				try {
+					SQLite::Statement parentQuery(db_, "SELECT 1 FROM patches WHERE synth = :SYN AND md5 = :MD5");
+					parentQuery.bind(":SYN", synthName);
+					parentQuery.bind(":MD5", md5);
+					parentPatchExists = parentQuery.executeStep();
+				}
+				catch (SQLite::Exception&) {
+					// Preserve the original exception and report the failed diagnostic query as unknown.
+				}
+				spdlog::error(
+					"DATABASE ERROR adding patch to list '{}' at position {}: synth '{}', fingerprint '{}', parent patch exists: {}; {} (SQLite code {}, extended code {})",
+					listId, insertIndex, synthName, md5, parentPatchExists, ex.what(), ex.getErrorCode(), ex.getExtendedErrorCode());
+				throw;
+			}
 		}
 
 		void addPatchToList(ListInfo info, PatchHolder const& patch, int insertIndex) {
@@ -2049,7 +2085,9 @@ namespace midikraft {
 					transaction->commit();
 			}
 			catch (SQLite::Exception& ex) {
-				spdlog::error("DATABASE ERROR in putPatchList: SQL Exception {}", ex.what());
+				spdlog::error(
+					"DATABASE ERROR storing patch list '{}' (id '{}', {} entries): {} (SQLite code {}, extended code {})",
+					patchList->name(), patchList->id(), patchList->patches().size(), ex.what(), ex.getErrorCode(), ex.getExtendedErrorCode());
 			}
 		}
 
